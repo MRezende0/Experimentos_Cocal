@@ -2,6 +2,7 @@ import streamlit as st
 import pandas as pd
 import gspread
 from oauth2client.service_account import ServiceAccountCredentials
+import ssl
 
 st.set_page_config(
     page_title="Compatibilidade de Produtos",
@@ -38,14 +39,39 @@ def local_css():
     """, unsafe_allow_html=True)
 
 def carregar_dados():
-    # TODO: Implementar a conexão com Google Sheets
-    # Por enquanto, usando dados de exemplo
-    dados = {
-        'Químico': ['a', 'b', 'c'],
-        'Biológico': ['x', 'y', 'z'],
-        'Resultado': ['Compatível', 'Incompatível', 'Compatível']
-    }
-    return pd.DataFrame(dados)
+    try:
+        # Configurar o contexto SSL (pode precisar para algumas redes corporativas)
+        ssl._create_default_https_context = ssl._create_unverified_context
+
+        # Definir os escopos necessários
+        scope = [
+            'https://spreadsheets.google.com/feeds',
+            'https://www.googleapis.com/auth/drive'
+        ]
+
+        # Carregar as credenciais do arquivo JSON
+        creds = ServiceAccountCredentials.from_json_keyfile_name(
+            'auth.json', 
+            scope
+        )
+
+        # Autorizar o cliente
+        client = gspread.authorize(creds)
+
+        # Acessar a planilha (substitua pela sua URL)
+        sheet = client.open_by_url(
+            'https://docs.google.com/spreadsheets/d/1lILLXICVkVekkm2EZ-20cLnkYFYvHnb14NL_Or7132U/edit#gid=0'
+        )
+
+        # Exemplo: Carregar dados da primeira aba
+        worksheet = sheet.get_worksheet(0)
+        dados = worksheet.get_all_records()
+
+        return pd.DataFrame(dados)
+
+    except Exception as e:
+        st.error(f"Erro na conexão: {str(e)}")
+        return pd.DataFrame()
 
 def main():
     local_css()
@@ -68,9 +94,9 @@ def main():
         # Layout em duas colunas
         col1, col2 = st.columns(2)
         
-        df = carregar_dados()
-        produtos_quimicos = sorted(df['Químico'].unique())
-        produtos_biologicos = sorted(df['Biológico'].unique())
+        dados = carregar_dados()
+        produtos_quimicos = sorted(dados['quimicos']['Químico'].unique())
+        produtos_biologicos = sorted(dados['biologicos']['Biológico'].unique())
         
         with col1:
             quimico = st.selectbox(
@@ -89,24 +115,42 @@ def main():
             )
         
         if quimico and biologico:
-            resultado = df[
-                (df['Químico'] == quimico) & 
-                (df['Biológico'] == biologico)
-            ]['Resultado'].values
+            # Encontrar IDs dos produtos selecionados
+            id_quimico = dados['quimicos'].loc[
+                dados['quimicos']['Nome'] == quimico, 'ID'].values[0]
             
-            if len(resultado) > 0:
+            id_biologico = dados['biologicos'].loc[
+                dados['biologicos']['Nome'] == biologico, 'ID'].values[0]
+            
+            # Verificar compatibilidade
+            resultado = dados['compatibilidades'][
+                (dados['compatibilidades']['Químico'] == id_quimico) &
+                (dados['compatibilidades']['Biológico'] == id_biologico)
+            ]
+            
+            if not resultado.empty:
+                status = resultado['Resultado'].values[0]
                 resultado = resultado[0]
-                classe_css = "compativel" if resultado == "Compatível" else "incompativel"
+                classe_css = "compativel" if status == "Compatível" else "incompativel"
                 st.markdown(f"""
                     <div class="resultado {classe_css}">
                         {resultado}
                     </div>
                 """, unsafe_allow_html=True)
             else:
-                st.warning("Combinação não encontrada no banco de dados.")
+                st.warning("Combinação não testada. Deseja solicitar um teste?")
+                if st.button("Solicitar Teste"):
+                    # Adicione lógica para atualizar a planilha
+                    st.success("Solicitação registrada!")
     
     elif pagina == "Produtos":
-        st.info("Página em desenvolvimento")
+        dados = carregar_dados()
+        st.subheader("Produtos Químicos")
+        st.dataframe(dados['quimicos'])
+        
+        st.subheader("Produtos Biológicos")
+        st.dataframe(dados['biologicos'])
+
     elif pagina == "Histórico":
         st.info("Página em desenvolvimento")
     elif pagina == "Configurações":
