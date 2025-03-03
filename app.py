@@ -875,13 +875,7 @@ def settings_page():
 
 ########################################## SIDEBAR E ROTEAMENTO ##########################################
 
-def main():
-    st.set_page_config(
-        page_title="Compatibilidade de Produtos",
-        page_icon="🧪",
-        layout="wide"
-    )
-    
+def main():    
     # Verificar se o usuário está autenticado
     if 'authenticated' not in st.session_state:
         st.session_state.authenticated = False
