@@ -18,7 +18,7 @@ import streamlit.components.v1 as components
 
 # Configurações iniciais
 st.set_page_config(
-    page_title="Plataforma de Experimentos",
+    page_title="Experimentos",
     page_icon="🧪",
     layout="wide"
 )
@@ -69,7 +69,8 @@ SHEET_ID = "1lILLXICVkVekkm2EZ-20cLnkYFYvHnb14NL_Or7132U"
 SHEET_GIDS = {
     "Resultados": "0",
     "Quimicos": "885876195",
-    "Biologicos": "1440941690"
+    "Biologicos": "1440941690",
+    "Solicitacoes": "1408097520"
 }
 
 @st.cache_resource
@@ -158,7 +159,8 @@ def load_all_data():
     return {
         "resultados": load_sheet_data("Resultados"),
         "quimicos": load_sheet_data("Quimicos"),
-        "biologicos": load_sheet_data("Biologicos")
+        "biologicos": load_sheet_data("Biologicos"),
+        "solicitacoes": load_sheet_data("Solicitacoes")
     }
 
 def get_product_id(df, product_name, product_type):
@@ -171,7 +173,7 @@ def get_product_id(df, product_name, product_type):
 ########################################## PÁGINA PRINCIPAL ##########################################
 
 def main_page():
-    st.title("🧪 Análise de Compatibilidade")
+    st.title("🧪 Compatibilidade")
     
     dados = load_all_data()
     
