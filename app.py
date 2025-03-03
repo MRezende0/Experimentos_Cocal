@@ -238,14 +238,16 @@ def compatibilidade():
             
             # Solicitar novo teste
             with st.form("solicitar_teste"):
-                data_solicitacao = st.date_input("Data desejada para o teste")
+                data_solicitacao = st.date_input("Data da Solicitação")
+                solicitante = st.name_input("Nome")
                 observacoes = st.text_area("Observações")
                 
                 if st.form_submit_button("Solicitar Teste"):
                     nova_solicitacao = {
                         "Data": data_solicitacao.strftime("%Y-%m-%d"),
-                        "Quimico": quimico,  # Usar nome em vez de ID
-                        "Biologico": biologico,  # Usar nome em vez de ID
+                        "Solicitante": solicitante,
+                        "Quimico": quimico,
+                        "Biologico": biologico,
                         "Observacoes": observacoes,
                         "Status": "Pendente"
                     }
