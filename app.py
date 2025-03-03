@@ -332,7 +332,7 @@ def compatibilidade():
 
 ########################################## GERENCIAMENTO ##########################################
 
-def management():
+def gerenciamento():
     st.title("📦 Gerenciamento")
 
     if 'edited_data' not in st.session_state:
@@ -788,7 +788,7 @@ def management():
 
 ########################################## CONFIGURAÇÕES ##########################################
 
-def settings_page():
+def configuracoes():
     st.title("⚙️ Configurações")
     
     # Criar abas para diferentes configurações
@@ -873,19 +873,34 @@ def settings_page():
         # Adicionar link para documentação
         st.markdown("[Documentação do Google Sheets API](https://developers.google.com/sheets/api/guides/concepts)")
 
-########################################## SIDEBAR E ROTEAMENTO ##########################################
+########################################## SIDEBAR ##########################################
 
 def main():
-    st.sidebar.image("imagens/logo-cocal.png", width=150)
-    st.sidebar.title("Navegação")
-    
-    pages = {
-        "Compatibilidade": compatibilidade,
-        "Gerenciamento": management,
-        "Configurações": settings_page
-    }
-        
-    pages[selected_page]()
+    st.sidebar.image("imagens/logo-cocal.png")
+    st.sidebar.title("Menu")
+    menu_option = st.sidebar.radio(
+        "Selecione a funcionalidade:",
+        ("Dashboard", "Registrar", "Atividades", "Reforma e Passagem", "Auditoria", "Extras")
+    )
+
+    st.sidebar.markdown("---")  # Linha separadora
+
+    if menu_option == "Compatibilidade":
+        compatibilidade()
+    elif menu_option == "Gerenciamento":
+        gerenciamento()
+    elif menu_option == "Configurações":
+        configuracoes()
+
+########################################## EXECUÇÃO ##########################################
 
 if __name__ == "__main__":
-    main()
+    if "logged_in" not in st.session_state:
+        st.session_state["logged_in"] = True
+
+    try:
+        if st.session_state["logged_in"]:
+            main()
+    except Exception as e:
+        st.error(f"Erro ao executar a aplicação: {e}")
+        st.stop()
