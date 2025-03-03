@@ -330,10 +330,10 @@ def compatibilidade():
                         else:
                             st.error("Falha ao registrar solicitação")
 
-########################################## GERENCIAMENTO DE PRODUTOS ##########################################
+########################################## GERENCIAMENTO ##########################################
 
-def product_management():
-    st.title("📦 Gerenciamento de Produtos")
+def management():
+    st.title("📦 Gerenciamento")
 
     if 'edited_data' not in st.session_state:
         st.session_state.edited_data = {}
@@ -352,26 +352,20 @@ def product_management():
         if dados["quimicos"].empty:
             st.error("Erro ao carregar dados dos produtos químicos!")
         else:
-            # Dividir em duas colunas: formulário e tabela
-            col1, col2 = st.columns([1, 2])
-            
-            with col1:
-                # Formulário para adicionar novo produto químico
-                st.subheader("Adicionar Novo Produto")
-                with st.form("novo_quimico_form"):
-                    nome = st.text_input("Nome do Produto")
-                    tipo = st.selectbox("Tipo", options=["Herbicida", "Fungicida", "Inseticida"])
-                    fabricante = st.text_input("Fabricante")
-                    concentracao = st.text_input("Concentração")
-                    classe = st.text_input("Classe")
-                    modo_acao = st.text_input("Modo de Ação")
+            with st.form("novo_quimico_form"):
+                nome = st.text_input("Nome do Produto")
+                tipo = st.selectbox("Tipo", options=["Herbicida", "Fungicida", "Inseticida"])
+                fabricante = st.text_input("Fabricante")
+                concentracao = st.text_input("Concentração")
+                classe = st.text_input("Classe")
+                modo_acao = st.text_input("Modo de Ação")
                     
-                    submitted = st.form_submit_button("Adicionar Produto")
-                    if submitted:
-                        if nome:
-                            novo_produto = {
-                                "Nome": nome,
-                                "Tipo": tipo,
+                submitted = st.form_submit_button("Adicionar Produto")
+                if submitted:
+                    if nome:
+                        novo_produto = {
+                            "Nome": nome,
+                            "Tipo": tipo,
                                 "Fabricante": fabricante,
                                 "Concentracao": concentracao,
                                 "Classe": classe,
@@ -379,22 +373,22 @@ def product_management():
                             }
                             
                             # Verificar se o produto já existe
-                            if nome in dados["quimicos"]["Nome"].values:
-                                st.warning(f"Produto '{nome}' já existe!")
-                            else:
-                                # Adicionar à planilha
-                                with st.spinner("Salvando novo produto..."):
-                                    if append_to_sheet(novo_produto, "Quimicos"):
-                                        st.success("Produto adicionado com sucesso!")
-                                        # Atualizar dados locais
-                                        nova_linha = pd.DataFrame([novo_produto])
-                                        st.session_state.local_data["quimicos"] = pd.concat([st.session_state.local_data["quimicos"], nova_linha], ignore_index=True)
-                                    else:
-                                        st.error("Falha ao adicionar produto")
+                        if nome in dados["quimicos"]["Nome"].values:
+                            st.warning(f"Produto '{nome}' já existe!")
                         else:
-                            st.warning("Nome do produto é obrigatório")
+                            # Adicionar à planilha
+                            with st.spinner("Salvando novo produto..."):
+                                if append_to_sheet(novo_produto, "Quimicos"):
+                                    st.success("Produto adicionado com sucesso!")
+                                    # Atualizar dados locais
+                                    nova_linha = pd.DataFrame([novo_produto])
+                                    st.session_state.local_data["quimicos"] = pd.concat([st.session_state.local_data["quimicos"], nova_linha], ignore_index=True)
+                                else:
+                                    st.error("Falha ao adicionar produto")
+                    else:
+                        st.warning("Nome do produto é obrigatório")
             
-            with col2:
+            with st.write("Tabela de Químicos"):
                 # Filtro para a tabela
                 filtro_nome = st.text_input("🔍 Filtrar por nome", key="filtro_quimicos")
                 
@@ -437,11 +431,8 @@ def product_management():
         st.subheader("Produtos Biológicos")
         if dados["biologicos"].empty:
             st.error("Erro ao carregar dados dos produtos biológicos!")
-        else:
-            # Dividir em duas colunas: formulário e tabela
-            col1, col2 = st.columns([1, 2])
-            
-            with col1:
+        else:            
+            with st.write("Adicionar Novo Produto"):
                 # Formulário para adicionar novo produto biológico
                 st.subheader("Adicionar Novo Produto")
                 with st.form("novo_biologico_form"):
@@ -480,7 +471,7 @@ def product_management():
                         else:
                             st.warning("Nome do produto é obrigatório")
             
-            with col2:
+            with st.write("Tabela de Produtos Biológicos"):
                 # Filtro para a tabela
                 filtro_nome = st.text_input("🔍 Filtrar por nome", key="filtro_biologicos")
                 
@@ -524,10 +515,7 @@ def product_management():
         if dados["resultados"].empty:
             st.error("Erro ao carregar dados dos resultados!")
         else:
-            # Dividir em duas colunas: formulário e tabela
-            col1, col2 = st.columns([1, 2])
-            
-            with col1:
+            with st.write("Adicionar Nova Compatibilidade"):
                 # Formulário para adicionar nova compatibilidade
                 st.subheader("Adicionar Nova Compatibilidade")
                 with st.form("nova_compatibilidade_form"):
@@ -586,7 +574,7 @@ def product_management():
                         else:
                             st.warning("Selecione os produtos químico e biológico")
             
-            with col2:
+            with st.write("Tabela de Resultados"):
                 # Filtros para a tabela
                 col_a, col_b = st.columns(2)
                 with col_a:
@@ -883,7 +871,7 @@ def main():
     
     pages = {
         "Compatibilidade": compatibilidade,
-        "Gerenciamento de Produtos": product_management,
+        "Gerenciamento de Produtos": management,
         "Histórico e Relatórios": history_reports,
         "Configurações": settings_page
     }
