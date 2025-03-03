@@ -322,14 +322,14 @@ def history_reports():
     st.subheader("Últimos Testes Realizados")
     st.dataframe(
         dados["resultados"].merge(
-            dados["quimicos"], left_on="Químico", right_on="ID"
+            dados["quimicos"], left_on="Quimico", right_on="ID"
         ).merge(
-            dados["biologicos"], left_on="Biológico", right_on="ID"
+            dados["biologicos"], left_on="Biologico", right_on="ID"
         )[["Nome_x", "Nome_y", "Resultado"]],
         hide_index=True,
         column_config={
-            "Nome_x": "Químico",
-            "Nome_y": "Biológico"
+            "Nome_x": "Quimico",
+            "Nome_y": "Biologico"
         }
     )
 
