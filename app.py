@@ -880,7 +880,7 @@ def main():
     st.sidebar.title("Menu")
     menu_option = st.sidebar.radio(
         "Selecione a funcionalidade:",
-        ("Dashboard", "Registrar", "Atividades", "Reforma e Passagem", "Auditoria", "Extras")
+        ("Compatibilidade", "Gerenciamento", "Configurações")
     )
 
     st.sidebar.markdown("---")  # Linha separadora
