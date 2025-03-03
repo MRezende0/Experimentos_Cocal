@@ -216,6 +216,7 @@ def update_sheet(df, sheet_name: str) -> bool:
 def load_all_data():
     # Carregar dados com um pequeno atraso entre as requisições para evitar exceder a quota
     resultados = _load_sheet_with_delay("Resultados")
+    resultados["Data"] = pd.to_datetime(resultados["Data"], format="%Y-%m-%d", errors="coerce")
     time.sleep(1)  # Delay para evitar exceder limites de quota
     quimicos = _load_sheet_with_delay("Quimicos")
     time.sleep(1)  # Delay para evitar exceder limites de quota
