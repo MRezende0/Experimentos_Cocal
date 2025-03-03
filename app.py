@@ -175,11 +175,16 @@ def append_to_sheet(data_dict, sheet_name):
         st.error(f"Erro ao adicionar dados: {str(e)}")
         return False
 
-def update_sheet(df: pd.DataFrame, sheet_name: str) -> bool:
+def update_sheet(df, sheet_name: str) -> bool:
     def _update():
         try:
             worksheet = get_worksheet(sheet_name)
             if not worksheet:
+                return False
+                
+            # Garantir que df seja um DataFrame
+            if not isinstance(df, pd.DataFrame):
+                st.error(f"Erro: O objeto passado para atualização não é um DataFrame válido")
                 return False
                 
             # Atualizar apenas células modificadas
@@ -336,15 +341,6 @@ def product_management():
     if 'local_data' not in st.session_state:
         st.session_state.local_data = load_all_data()
         
-    # Botão para recarregar dados manualmente
-    col1, col2 = st.columns([3, 1])
-    with col2:
-        if st.button("🔄 Recarregar Dados", key="reload_data"):
-            with st.spinner("Recarregando dados..."):
-                st.cache_data.clear()
-                st.session_state.local_data = load_all_data()
-                st.success("Dados recarregados com sucesso!")
-    
     # Usar dados da sessão em vez de recarregar a cada interação
     dados = st.session_state.local_data
     
@@ -355,143 +351,315 @@ def product_management():
         if dados["quimicos"].empty:
             st.error("Erro ao carregar dados dos produtos químicos!")
         else:
-            # Usar o data_editor sem recarregar os dados a cada edição
-            df_edit = st.data_editor(
-                dados["quimicos"],
-                num_rows="dynamic",
-                key="quimicos_editor",
-                on_change=lambda: st.session_state.update(edited_data=True),
-                column_config={
-                    "Nome": "Produto Químico",
-                    "Tipo": st.column_config.SelectboxColumn(options=["Herbicida", "Fungicida", "Inseticida"]),
-                    "Fabricante": "Fabricante",
-                    "Concentracao": "Concentração",
-                    "Classe": "Classe",
-                    "ModoAcao": "Modo de Ação"
-                },
-                disabled=False
-            )
-            if st.button("Salvar Quimicos"):
-                with st.spinner("Salvando dados..."):
-                    if 'quimicos_editor' in st.session_state:
-                        # Atualizar dados locais primeiro
-                        st.session_state.local_data["quimicos"] = st.session_state.quimicos_editor
-                        
-                        # Depois enviar para o Google Sheets
-                        if update_sheet(st.session_state.quimicos_editor, "Quimicos"):
-                            st.session_state.edited_data = False
-                            st.success("Dados salvos com sucesso!")
+            # Dividir em duas colunas: formulário e tabela
+            col1, col2 = st.columns([1, 2])
+            
+            with col1:
+                # Formulário para adicionar novo produto químico
+                st.subheader("Adicionar Novo Produto")
+                with st.form("novo_quimico_form"):
+                    nome = st.text_input("Nome do Produto")
+                    tipo = st.selectbox("Tipo", options=["Herbicida", "Fungicida", "Inseticida"])
+                    fabricante = st.text_input("Fabricante")
+                    concentracao = st.text_input("Concentração")
+                    classe = st.text_input("Classe")
+                    modo_acao = st.text_input("Modo de Ação")
+                    
+                    submitted = st.form_submit_button("Adicionar Produto")
+                    if submitted:
+                        if nome:
+                            novo_produto = {
+                                "Nome": nome,
+                                "Tipo": tipo,
+                                "Fabricante": fabricante,
+                                "Concentracao": concentracao,
+                                "Classe": classe,
+                                "ModoAcao": modo_acao
+                            }
+                            
+                            # Verificar se o produto já existe
+                            if nome in dados["quimicos"]["Nome"].values:
+                                st.warning(f"Produto '{nome}' já existe!")
+                            else:
+                                # Adicionar à planilha
+                                with st.spinner("Salvando novo produto..."):
+                                    if append_to_sheet(novo_produto, "Quimicos"):
+                                        st.success("Produto adicionado com sucesso!")
+                                        # Atualizar dados locais
+                                        nova_linha = pd.DataFrame([novo_produto])
+                                        st.session_state.local_data["quimicos"] = pd.concat([st.session_state.local_data["quimicos"], nova_linha], ignore_index=True)
+                                    else:
+                                        st.error("Falha ao adicionar produto")
+                        else:
+                            st.warning("Nome do produto é obrigatório")
+            
+            with col2:
+                # Filtro para a tabela
+                filtro_nome = st.text_input("🔍 Filtrar por nome", key="filtro_quimicos")
+                
+                # Aplicar filtro
+                if filtro_nome:
+                    df_filtrado = dados["quimicos"][dados["quimicos"]["Nome"].str.contains(filtro_nome, case=False)]
+                else:
+                    df_filtrado = dados["quimicos"]
+                
+                # Tabela editável
+                st.data_editor(
+                    df_filtrado,
+                    num_rows="dynamic",
+                    key="quimicos_editor",
+                    on_change=lambda: st.session_state.update(edited_data=True),
+                    column_config={
+                        "Nome": "Produto Químico",
+                        "Tipo": st.column_config.SelectboxColumn(options=["Herbicida", "Fungicida", "Inseticida"]),
+                        "Fabricante": "Fabricante",
+                        "Concentracao": "Concentração",
+                        "Classe": "Classe",
+                        "ModoAcao": "Modo de Ação"
+                    },
+                    use_container_width=True
+                )
+                
+                # Botão para salvar alterações
+                if st.button("Salvar Alterações", key="save_quimicos"):
+                    with st.spinner("Salvando dados..."):
+                        if 'quimicos_editor' in st.session_state:
+                            # Atualizar dados locais primeiro
+                            st.session_state.local_data["quimicos"] = st.session_state.quimicos_editor
+                            
+                            # Depois enviar para o Google Sheets
+                            if update_sheet(st.session_state.quimicos_editor, "Quimicos"):
+                                st.session_state.edited_data = False
+                                st.success("Dados salvos com sucesso!")
     
     with tab2:
         st.subheader("Produtos Biológicos")
         if dados["biologicos"].empty:
             st.error("Erro ao carregar dados dos produtos biológicos!")
         else:
-            df_edit = st.data_editor(
-                dados["biologicos"],
-                num_rows="dynamic",
-                key="biologicos_editor",
-                on_change=lambda: st.session_state.update(edited_data=True),
-                column_config={
-                    "Nome": "Produto Biológico",
-                    "Tipo": st.column_config.SelectboxColumn(options=["Bioestimulante", "Controle Biológico"]),
-                    "IngredienteAtivo": "Ingrediente Ativo",
-                    "Formulacao": "Formulação",
-                    "Aplicacao": "Aplicação",
-                    "Validade": "Validade"
-                },
-                disabled=False
-            )
-            if st.button("Salvar Biológicos"):
-                with st.spinner("Salvando dados..."):
-                    if 'biologicos_editor' in st.session_state:
-                        # Atualizar dados locais primeiro
-                        st.session_state.local_data["biologicos"] = st.session_state.biologicos_editor
-                        
-                        # Depois enviar para o Google Sheets
-                        if update_sheet(st.session_state.biologicos_editor, "Biologicos"):
-                            st.session_state.edited_data = False
-                            st.success("Dados salvos com sucesso!")
+            # Dividir em duas colunas: formulário e tabela
+            col1, col2 = st.columns([1, 2])
+            
+            with col1:
+                # Formulário para adicionar novo produto biológico
+                st.subheader("Adicionar Novo Produto")
+                with st.form("novo_biologico_form"):
+                    nome = st.text_input("Nome do Produto")
+                    tipo = st.selectbox("Tipo", options=["Bioestimulante", "Controle Biológico"])
+                    ingrediente_ativo = st.text_input("Ingrediente Ativo")
+                    formulacao = st.text_input("Formulação")
+                    aplicacao = st.text_input("Aplicação")
+                    validade = st.text_input("Validade")
+                    
+                    submitted = st.form_submit_button("Adicionar Produto")
+                    if submitted:
+                        if nome:
+                            novo_produto = {
+                                "Nome": nome,
+                                "Tipo": tipo,
+                                "IngredienteAtivo": ingrediente_ativo,
+                                "Formulacao": formulacao,
+                                "Aplicacao": aplicacao,
+                                "Validade": validade
+                            }
+                            
+                            # Verificar se o produto já existe
+                            if nome in dados["biologicos"]["Nome"].values:
+                                st.warning(f"Produto '{nome}' já existe!")
+                            else:
+                                # Adicionar à planilha
+                                with st.spinner("Salvando novo produto..."):
+                                    if append_to_sheet(novo_produto, "Biologicos"):
+                                        st.success("Produto adicionado com sucesso!")
+                                        # Atualizar dados locais
+                                        nova_linha = pd.DataFrame([novo_produto])
+                                        st.session_state.local_data["biologicos"] = pd.concat([st.session_state.local_data["biologicos"], nova_linha], ignore_index=True)
+                                    else:
+                                        st.error("Falha ao adicionar produto")
+                        else:
+                            st.warning("Nome do produto é obrigatório")
+            
+            with col2:
+                # Filtro para a tabela
+                filtro_nome = st.text_input("🔍 Filtrar por nome", key="filtro_biologicos")
+                
+                # Aplicar filtro
+                if filtro_nome:
+                    df_filtrado = dados["biologicos"][dados["biologicos"]["Nome"].str.contains(filtro_nome, case=False)]
+                else:
+                    df_filtrado = dados["biologicos"]
+                
+                # Tabela editável
+                st.data_editor(
+                    df_filtrado,
+                    num_rows="dynamic",
+                    key="biologicos_editor",
+                    on_change=lambda: st.session_state.update(edited_data=True),
+                    column_config={
+                        "Nome": "Produto Biológico",
+                        "Tipo": st.column_config.SelectboxColumn(options=["Bioestimulante", "Controle Biológico"]),
+                        "IngredienteAtivo": "Ingrediente Ativo",
+                        "Formulacao": "Formulação",
+                        "Aplicacao": "Aplicação",
+                        "Validade": "Validade"
+                    },
+                    use_container_width=True
+                )
+                
+                # Botão para salvar alterações
+                if st.button("Salvar Alterações", key="save_biologicos"):
+                    with st.spinner("Salvando dados..."):
+                        if 'biologicos_editor' in st.session_state:
+                            # Atualizar dados locais primeiro
+                            st.session_state.local_data["biologicos"] = st.session_state.biologicos_editor
+                            
+                            # Depois enviar para o Google Sheets
+                            if update_sheet(st.session_state.biologicos_editor, "Biologicos"):
+                                st.session_state.edited_data = False
+                                st.success("Dados salvos com sucesso!")
     
     with tab3:
         st.subheader("Resultados de Compatibilidade")
         if dados["resultados"].empty:
             st.error("Erro ao carregar dados dos resultados!")
         else:
-            # Criar uma cópia editável dos resultados
-            if 'resultados_editor' not in st.session_state:
-                st.session_state.resultados_editor = dados["resultados"].copy()
+            # Dividir em duas colunas: formulário e tabela
+            col1, col2 = st.columns([1, 2])
             
-            # Adicionar botão para adicionar nova linha
-            if st.button("➕ Adicionar Nova Compatibilidade", key="add_compat"):
-                # Criar uma nova linha com valores padrão
-                nova_linha = pd.DataFrame([{
-                    "Data": datetime.now().strftime("%Y-%m-%d"),
-                    "Quimico": dados["quimicos"]['Nome'].iloc[0] if not dados["quimicos"].empty else "",
-                    "Biologico": dados["biologicos"]['Nome'].iloc[0] if not dados["biologicos"].empty else "",
-                    "Duracao": 0,
-                    "Tipo": "Simples",
-                    "Resultado": "Não testado"
-                }])
-                
-                # Adicionar à tabela editável
-                st.session_state.resultados_editor = pd.concat([st.session_state.resultados_editor, nova_linha], ignore_index=True)
-                st.session_state.update(edited_data=True)
-            
-            # Editor de tabela para resultados
-            st.data_editor(
-                st.session_state.resultados_editor,
-                key="resultados_editor",
-                num_rows="dynamic",
-                on_change=lambda: st.session_state.update(edited_data=True),
-                column_config={
-                    "Data": st.column_config.DateColumn(
-                        "Data do Teste",
-                        format="YYYY-MM-DD",
-                        required=True
-                    ),
-                    "Quimico": st.column_config.SelectboxColumn(
-                        "Produto Químico",
-                        options=sorted(dados["quimicos"]['Nome'].unique()),
-                        required=True
-                    ),
-                    "Biologico": st.column_config.SelectboxColumn(
-                        "Produto Biológico",
-                        options=sorted(dados["biologicos"]['Nome'].unique()),
-                        required=True
-                    ),
-                    "Duracao": st.column_config.NumberColumn(
-                        "Duração (horas)",
-                        min_value=0,
-                        default=0
-                    ),
-                    "Tipo": st.column_config.SelectboxColumn(
-                        "Tipo de Teste",
-                        options=["Simples", "Composto"],
-                        required=True
-                    ),
-                    "Resultado": st.column_config.SelectboxColumn(
-                        "Resultado",
-                        options=["Compatível", "Incompatível", "Não testado"],
-                        required=True
-                    )
-                },
-                use_container_width=True
-            )
-            
-            # Botão para salvar alterações
-            if st.button("💾 Salvar Compatibilidades", key="save_compat"):
-                with st.spinner("Salvando dados..."):
-                    if 'resultados_editor' in st.session_state:
-                        # Atualizar dados locais primeiro
-                        st.session_state.local_data["resultados"] = st.session_state.resultados_editor
-                        
-                        # Depois enviar para o Google Sheets
-                        if update_sheet(st.session_state.resultados_editor, "Resultados"):
-                            st.session_state.edited_data = False
-                            st.success("Dados salvos com sucesso!")
+            with col1:
+                # Formulário para adicionar nova compatibilidade
+                st.subheader("Adicionar Nova Compatibilidade")
+                with st.form("nova_compatibilidade_form"):
+                    col_a, col_b = st.columns(2)
+                    with col_a:
+                        quimico = st.selectbox(
+                            "Produto Químico",
+                            options=sorted(dados["quimicos"]['Nome'].unique()),
+                            index=None
+                        )
+                    with col_b:
+                        biologico = st.selectbox(
+                            "Produto Biológico",
+                            options=sorted(dados["biologicos"]['Nome'].unique()),
+                            index=None
+                        )
+                    
+                    col_a, col_b = st.columns(2)
+                    with col_a:
+                        data_teste = st.date_input("Data do Teste")
+                        duracao = st.number_input("Duração (horas)", min_value=0, value=0)
+                    with col_b:
+                        tipo = st.selectbox("Tipo de Teste", options=["Simples", "Composto"])
+                        resultado = st.selectbox("Resultado", options=["Compatível", "Incompatível", "Não testado"])
+                    
+                    submitted = st.form_submit_button("Adicionar Compatibilidade")
+                    if submitted:
+                        if quimico and biologico:
+                            nova_compatibilidade = {
+                                "Data": data_teste.strftime("%Y-%m-%d"),
+                                "Quimico": quimico,
+                                "Biologico": biologico,
+                                "Duracao": duracao,
+                                "Tipo": tipo,
+                                "Resultado": resultado
+                            }
+                            
+                            # Verificar se a combinação já existe
+                            combinacao_existente = dados["resultados"][
+                                (dados["resultados"]["Quimico"] == quimico) & 
+                                (dados["resultados"]["Biologico"] == biologico)
+                            ]
+                            
+                            if not combinacao_existente.empty:
+                                st.warning(f"Combinação '{quimico} x {biologico}' já existe!")
+                            else:
+                                # Adicionar à planilha
+                                with st.spinner("Salvando nova compatibilidade..."):
+                                    if append_to_sheet(nova_compatibilidade, "Resultados"):
+                                        st.success("Compatibilidade adicionada com sucesso!")
+                                        # Atualizar dados locais
+                                        nova_linha = pd.DataFrame([nova_compatibilidade])
+                                        st.session_state.local_data["resultados"] = pd.concat([st.session_state.local_data["resultados"], nova_linha], ignore_index=True)
+                                    else:
+                                        st.error("Falha ao adicionar compatibilidade")
                         else:
-                            st.error("Erro ao salvar dados!")
+                            st.warning("Selecione os produtos químico e biológico")
+            
+            with col2:
+                # Filtros para a tabela
+                col_a, col_b = st.columns(2)
+                with col_a:
+                    filtro_quimico = st.selectbox(
+                        "🔍 Filtrar por Produto Químico",
+                        options=["Todos"] + sorted(dados["resultados"]["Quimico"].unique().tolist()),
+                        index=0
+                    )
+                with col_b:
+                    filtro_biologico = st.selectbox(
+                        "🔍 Filtrar por Produto Biológico",
+                        options=["Todos"] + sorted(dados["resultados"]["Biologico"].unique().tolist()),
+                        index=0
+                    )
+                
+                # Aplicar filtros
+                df_filtrado = dados["resultados"].copy()
+                if filtro_quimico != "Todos":
+                    df_filtrado = df_filtrado[df_filtrado["Quimico"] == filtro_quimico]
+                if filtro_biologico != "Todos":
+                    df_filtrado = df_filtrado[df_filtrado["Biologico"] == filtro_biologico]
+                
+                # Tabela editável
+                st.data_editor(
+                    df_filtrado,
+                    num_rows="dynamic",
+                    key="resultados_editor",
+                    on_change=lambda: st.session_state.update(edited_data=True),
+                    column_config={
+                        "Data": st.column_config.DateColumn(
+                            "Data do Teste",
+                            format="YYYY-MM-DD",
+                            required=True
+                        ),
+                        "Quimico": st.column_config.SelectboxColumn(
+                            "Produto Químico",
+                            options=sorted(dados["quimicos"]['Nome'].unique()),
+                            required=True
+                        ),
+                        "Biologico": st.column_config.SelectboxColumn(
+                            "Produto Biológico",
+                            options=sorted(dados["biologicos"]['Nome'].unique()),
+                            required=True
+                        ),
+                        "Duracao": st.column_config.NumberColumn(
+                            "Duração (horas)",
+                            min_value=0,
+                            default=0
+                        ),
+                        "Tipo": st.column_config.SelectboxColumn(
+                            "Tipo de Teste",
+                            options=["Simples", "Composto"],
+                            required=True
+                        ),
+                        "Resultado": st.column_config.SelectboxColumn(
+                            "Resultado",
+                            options=["Compatível", "Incompatível", "Não testado"],
+                            required=True
+                        )
+                    },
+                    use_container_width=True
+                )
+                
+                # Botão para salvar alterações
+                if st.button("Salvar Alterações", key="save_resultados"):
+                    with st.spinner("Salvando dados..."):
+                        if 'resultados_editor' in st.session_state:
+                            # Atualizar dados locais primeiro
+                            st.session_state.local_data["resultados"] = st.session_state.resultados_editor
+                            
+                            # Depois enviar para o Google Sheets
+                            if update_sheet(st.session_state.resultados_editor, "Resultados"):
+                                st.session_state.edited_data = False
+                                st.success("Dados salvos com sucesso!")
 
 ########################################## HISTÓRICO E RELATÓRIOS ##########################################
 
@@ -698,16 +866,10 @@ def settings_page():
         # Mostrar informações sobre o aplicativo
         st.info("Aplicativo de Experimentos Cocal")
         st.write("**Versão:** 1.0.0")
-        st.write("**Desenvolvido por:** Matheus Rezende")
+        st.write("**Desenvolvido por:** Matheus Rezende - Analista de Geotecnologia")
         
         # Mostrar informações sobre o ambiente
         st.subheader("Ambiente de Execução")
-        # st.code(f"""
-        # Python: {pd.__version__}
-        # Pandas: {pd.__version__}
-        # Streamlit: {st.__version__}
-        # Plotly: {px.__version__}
-        # """)
         
         # Adicionar link para documentação
         st.markdown("[Documentação do Google Sheets API](https://developers.google.com/sheets/api/guides/concepts)")
