@@ -195,7 +195,7 @@ def main_page():
         id_biologico = get_product_id(dados["biologicos"], biologico, "Biológico")
         
         if id_quimico and id_biologico:
-            compatibilidade = dados["compatibilidades"].query(
+            compatibilidade = dados["resultados"].query(
                 f"Químico == {id_quimico} and Biológico == {id_biologico}"
             )
             
