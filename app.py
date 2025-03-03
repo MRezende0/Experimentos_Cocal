@@ -215,8 +215,8 @@ def compatibilidade():
         if id_quimico and id_biologico:
             # Procurar na planilha de Resultados
             resultado_existente = dados["resultados"][
-                (dados["resultados"]["Químico"] == id_quimico) &
-                (dados["resultados"]["Biológico"] == id_biologico)
+                (dados["resultados"]["Quimico"] == id_quimico) &
+                (dados["resultados"]["Biologico"] == id_biologico)
             ]
             
             if not resultado_existente.empty:
