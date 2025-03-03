@@ -129,7 +129,17 @@ def load_sheet_data(sheet_name: str) -> pd.DataFrame:
     def _load():
         worksheet = get_worksheet(sheet_name)
         if worksheet:
-            return pd.DataFrame(worksheet.get_all_records())
+            try:
+                # Adicionar tratamento de erro específico para quota excedida
+                return pd.DataFrame(worksheet.get_all_records())
+            except Exception as e:
+                if "Quota exceeded" in str(e):
+                    st.warning(f"Limite de requisições excedido para {sheet_name}. Usando dados em cache.")
+                    # Retornar DataFrame vazio mas não mostrar erro
+                    return pd.DataFrame()
+                else:
+                    st.error(f"Erro ao carregar dados de {sheet_name}: {str(e)}")
+                    return pd.DataFrame()
         return pd.DataFrame()  # Retorna DataFrame vazio se worksheet for None
     
     result = retry_with_backoff(_load)
@@ -153,8 +163,13 @@ def append_to_sheet(data_dict, sheet_name):
             # Converter para lista mantendo a ordem das colunas
             headers = worksheet.row_values(1)
             row = [converted_data.get(header, "") for header in headers]
-            worksheet.append_row(row)
-            return True
+            
+            # Adicionar com retry para lidar com limites de quota
+            def _append():
+                worksheet.append_row(row)
+                return True
+                
+            return retry_with_backoff(_append)
         return False
     except Exception as e:
         st.error(f"Erro ao adicionar dados: {str(e)}")
@@ -171,39 +186,72 @@ def update_sheet(df: pd.DataFrame, sheet_name: str) -> bool:
             current_data = worksheet.get_all_records()
             current_df = pd.DataFrame(current_data)
             
-            # Encontrar diferenças
-            new_rows = df[~df.apply(tuple,1).isin(current_df.apply(tuple,1))]
+            # Verificar se há diferenças significativas antes de atualizar
+            if not current_df.empty and len(current_df) == len(df):
+                # Se o número de linhas for o mesmo, verificar se há mudanças
+                if current_df.equals(df):
+                    st.info("Nenhuma mudança detectada. Não é necessário salvar.")
+                    return True
             
-            if not new_rows.empty:
-                worksheet.append_rows(new_rows.values.tolist())
+            # Limitar o número de atualizações
+            with st.spinner(f"Atualizando {sheet_name}..."):
+                worksheet.clear()
+                worksheet.update([df.columns.tolist()] + df.values.tolist())
                 
             return True
         except Exception as e:
-            st.error(f"Erro ao atualizar {sheet_name}: {str(e)}")
+            if "Quota exceeded" in str(e):
+                st.warning("Limite de requisições excedido. Tente novamente em alguns minutos.")
+            else:
+                st.error(f"Erro ao atualizar {sheet_name}: {str(e)}")
             return False
     return retry_with_backoff(_update)
 
-########################################## CARREGAMENTO DE DADOS ##########################################
-
 @st.cache_data(ttl=3600)
 def load_all_data():
+    # Carregar dados com um pequeno atraso entre as requisições para evitar exceder a quota
+    resultados = _load_sheet_with_delay("Resultados")
+    time.sleep(1)  # Delay para evitar exceder limites de quota
+    quimicos = _load_sheet_with_delay("Quimicos")
+    time.sleep(1)  # Delay para evitar exceder limites de quota
+    biologicos = _load_sheet_with_delay("Biologicos")
+    time.sleep(1)  # Delay para evitar exceder limites de quota
+    solicitacoes = _load_sheet_with_delay("Solicitacoes")
+    
     return {
-        "resultados": load_sheet_data("Resultados"),
-        "quimicos": load_sheet_data("Quimicos"),
-        "biologicos": load_sheet_data("Biologicos"),
-        "solicitacoes": load_sheet_data("Solicitacoes")
+        "resultados": resultados,
+        "quimicos": quimicos,
+        "biologicos": biologicos,
+        "solicitacoes": solicitacoes
     }
 
 def _load_sheet_with_delay(sheet_name):
-    time.sleep(1)  # Delay artificial entre requisições
-    return load_sheet_data(sheet_name)
+    try:
+        return load_sheet_data(sheet_name)
+    except Exception as e:
+        st.error(f"Erro ao carregar {sheet_name}: {str(e)}")
+        return pd.DataFrame()
 
 ########################################## COMPATIBILIDADE ##########################################
 
 def compatibilidade():
     st.title("🧪 Compatibilidade")
     
-    dados = load_all_data()
+    # Inicializar dados locais se não existirem na sessão
+    if 'local_data' not in st.session_state:
+        st.session_state.local_data = load_all_data()
+        
+    # Botão para recarregar dados manualmente
+    col1, col2 = st.columns([3, 1])
+    with col2:
+        if st.button("🔄 Recarregar Dados", key="reload_compat"):
+            with st.spinner("Recarregando dados..."):
+                st.cache_data.clear()
+                st.session_state.local_data = load_all_data()
+                st.success("Dados recarregados com sucesso!")
+    
+    # Usar dados da sessão em vez de recarregar a cada interação
+    dados = st.session_state.local_data
     
     # Verificar se os dados foram carregados corretamente
     if dados["quimicos"].empty or dados["biologicos"].empty:
@@ -215,14 +263,16 @@ def compatibilidade():
         quimico = st.selectbox(
             "Produto Químico",
             options=sorted(dados["quimicos"]['Nome'].unique()),
-            index=None
+            index=None,
+            key="quimico_compat"
         )
     
     with col2:
         biologico = st.selectbox(
             "Produto Biológico",
             options=sorted(dados["biologicos"]['Nome'].unique()),
-            index=None
+            index=None,
+            key="biologico_compat"
         )
     
     if quimico and biologico:
@@ -244,8 +294,10 @@ def compatibilidade():
             # Mostrar detalhes do teste
             with st.expander("Ver detalhes do teste"):
                 st.write(f"**Data:** {resultado_existente.iloc[0]['Data']}")
+                st.write(f"**Quimico:** {resultado_existente.iloc[0]['Quimico']}")
+                st.write(f"**Biologico:** {resultado_existente.iloc[0]['Biologico']}")
                 st.write(f"**Tipo:** {resultado_existente.iloc[0]['Tipo']}")
-                st.write(f"**Duração:** {resultado_existente.iloc[0]['Duracao']} dias")
+                st.write(f"**Duração:** {resultado_existente.iloc[0]['Duracao']} horas")
         
         else:
             st.warning("Combinação ainda não testada")
@@ -266,11 +318,19 @@ def compatibilidade():
                         "Status": "Pendente"
                     }
                     
-                    if append_to_sheet(nova_solicitacao, "Solicitacoes"):
-                        st.success("Solicitação registrada com sucesso!")
-                        st.cache_data.clear()
-                    else:
-                        st.error("Falha ao registrar solicitação")
+                    with st.spinner("Registrando solicitação..."):
+                        if append_to_sheet(nova_solicitacao, "Solicitacoes"):
+                            st.success("Solicitação registrada com sucesso!")
+                            
+                            # Atualizar dados locais
+                            if "solicitacoes" in st.session_state.local_data:
+                                nova_linha = pd.DataFrame([nova_solicitacao])
+                                st.session_state.local_data["solicitacoes"] = pd.concat(
+                                    [st.session_state.local_data["solicitacoes"], nova_linha], 
+                                    ignore_index=True
+                                )
+                        else:
+                            st.error("Falha ao registrar solicitação")
 
 ########################################## GERENCIAMENTO DE PRODUTOS ##########################################
 
@@ -280,14 +340,21 @@ def product_management():
     if 'edited_data' not in st.session_state:
         st.session_state.edited_data = {}
     
-    # Forçar recarregamento dos dados para garantir dados atualizados
-    st.cache_data.clear()
-    dados = load_all_data()
-
-    local_data = {
-        'quimicos': dados['quimicos'].copy(),
-        'biologicos': dados['biologicos'].copy()
-    }
+    # Inicializar dados locais se não existirem na sessão
+    if 'local_data' not in st.session_state:
+        st.session_state.local_data = load_all_data()
+        
+    # Botão para recarregar dados manualmente
+    col1, col2 = st.columns([3, 1])
+    with col2:
+        if st.button("🔄 Recarregar Dados", key="reload_data"):
+            with st.spinner("Recarregando dados..."):
+                st.cache_data.clear()
+                st.session_state.local_data = load_all_data()
+                st.success("Dados recarregados com sucesso!")
+    
+    # Usar dados da sessão em vez de recarregar a cada interação
+    dados = st.session_state.local_data
     
     tab1, tab2, tab3 = st.tabs(["Quimicos", "Biologicos", "Compatibilidades"])
     
@@ -296,6 +363,7 @@ def product_management():
         if dados["quimicos"].empty:
             st.error("Erro ao carregar dados dos produtos químicos!")
         else:
+            # Usar o data_editor sem recarregar os dados a cada edição
             df_edit = st.data_editor(
                 dados["quimicos"],
                 num_rows="dynamic",
@@ -308,14 +376,19 @@ def product_management():
                     "Concentracao": "Concentração",
                     "Classe": "Classe",
                     "ModoAcao": "Modo de Ação"
-                }
+                },
+                disabled=False
             )
             if st.button("Salvar Quimicos"):
-                if 'quimicos_editor' in st.session_state:
-                    if update_sheet(st.session_state.quimicos_editor, "Quimicos"):
-                        st.session_state.edited_data = False
-                        st.success("Dados salvos com sucesso!")
-                        st.cache_data.clear()
+                with st.spinner("Salvando dados..."):
+                    if 'quimicos_editor' in st.session_state:
+                        # Atualizar dados locais primeiro
+                        st.session_state.local_data["quimicos"] = st.session_state.quimicos_editor
+                        
+                        # Depois enviar para o Google Sheets
+                        if update_sheet(st.session_state.quimicos_editor, "Quimicos"):
+                            st.session_state.edited_data = False
+                            st.success("Dados salvos com sucesso!")
     
     with tab2:
         st.subheader("Produtos Biológicos")
@@ -334,90 +407,300 @@ def product_management():
                     "Formulacao": "Formulação",
                     "Aplicacao": "Aplicação",
                     "Validade": "Validade"
-                }
+                },
+                disabled=False
             )
             if st.button("Salvar Biológicos"):
-                if 'biologicos_editor' in st.session_state:
-                    if update_sheet(st.session_state.biologicos_editor, "Biologicos"):
-                        st.session_state.edited_data = False
-                        st.success("Dados salvos com sucesso!")
-                        st.cache_data.clear()
+                with st.spinner("Salvando dados..."):
+                    if 'biologicos_editor' in st.session_state:
+                        # Atualizar dados locais primeiro
+                        st.session_state.local_data["biologicos"] = st.session_state.biologicos_editor
+                        
+                        # Depois enviar para o Google Sheets
+                        if update_sheet(st.session_state.biologicos_editor, "Biologicos"):
+                            st.session_state.edited_data = False
+                            st.success("Dados salvos com sucesso!")
     
     with tab3:
         st.subheader("Resultados de Compatibilidade")
         if dados["resultados"].empty:
             st.error("Erro ao carregar dados dos resultados!")
         else:
-            df_edit = st.data_editor(
+            # Adicionar um formulário para nova compatibilidade em vez de editar toda a tabela
+            with st.expander("Adicionar Nova Compatibilidade", expanded=False):
+                with st.form("nova_compatibilidade"):
+                    col1, col2 = st.columns(2)
+                    with col1:
+                        quimico = st.selectbox(
+                            "Produto Químico",
+                            options=sorted(dados["quimicos"]['Nome'].unique()),
+                            index=None
+                        )
+                    with col2:
+                        biologico = st.selectbox(
+                            "Produto Biológico",
+                            options=sorted(dados["biologicos"]['Nome'].unique()),
+                            index=None
+                        )
+                    
+                    col1, col2 = st.columns(2)
+                    with col1:
+                        data_teste = st.date_input("Data do Teste")
+                        duracao = st.number_input("Duração (horas)", min_value=0, value=0)
+                    with col2:
+                        tipo = st.selectbox("Tipo de Teste", options=["Simples", "Composto"])
+                        resultado = st.selectbox("Resultado", options=["Compatível", "Incompatível", "Não testado"])
+                    
+                    if st.form_submit_button("Adicionar Compatibilidade"):
+                        if quimico and biologico:
+                            nova_compatibilidade = {
+                                "Data": data_teste.strftime("%Y-%m-%d"),
+                                "Quimico": quimico,
+                                "Biologico": biologico,
+                                "Duracao": duracao,
+                                "Tipo": tipo,
+                                "Resultado": resultado
+                            }
+                            
+                            # Adicionar à planilha
+                            with st.spinner("Salvando nova compatibilidade..."):
+                                if append_to_sheet(nova_compatibilidade, "Resultados"):
+                                    st.success("Compatibilidade adicionada com sucesso!")
+                                    # Atualizar dados locais
+                                    if "resultados" in st.session_state.local_data:
+                                        nova_linha = pd.DataFrame([nova_compatibilidade])
+                                        st.session_state.local_data["resultados"] = pd.concat([st.session_state.local_data["resultados"], nova_linha], ignore_index=True)
+                                else:
+                                    st.error("Falha ao adicionar compatibilidade")
+                        else:
+                            st.warning("Selecione os produtos químico e biológico")
+            
+            # Mostrar tabela atual de compatibilidades (somente visualização)
+            st.subheader("Compatibilidades Existentes")
+            st.dataframe(
                 dados["resultados"],
-                num_rows="dynamic",
-                column_config={
-                    "Data": "Data",
-                    "Quimico": "Produto Químico",
-                    "Biologico": "Produto Biológico",
-                    "Duracao": "Duração (horas)",
-                    "Tipo": st.column_config.SelectboxColumn(options=["Simples", "Composto"]),
-                    "Resultado": st.column_config.SelectboxColumn(options=["Compatível", "Incompatível", "Não testado"])
-                }
+                hide_index=True,
+                use_container_width=True
             )
-            if st.button("Salvar Resultados"):
-                if update_sheet(df_edit, "Resultados"):
-                    st.success("Dados salvos com sucesso!")
-                    st.cache_data.clear()
 
 ########################################## HISTÓRICO E RELATÓRIOS ##########################################
 
 def history_reports():
     st.title("📊 Histórico e Relatórios")
     
-    dados = load_all_data()
+    # Inicializar dados locais se não existirem na sessão
+    if 'local_data' not in st.session_state:
+        st.session_state.local_data = load_all_data()
+        
+    # Botão para recarregar dados manualmente
+    col1, col2 = st.columns([3, 1])
+    with col2:
+        if st.button("🔄 Recarregar Dados", key="reload_history"):
+            with st.spinner("Recarregando dados..."):
+                st.cache_data.clear()
+                st.session_state.local_data = load_all_data()
+                st.success("Dados recarregados com sucesso!")
     
-    st.subheader("Estatísticas de Compatibilidade")
-    if not dados["resultados"].empty:
-        df_stats = dados["resultados"].value_counts("Resultado").reset_index()
-        fig = px.pie(df_stats, names="Resultado", values="count")
-        st.plotly_chart(fig)
-    else:
-        st.warning("Sem dados de resultados para exibir estatísticas")
+    # Usar dados da sessão em vez de recarregar a cada interação
+    dados = st.session_state.local_data
     
-    st.subheader("Últimos Testes Realizados")
-    if not dados["resultados"].empty:
-        # Usar diretamente os nomes dos produtos que já estão na planilha
-        st.dataframe(
-            dados["resultados"][["Data", "Quimico", "Biologico", "Resultado", "Tipo"]],
-            hide_index=True
-        )
-    else:
-        st.warning("Sem dados de testes para exibir")
+    # Criar abas para diferentes relatórios
+    tab1, tab2, tab3 = st.tabs(["Estatísticas", "Testes Realizados", "Solicitações Pendentes"])
     
-    st.subheader("Solicitações Pendentes")
-    if not dados["solicitacoes"].empty:
-        st.dataframe(
-            dados["solicitacoes"],
-            hide_index=True
-        )
-    else:
-        st.warning("Sem solicitações pendentes")
+    with tab1:
+        st.subheader("Estatísticas de Compatibilidade")
+        if not dados["resultados"].empty:
+            # Criar estatísticas de compatibilidade
+            df_stats = dados["resultados"].value_counts("Resultado").reset_index()
+            fig = px.pie(df_stats, names="Resultado", values="count", 
+                        title="Distribuição de Resultados de Compatibilidade",
+                        color_discrete_map={'Compatível':'#90EE90', 'Incompatível':'#FFB6C1', 'Não testado':'#ADD8E6'})
+            st.plotly_chart(fig, use_container_width=True)
+            
+            # Adicionar mais estatísticas
+            col1, col2 = st.columns(2)
+            with col1:
+                st.metric("Total de Testes", len(dados["resultados"]))
+                st.metric("Compatíveis", len(dados["resultados"][dados["resultados"]["Resultado"] == "Compatível"]))
+            with col2:
+                st.metric("Incompatíveis", len(dados["resultados"][dados["resultados"]["Resultado"] == "Incompatível"]))
+                st.metric("Não testados", len(dados["resultados"][dados["resultados"]["Resultado"] == "Não testado"]))
+        else:
+            st.warning("Sem dados de resultados para exibir estatísticas")
+    
+    with tab2:
+        st.subheader("Últimos Testes Realizados")
+        if not dados["resultados"].empty:
+            # Adicionar filtros
+            col1, col2 = st.columns(2)
+            with col1:
+                filtro_quimico = st.multiselect(
+                    "Filtrar por Produto Químico",
+                    options=sorted(dados["resultados"]["Quimico"].unique()),
+                    default=None
+                )
+            with col2:
+                filtro_biologico = st.multiselect(
+                    "Filtrar por Produto Biológico",
+                    options=sorted(dados["resultados"]["Biologico"].unique()),
+                    default=None
+                )
+            
+            # Aplicar filtros
+            df_filtrado = dados["resultados"].copy()
+            if filtro_quimico:
+                df_filtrado = df_filtrado[df_filtrado["Quimico"].isin(filtro_quimico)]
+            if filtro_biologico:
+                df_filtrado = df_filtrado[df_filtrado["Biologico"].isin(filtro_biologico)]
+            
+            # Mostrar dados filtrados
+            st.dataframe(
+                df_filtrado.sort_values("Data", ascending=False),
+                hide_index=True,
+                use_container_width=True
+            )
+        else:
+            st.warning("Sem dados de testes para exibir")
+    
+    with tab3:
+        st.subheader("Solicitações Pendentes")
+        if not dados["solicitacoes"].empty:
+            # Filtrar apenas solicitações pendentes
+            solicitacoes_pendentes = dados["solicitacoes"][dados["solicitacoes"]["Status"] == "Pendente"]
+            
+            if not solicitacoes_pendentes.empty:
+                st.dataframe(
+                    solicitacoes_pendentes.sort_values("Data", ascending=False),
+                    hide_index=True,
+                    use_container_width=True
+                )
+                
+                # Adicionar opção para aprovar/rejeitar solicitações
+                with st.expander("Gerenciar Solicitações", expanded=False):
+                    st.info("Selecione uma solicitação para atualizar seu status")
+                    
+                    # Criar lista de solicitações para seleção
+                    solicitacoes_list = [f"{row['Data']} - {row['Quimico']} x {row['Biologico']} ({row.get('Solicitante', 'N/A')})" 
+                                        for _, row in solicitacoes_pendentes.iterrows()]
+                    
+                    if solicitacoes_list:
+                        selecionada = st.selectbox("Selecione uma solicitação", solicitacoes_list)
+                        
+                        if selecionada:
+                            idx = solicitacoes_list.index(selecionada)
+                            solicitacao = solicitacoes_pendentes.iloc[idx]
+                            
+                            st.write(f"**Solicitante:** {solicitacao.get('Solicitante', 'N/A')}")
+                            st.write(f"**Data:** {solicitacao['Data']}")
+                            st.write(f"**Produtos:** {solicitacao['Quimico']} x {solicitacao['Biologico']}")
+                            st.write(f"**Observações:** {solicitacao['Observacoes']}")
+                            
+                            col1, col2 = st.columns(2)
+                            with col1:
+                                if st.button("✅ Aprovar", key="aprovar_sol"):
+                                    # Lógica para aprovar solicitação
+                                    st.success("Solicitação aprovada!")
+                            with col2:
+                                if st.button("❌ Rejeitar", key="rejeitar_sol"):
+                                    # Lógica para rejeitar solicitação
+                                    st.error("Solicitação rejeitada!")
+            else:
+                st.success("Não há solicitações pendentes!")
+        else:
+            st.warning("Sem solicitações para exibir")
 
 ########################################## CONFIGURAÇÕES ##########################################
 
 def settings_page():
     st.title("⚙️ Configurações")
     
-    st.subheader("Conectividade com Google Sheets")
-    if st.button("Testar Conexão"):
-        try:
-            client = get_google_sheets_client()
-            if client:
-                st.success("Conexão bem-sucedida!")
-        except Exception as e:
-            st.error(f"Erro na conexão: {str(e)}")
+    # Criar abas para diferentes configurações
+    tab1, tab2, tab3 = st.tabs(["Conectividade", "Cache", "Informações"])
     
-    st.subheader("Gerenciamento de Cache")
-    if st.button("Limpar Cache"):
-        st.cache_data.clear()
-        st.cache_resource.clear()
-        st.success("Cache limpo com sucesso!")
+    with tab1:
+        st.subheader("Conectividade com Google Sheets")
+        if st.button("Testar Conexão", key="test_connection"):
+            with st.spinner("Testando conexão..."):
+                try:
+                    client = get_google_sheets_client()
+                    if client:
+                        st.success("✅ Conexão bem-sucedida!")
+                        
+                        # Mostrar informações adicionais
+                        st.info("Planilha conectada: Experimentos Cocal")
+                        st.code(f"ID da Planilha: {SHEET_ID}")
+                        
+                        # Testar acesso a cada planilha
+                        st.subheader("Status das Planilhas")
+                        col1, col2 = st.columns(2)
+                        
+                        for sheet_name in ["Resultados", "Quimicos", "Biologicos", "Solicitacoes"]:
+                            try:
+                                worksheet = client.open_by_key(SHEET_ID).worksheet(sheet_name)
+                                with col1:
+                                    st.write(f"📊 {sheet_name}")
+                                with col2:
+                                    st.write("✅ Acessível")
+                            except Exception as e:
+                                with col1:
+                                    st.write(f"📊 {sheet_name}")
+                                with col2:
+                                    st.write("❌ Erro de acesso")
+                except Exception as e:
+                    st.error(f"❌ Erro na conexão: {str(e)}")
+    
+    with tab2:
+        st.subheader("Gerenciamento de Cache")
+        
+        # Mostrar informações sobre o cache
+        if 'local_data' in st.session_state:
+            st.info("Status dos dados em cache:")
+            
+            for key, df in st.session_state.local_data.items():
+                if not df.empty:
+                    st.success(f"✅ {key.capitalize()}: {len(df)} registros carregados")
+                else:
+                    st.warning(f"⚠️ {key.capitalize()}: Sem dados")
+        
+        col1, col2 = st.columns(2)
+        with col1:
+            if st.button("🧹 Limpar Cache", key="clear_cache"):
+                st.cache_data.clear()
+                st.cache_resource.clear()
+                
+                # Limpar dados da sessão
+                if 'local_data' in st.session_state:
+                    del st.session_state['local_data']
+                
+                st.success("✅ Cache limpo com sucesso!")
+                st.info("Os dados serão recarregados na próxima interação.")
+        
+        with col2:
+            if st.button("🔄 Recarregar Todos os Dados", key="reload_all"):
+                with st.spinner("Recarregando todos os dados..."):
+                    st.cache_data.clear()
+                    st.session_state.local_data = load_all_data()
+                    st.success("✅ Dados recarregados com sucesso!")
+    
+    with tab3:
+        st.subheader("Informações do Sistema")
+        
+        # Mostrar informações sobre o aplicativo
+        st.info("Aplicativo de Experimentos Cocal")
+        st.write("**Versão:** 1.0.0")
+        st.write("**Desenvolvido por:** Equipe de Tecnologia Cocal")
+        
+        # Mostrar informações sobre o ambiente
+        st.subheader("Ambiente de Execução")
+        st.code(f"""
+        Python: {pd.__version__}
+        Pandas: {pd.__version__}
+        Streamlit: {st.__version__}
+        Plotly: {px.__version__}
+        """)
+        
+        # Adicionar link para documentação
+        st.markdown("[Documentação do Google Sheets API](https://developers.google.com/sheets/api/guides/concepts)")
 
 ########################################## SIDEBAR E ROTEAMENTO ##########################################
 
