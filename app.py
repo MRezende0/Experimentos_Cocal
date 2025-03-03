@@ -879,10 +879,7 @@ def main():
     # Verificar se o usuário está autenticado
     if 'authenticated' not in st.session_state:
         st.session_state.authenticated = False
-    
-    # Se não estiver autenticado, mostrar tela de login
-    if not st.session_state.authenticated:
-        login()
+        
     else:
         # Sidebar para navegação
         with st.sidebar:
