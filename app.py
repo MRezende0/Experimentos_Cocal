@@ -94,7 +94,7 @@ def get_google_sheets_client():
         st.error(f"Erro na conexão: {str(e)}")
         return None
 
-def retry_with_backoff(func, max_retries=5, initial_delay=1):
+def retry_with_backoff(func, max_retries=3, initial_delay=5):
     for attempt in range(max_retries):
         try:
             return func()
@@ -107,9 +107,9 @@ def retry_with_backoff(func, max_retries=5, initial_delay=1):
                 st.error("Limite de tentativas excedido. Tente novamente mais tarde.")
                 return None
                 
-            delay = initial_delay * (2 ** attempt) + uniform(0, 1)
+            delay = initial_delay * (2 ** attempt) + uniform(2, 5)
+            st.warning(f"Limite temporário excedido. Tentando novamente em {delay:.1f} segundos...")
             time.sleep(delay)
-            st.warning(f"Tentando novamente em {delay:.1f} segundos...")
     return None
 
 def get_worksheet(sheet_name: str):
@@ -124,7 +124,7 @@ def get_worksheet(sheet_name: str):
             return None
     return retry_with_backoff(_get_worksheet)
 
-@st.cache_data(ttl=300)
+@st.cache_data(ttl=3600, show_spinner=False, hash_funcs={pd.DataFrame: lambda _: None})
 def load_sheet_data(sheet_name: str) -> pd.DataFrame:
     def _load():
         worksheet = get_worksheet(sheet_name)
@@ -164,9 +164,19 @@ def update_sheet(df: pd.DataFrame, sheet_name: str) -> bool:
     def _update():
         try:
             worksheet = get_worksheet(sheet_name)
-            worksheet.clear()
-            worksheet.update([df.columns.tolist()] + df.values.tolist())
-            st.cache_data.clear()
+            if not worksheet:
+                return False
+                
+            # Atualizar apenas células modificadas
+            current_data = worksheet.get_all_records()
+            current_df = pd.DataFrame(current_data)
+            
+            # Encontrar diferenças
+            new_rows = df[~df.apply(tuple,1).isin(current_df.apply(tuple,1))]
+            
+            if not new_rows.empty:
+                worksheet.append_rows(new_rows.values.tolist())
+                
             return True
         except Exception as e:
             st.error(f"Erro ao atualizar {sheet_name}: {str(e)}")
@@ -175,7 +185,7 @@ def update_sheet(df: pd.DataFrame, sheet_name: str) -> bool:
 
 ########################################## CARREGAMENTO DE DADOS ##########################################
 
-@st.cache_data
+@st.cache_data(ttl=3600)
 def load_all_data():
     return {
         "resultados": load_sheet_data("Resultados"),
@@ -183,6 +193,10 @@ def load_all_data():
         "biologicos": load_sheet_data("Biologicos"),
         "solicitacoes": load_sheet_data("Solicitacoes")
     }
+
+def _load_sheet_with_delay(sheet_name):
+    time.sleep(1)  # Delay artificial entre requisições
+    return load_sheet_data(sheet_name)
 
 ########################################## COMPATIBILIDADE ##########################################
 
@@ -239,7 +253,7 @@ def compatibilidade():
             # Solicitar novo teste
             with st.form("solicitar_teste"):
                 data_solicitacao = st.date_input("Data da Solicitação")
-                solicitante = st.text_input("Nome")
+                solicitante = st.text_input("Nome do solicitante")
                 observacoes = st.text_area("Observações")
                 
                 if st.form_submit_button("Solicitar Teste"):
@@ -262,10 +276,18 @@ def compatibilidade():
 
 def product_management():
     st.title("📦 Gerenciamento de Produtos")
+
+    if 'edited_data' not in st.session_state:
+        st.session_state.edited_data = {}
     
     # Forçar recarregamento dos dados para garantir dados atualizados
     st.cache_data.clear()
     dados = load_all_data()
+
+    local_data = {
+        'quimicos': dados['quimicos'].copy(),
+        'biologicos': dados['biologicos'].copy()
+    }
     
     tab1, tab2, tab3 = st.tabs(["Quimicos", "Biologicos", "Compatibilidades"])
     
@@ -277,6 +299,8 @@ def product_management():
             df_edit = st.data_editor(
                 dados["quimicos"],
                 num_rows="dynamic",
+                key="quimicos_editor",
+                on_change=lambda: st.session_state.update(edited_data=True),
                 column_config={
                     "Nome": "Produto Químico",
                     "Tipo": st.column_config.SelectboxColumn(options=["Herbicida", "Fungicida", "Inseticida"]),
@@ -287,9 +311,11 @@ def product_management():
                 }
             )
             if st.button("Salvar Quimicos"):
-                if update_sheet(df_edit, "Quimicos"):
-                    st.success("Dados salvos com sucesso!")
-                    st.cache_data.clear()
+                if 'quimicos_editor' in st.session_state:
+                    if update_sheet(st.session_state.quimicos_editor, "Quimicos"):
+                        st.session_state.edited_data = False
+                        st.success("Dados salvos com sucesso!")
+                        st.cache_data.clear()
     
     with tab2:
         st.subheader("Produtos Biológicos")
@@ -299,6 +325,8 @@ def product_management():
             df_edit = st.data_editor(
                 dados["biologicos"],
                 num_rows="dynamic",
+                key="biologicos_editor",
+                on_change=lambda: st.session_state.update(edited_data=True),
                 column_config={
                     "Nome": "Produto Biológico",
                     "Tipo": st.column_config.SelectboxColumn(options=["Bioestimulante", "Controle Biológico"]),
@@ -309,9 +337,11 @@ def product_management():
                 }
             )
             if st.button("Salvar Biológicos"):
-                if update_sheet(df_edit, "Biologicos"):
-                    st.success("Dados salvos com sucesso!")
-                    st.cache_data.clear()
+                if 'biologicos_editor' in st.session_state:
+                    if update_sheet(st.session_state.biologicos_editor, "Biologicos"):
+                        st.session_state.edited_data = False
+                        st.success("Dados salvos com sucesso!")
+                        st.cache_data.clear()
     
     with tab3:
         st.subheader("Resultados de Compatibilidade")
@@ -325,8 +355,8 @@ def product_management():
                     "Data": "Data",
                     "Quimico": "Produto Químico",
                     "Biologico": "Produto Biológico",
-                    "Duracao": "Duração (dias)",
-                    "Tipo": st.column_config.SelectboxColumn(options=["Simples", "Completo"]),
+                    "Duracao": "Duração (horas)",
+                    "Tipo": st.column_config.SelectboxColumn(options=["Simples", "Composto"]),
                     "Resultado": st.column_config.SelectboxColumn(options=["Compatível", "Incompatível", "Não testado"])
                 }
             )
