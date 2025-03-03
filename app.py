@@ -94,7 +94,37 @@ def get_google_sheets_client():
         st.error(f"Erro na conexão: {str(e)}")
         return None
 
-def retry_with_backoff(func, max_retries=3, initial_delay=5):
+def get_worksheet(sheet_name: str):
+    def _get_worksheet():
+        try:
+            client = get_google_sheets_client()
+            if client is None:
+                st.error("Erro ao conectar com Google Sheets. Tente novamente mais tarde.")
+                return None
+                
+            spreadsheet = client.open_by_key(SHEET_ID)
+            worksheet = spreadsheet.worksheet(sheet_name)
+            return worksheet
+        except Exception as e:
+            if "Quota exceeded" in str(e):
+                raise e  # Re-raise quota errors to trigger retry
+            st.error(f"Erro ao acessar planilha {sheet_name}: {str(e)}")
+            return None
+            
+    return retry_with_backoff(_get_worksheet, max_retries=5, initial_delay=2)
+
+def retry_with_backoff(func, max_retries=5, initial_delay=1):
+    """
+    Executa uma função com retry e exponential backoff
+    
+    Args:
+        func: Função a ser executada
+        max_retries: Número máximo de tentativas
+        initial_delay: Delay inicial em segundos
+        
+    Returns:
+        Resultado da função ou None se falhar
+    """
     for attempt in range(max_retries):
         try:
             return func()
@@ -107,22 +137,14 @@ def retry_with_backoff(func, max_retries=3, initial_delay=5):
                 st.error("Limite de tentativas excedido. Tente novamente mais tarde.")
                 return None
                 
-            delay = initial_delay * (2 ** attempt) + uniform(2, 5)
-            st.warning(f"Limite temporário excedido. Tentando novamente em {delay:.1f} segundos...")
+            # Exponential backoff com jitter
+            delay = initial_delay * (2 ** attempt) + uniform(0, 1)
             time.sleep(delay)
+            
+            # Informar usuário sobre retry
+            st.warning(f"Limite de requisições atingido. Tentando novamente em {delay:.1f} segundos...")
+            
     return None
-
-def get_worksheet(sheet_name: str):
-    def _get_worksheet():
-        try:
-            client = get_google_sheets_client()
-            spreadsheet = client.open_by_key(SHEET_ID)
-            worksheet = spreadsheet.worksheet(sheet_name)
-            return worksheet
-        except Exception as e:
-            st.error(f"Erro ao acessar planilha {sheet_name}: {str(e)}")
-            return None
-    return retry_with_backoff(_get_worksheet)
 
 @st.cache_data(ttl=3600, show_spinner=False, hash_funcs={pd.DataFrame: lambda _: None})
 def load_sheet_data(sheet_name: str) -> pd.DataFrame:
@@ -150,67 +172,76 @@ def load_sheet_data(sheet_name: str) -> pd.DataFrame:
     return result
 
 def append_to_sheet(data_dict, sheet_name):
-    try:
-        # Converter valores para tipos nativos do Python
-        converted_data = {
-            k: int(v) if isinstance(v, (np.int64, np.int32)) else 
-               str(v) if isinstance(v, (np.str_, pd.Timestamp)) else 
-               v for k, v in data_dict.items()
-        }
-        
-        worksheet = get_worksheet(sheet_name)
-        if worksheet:
-            # Converter para lista mantendo a ordem das colunas
-            headers = worksheet.row_values(1)
-            row = [converted_data.get(header, "") for header in headers]
-            
-            # Adicionar com retry para lidar com limites de quota
-            def _append():
-                worksheet.append_row(row)
-                return True
+    def _append():
+        try:
+            worksheet = get_worksheet(sheet_name)
+            if worksheet is None:
+                return False
                 
-            return retry_with_backoff(_append)
-        return False
-    except Exception as e:
-        st.error(f"Erro ao adicionar dados: {str(e)}")
-        return False
+            # Converter objetos datetime para strings
+            for key in data_dict:
+                if isinstance(data_dict[key], (datetime, pd.Timestamp)):
+                    data_dict[key] = data_dict[key].strftime("%Y-%m-%d")
+                    
+            # Get headers from worksheet
+            headers = worksheet.row_values(1)
+            
+            # Create new row based on headers
+            row = [data_dict.get(header, "") for header in headers]
+            
+            # Append row to worksheet
+            worksheet.append_row(row)
+            
+            # Clear cache to force data reload
+            st.cache_data.clear()
+            return True
+            
+        except Exception as e:
+            if "Quota exceeded" in str(e):
+                raise e  # Re-raise quota errors to trigger retry
+            st.error(f"Erro ao adicionar dados: {str(e)}")
+            return False
+            
+    return retry_with_backoff(_append, initial_delay=2)
 
 def update_sheet(df, sheet_name: str) -> bool:
     def _update():
         try:
+            # Criar uma cópia do DataFrame para não modificar o original
+            df_copy = df.copy()
+            df_copy['Data'] = pd.to_datetime(df_copy['Data'], errors='coerce')
+            
+            # Converter todas as colunas de data para string no formato YYYY-MM-DD
+            date_columns = df_copy.select_dtypes(include=['datetime64[ns]']).columns
+            for col in date_columns:
+                df_copy[col] = df_copy[col].dt.strftime("%Y-%m-%d")
+            
+            # Converter todos os valores NaN/None para string vazia
+            df_copy = df_copy.fillna("")
+            
             worksheet = get_worksheet(sheet_name)
-            if not worksheet:
+            if worksheet is None:
                 return False
                 
-            # Garantir que df seja um DataFrame
-            if not isinstance(df, pd.DataFrame):
-                st.error(f"Erro: O objeto passado para atualização não é um DataFrame válido")
-                return False
-                
-            # Atualizar apenas células modificadas
-            current_data = worksheet.get_all_records()
-            current_df = pd.DataFrame(current_data)
+            # Limpar a planilha
+            worksheet.clear()
             
-            # Verificar se há diferenças significativas antes de atualizar
-            if not current_df.empty and len(current_df) == len(df):
-                # Se o número de linhas for o mesmo, verificar se há mudanças
-                if current_df.equals(df):
-                    st.info("Nenhuma mudança detectada. Não é necessário salvar.")
-                    return True
+            # Obter os dados do DataFrame como lista
+            data = [df_copy.columns.tolist()] + df_copy.values.tolist()
             
-            # Limitar o número de atualizações
-            with st.spinner(f"Atualizando {sheet_name}..."):
-                worksheet.clear()
-                worksheet.update([df.columns.tolist()] + df.values.tolist())
-                
+            # Atualizar a planilha
+            worksheet.update(data)
+            
+            # Limpar cache para forçar recarregamento dos dados
+            st.cache_data.clear()
             return True
         except Exception as e:
             if "Quota exceeded" in str(e):
-                st.warning("Limite de requisições excedido. Tente novamente em alguns minutos.")
-            else:
-                st.error(f"Erro ao atualizar {sheet_name}: {str(e)}")
+                raise e
+            st.error(f"Erro ao atualizar planilha: {str(e)}")
             return False
-    return retry_with_backoff(_update)
+            
+    return retry_with_backoff(_update, initial_delay=2)
 
 @st.cache_data(ttl=3600)
 def load_all_data():
