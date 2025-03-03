@@ -366,10 +366,10 @@ def management():
                         novo_produto = {
                             "Nome": nome,
                             "Tipo": tipo,
-                                "Fabricante": fabricante,
-                                "Concentracao": concentracao,
-                                "Classe": classe,
-                                "ModoAcao": modo_acao
+                            "Fabricante": fabricante,
+                            "Concentracao": concentracao,
+                            "Classe": classe,
+                            "ModoAcao": modo_acao
                             }
                             
                             # Verificar se o produto já existe
