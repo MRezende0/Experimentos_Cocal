@@ -197,13 +197,13 @@ def main_page():
         id_biologico = get_product_id(dados["biologicos"], biologico, "Biológico")
         
         if id_quimico and id_biologico:
-            compatibilidade = dados["resultados"].query(
+            resultado = dados["resultados"].query(
                 f"Químico == {id_quimico} and Biológico == {id_biologico}"
             )
             
-            if not compatibilidade.empty:
-                resultado = compatibilidade.iloc[0]['Resultado']
-                classe = "compativel" if resultado == "Compatível" else "incompativel"
+            if not resultado.empty:
+                resultado = resultado.iloc[0]['Resultado']
+                classe = "compativel" if resultado == "Compatível" else "Incompatível"
                 st.markdown(f"""
                     <div class="resultado {classe}">
                         {resultado}
@@ -218,7 +218,7 @@ def main_page():
                         "Data": datetime.now().strftime("%Y-%m-%d"),
                         "Status": "Pendente"
                     }
-                    if append_to_sheet(nova_solicitacao, "Solicitacoes"):
+                    if append_to_sheet(nova_solicitacao, "solicitacoes"):
                         st.success("Solicitação registrada!")
 
 ########################################## GERENCIAMENTO DE PRODUTOS ##########################################
