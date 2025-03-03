@@ -296,16 +296,16 @@ def product_management():
     
     with tab3:
         df_edit = st.data_editor(
-            dados["compatibilidades"],
+            dados["resultados"],
             num_rows="dynamic",
             column_config={
-                "Químico": st.column_config.NumberColumn(format="%d"),
-                "Biológico": st.column_config.NumberColumn(format="%d"),
+                "Quimico": st.column_config.NumberColumn(format="%d"),
+                "Biologico": st.column_config.NumberColumn(format="%d"),
                 "Resultado": st.column_config.SelectboxColumn(options=["Compatível", "Incompatível", "Não testado"])
             }
         )
-        if st.button("Salvar Compatibilidades"):
-            update_sheet(df_edit, "Compatibilidades")
+        if st.button("Salvar Resultados"):
+            update_sheet(df_edit, "Resultados")
 
 ########################################## HISTÓRICO E RELATÓRIOS ##########################################
 
@@ -315,13 +315,13 @@ def history_reports():
     dados = load_all_data()
     
     st.subheader("Estatísticas de Compatibilidade")
-    df_stats = dados["compatibilidades"].value_counts("Resultado").reset_index()
+    df_stats = dados["resultados"].value_counts("Resultado").reset_index()
     fig = px.pie(df_stats, names="Resultado", values="count")
     st.plotly_chart(fig)
     
     st.subheader("Últimos Testes Realizados")
     st.dataframe(
-        dados["compatibilidades"].merge(
+        dados["resultados"].merge(
             dados["quimicos"], left_on="Químico", right_on="ID"
         ).merge(
             dados["biologicos"], left_on="Biológico", right_on="ID"
