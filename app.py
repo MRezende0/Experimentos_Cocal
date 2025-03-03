@@ -359,7 +359,7 @@ def management():
                 concentracao = st.text_input("Concentração")
                 classe = st.text_input("Classe")
                 modo_acao = st.text_input("Modo de Ação")
-                    
+                
                 submitted = st.form_submit_button("Adicionar Produto")
                 if submitted:
                     if nome:
@@ -388,7 +388,7 @@ def management():
                     else:
                         st.warning("Nome do produto é obrigatório")
             
-            with st.write("Tabela de Químicos"):
+            with st.expander("Tabela de Químicos"):
                 # Filtro para a tabela
                 filtro_nome = st.text_input("🔍 Filtrar por nome", key="filtro_quimicos")
                 
@@ -432,7 +432,7 @@ def management():
         if dados["biologicos"].empty:
             st.error("Erro ao carregar dados dos produtos biológicos!")
         else:            
-            with st.write("Adicionar Novo Produto"):
+            with st.expander("Adicionar Novo Produto"):
                 # Formulário para adicionar novo produto biológico
                 st.subheader("Adicionar Novo Produto")
                 with st.form("novo_biologico_form"):
@@ -471,7 +471,7 @@ def management():
                         else:
                             st.warning("Nome do produto é obrigatório")
             
-            with st.write("Tabela de Produtos Biológicos"):
+            with st.expander("Tabela de Produtos Biológicos"):
                 # Filtro para a tabela
                 filtro_nome = st.text_input("🔍 Filtrar por nome", key="filtro_biologicos")
                 
@@ -515,7 +515,7 @@ def management():
         if dados["resultados"].empty:
             st.error("Erro ao carregar dados dos resultados!")
         else:
-            with st.write("Adicionar Nova Compatibilidade"):
+            with st.expander("Adicionar Nova Compatibilidade"):
                 # Formulário para adicionar nova compatibilidade
                 st.subheader("Adicionar Nova Compatibilidade")
                 with st.form("nova_compatibilidade_form"):
@@ -574,7 +574,7 @@ def management():
                         else:
                             st.warning("Selecione os produtos químico e biológico")
             
-            with st.write("Tabela de Resultados"):
+            with st.expander("Tabela de Resultados"):
                 # Filtros para a tabela
                 col_a, col_b = st.columns(2)
                 with col_a:
