@@ -341,54 +341,61 @@ def management():
     # Inicializar dados locais se não existirem na sessão
     if 'local_data' not in st.session_state:
         st.session_state.local_data = load_all_data()
-        
+    
     # Usar dados da sessão em vez de recarregar a cada interação
     dados = st.session_state.local_data
     
-    tab1, tab2, tab3 = st.tabs(["Quimicos", "Biologicos", "Compatibilidades"])
+    tab1, tab2, tab3, tab4 = st.tabs(["Quimicos", "Biologicos", "Compatibilidades", "Solicitações"])
     
     with tab1:
         st.subheader("Produtos Químicos")
-        if dados["quimicos"].empty:
+        if "quimicos" not in dados or dados["quimicos"].empty:
             st.error("Erro ao carregar dados dos produtos químicos!")
         else:
-            with st.form("novo_quimico_form"):
-                nome = st.text_input("Nome do Produto")
-                tipo = st.selectbox("Tipo", options=["Herbicida", "Fungicida", "Inseticida"])
-                fabricante = st.text_input("Fabricante")
-                concentracao = st.text_input("Concentração")
-                classe = st.text_input("Classe")
-                modo_acao = st.text_input("Modo de Ação")
-                
-                submitted = st.form_submit_button("Adicionar Produto")
-                if submitted:
-                    if nome:
-                        novo_produto = {
-                            "Nome": nome,
-                            "Tipo": tipo,
-                            "Fabricante": fabricante,
-                            "Concentracao": concentracao,
-                            "Classe": classe,
-                            "ModoAcao": modo_acao
+            # Opções para o usuário escolher entre registrar ou visualizar
+            opcao = st.radio("Escolha uma opção:", ["Registrar novo produto", "Visualizar produtos cadastrados"], key="opcao_quimicos")
+            
+            if opcao == "Registrar novo produto":
+                with st.form("novo_quimico_form"):
+                    col1, col2 = st.columns(2)
+                    with col1:
+                        nome = st.text_input("Nome do Produto")
+                        tipo = st.selectbox("Tipo", options=["Herbicida", "Fungicida", "Inseticida"])
+                        fabricante = st.text_input("Fabricante")
+                    with col2:
+                        concentracao = st.text_input("Concentração")
+                        classe = st.text_input("Classe")
+                        modo_acao = st.text_input("Modo de Ação")
+                    
+                    submitted = st.form_submit_button("Adicionar Produto")
+                    if submitted:
+                        if nome:
+                            novo_produto = {
+                                "Nome": nome,
+                                "Tipo": tipo,
+                                "Fabricante": fabricante,
+                                "Concentracao": concentracao,
+                                "Classe": classe,
+                                "ModoAcao": modo_acao
                             }
                             
                             # Verificar se o produto já existe
-                        if nome in dados["quimicos"]["Nome"].values:
-                            st.warning(f"Produto '{nome}' já existe!")
+                            if nome in dados["quimicos"]["Nome"].values:
+                                st.warning(f"Produto '{nome}' já existe!")
+                            else:
+                                # Adicionar à planilha
+                                with st.spinner("Salvando novo produto..."):
+                                    if append_to_sheet(novo_produto, "Quimicos"):
+                                        st.success("Produto adicionado com sucesso!")
+                                        # Atualizar dados locais
+                                        nova_linha = pd.DataFrame([novo_produto])
+                                        st.session_state.local_data["quimicos"] = pd.concat([st.session_state.local_data["quimicos"], nova_linha], ignore_index=True)
+                                    else:
+                                        st.error("Falha ao adicionar produto")
                         else:
-                            # Adicionar à planilha
-                            with st.spinner("Salvando novo produto..."):
-                                if append_to_sheet(novo_produto, "Quimicos"):
-                                    st.success("Produto adicionado com sucesso!")
-                                    # Atualizar dados locais
-                                    nova_linha = pd.DataFrame([novo_produto])
-                                    st.session_state.local_data["quimicos"] = pd.concat([st.session_state.local_data["quimicos"], nova_linha], ignore_index=True)
-                                else:
-                                    st.error("Falha ao adicionar produto")
-                    else:
-                        st.warning("Nome do produto é obrigatório")
+                            st.warning("Nome do produto é obrigatório")
             
-            with st.expander("Tabela de Químicos"):
+            else:  # Visualizar produtos cadastrados
                 # Filtro para a tabela
                 filtro_nome = st.text_input("🔍 Filtrar por nome", key="filtro_quimicos")
                 
@@ -429,46 +436,53 @@ def management():
     
     with tab2:
         st.subheader("Produtos Biológicos")
-        if dados["biologicos"].empty:
+        if "biologicos" not in dados or dados["biologicos"].empty:
             st.error("Erro ao carregar dados dos produtos biológicos!")
-        else:            
-            with st.form("novo_biologico_form"):
-                nome = st.text_input("Nome do Produto")
-                tipo = st.selectbox("Tipo", options=["Bioestimulante", "Controle Biológico"])
-                ingrediente_ativo = st.text_input("Ingrediente Ativo")
-                formulacao = st.text_input("Formulação")
-                aplicacao = st.text_input("Aplicação")
-                validade = st.text_input("Validade")
-                    
-                submitted = st.form_submit_button("Adicionar Produto")
-                if submitted:
-                    if nome:
-                        novo_produto = {
-                            "Nome": nome,
-                            "Tipo": tipo,
-                            "IngredienteAtivo": ingrediente_ativo,
-                            "Formulacao": formulacao,
-                            "Aplicacao": aplicacao,
-                            "Validade": validade
-                        }
-                            
-                        # Verificar se o produto já existe
-                        if nome in dados["biologicos"]["Nome"].values:
-                            st.warning(f"Produto '{nome}' já existe!")
-                        else:
-                            # Adicionar à planilha
-                            with st.spinner("Salvando novo produto..."):
-                                if append_to_sheet(novo_produto, "Biologicos"):
-                                    st.success("Produto adicionado com sucesso!")
-                                    # Atualizar dados locais
-                                    nova_linha = pd.DataFrame([novo_produto])
-                                    st.session_state.local_data["biologicos"] = pd.concat([st.session_state.local_data["biologicos"], nova_linha], ignore_index=True)
-                                else:
-                                    st.error("Falha ao adicionar produto")
-                    else:
-                        st.warning("Nome do produto é obrigatório")
+        else:
+            # Opções para o usuário escolher entre registrar ou visualizar
+            opcao = st.radio("Escolha uma opção:", ["Registrar novo produto", "Visualizar produtos cadastrados"], key="opcao_biologicos")
             
-            with st.expander("Tabela de Produtos Biológicos"):
+            if opcao == "Registrar novo produto":
+                with st.form("novo_biologico_form"):
+                    col1, col2 = st.columns(2)
+                    with col1:
+                        nome = st.text_input("Nome do Produto")
+                        tipo = st.selectbox("Tipo", options=["Bioestimulante", "Controle Biológico"])
+                        ingrediente_ativo = st.text_input("Ingrediente Ativo")
+                    with col2:
+                        formulacao = st.text_input("Formulação")
+                        aplicacao = st.text_input("Aplicação")
+                        validade = st.text_input("Validade")
+                    
+                    submitted = st.form_submit_button("Adicionar Produto")
+                    if submitted:
+                        if nome:
+                            novo_produto = {
+                                "Nome": nome,
+                                "Tipo": tipo,
+                                "IngredienteAtivo": ingrediente_ativo,
+                                "Formulacao": formulacao,
+                                "Aplicacao": aplicacao,
+                                "Validade": validade
+                            }
+                            
+                            # Verificar se o produto já existe
+                            if nome in dados["biologicos"]["Nome"].values:
+                                st.warning(f"Produto '{nome}' já existe!")
+                            else:
+                                # Adicionar à planilha
+                                with st.spinner("Salvando novo produto..."):
+                                    if append_to_sheet(novo_produto, "Biologicos"):
+                                        st.success("Produto adicionado com sucesso!")
+                                        # Atualizar dados locais
+                                        nova_linha = pd.DataFrame([novo_produto])
+                                        st.session_state.local_data["biologicos"] = pd.concat([st.session_state.local_data["biologicos"], nova_linha], ignore_index=True)
+                                    else:
+                                        st.error("Falha ao adicionar produto")
+                        else:
+                            st.warning("Nome do produto é obrigatório")
+            
+            else:  # Visualizar produtos cadastrados
                 # Filtro para a tabela
                 filtro_nome = st.text_input("🔍 Filtrar por nome", key="filtro_biologicos")
                 
@@ -509,38 +523,38 @@ def management():
     
     with tab3:
         st.subheader("Resultados de Compatibilidade")
-        if dados["resultados"].empty:
+        if "resultados" not in dados or dados["resultados"].empty:
             st.error("Erro ao carregar dados dos resultados!")
         else:
-            with st.form("nova_compatibilidade_form"):
-                col_a, col_b = st.columns(2)
-                with col_a:
-                    quimico = st.selectbox(
-                        "Produto Químico",
-                        options=sorted(dados["quimicos"]['Nome'].unique()),
-                        index=None
-                    )
-                with col_b:
-                    biologico = st.selectbox(
-                        "Produto Biológico",
-                        options=sorted(dados["biologicos"]['Nome'].unique()),
-                        index=None
-                    )
-                
-                col_a, col_b = st.columns(2)
-                with col_a:
-                    data_teste = st.date_input("Data do Teste")
-                    duracao = st.number_input("Duração (horas)", min_value=0, value=0)
-                with col_b:
-                    tipo = st.selectbox("Tipo de Teste", options=["Simples", "Composto"])
-                    resultado = st.selectbox("Resultado", options=["Compatível", "Incompatível", "Não testado"])
+            # Opções para o usuário escolher entre registrar ou visualizar
+            opcao = st.radio("Escolha uma opção:", ["Registrar nova compatibilidade", "Visualizar compatibilidades cadastradas"], key="opcao_compat")
+            
+            if opcao == "Registrar nova compatibilidade":
+                with st.form("nova_compatibilidade_form"):
+                    col_a, col_b = st.columns(2)
+                    with col_a:
+                        quimico = st.selectbox(
+                            "Produto Químico",
+                            options=sorted(dados["quimicos"]["Nome"].unique().tolist()),
+                            index=None
+                        )
+                        data_teste = st.date_input("Data do Teste")
+                        tipo = st.selectbox("Tipo de Teste", options=["Simples", "Composto"])
+                    with col_b:
+                        biologico = st.selectbox(
+                            "Produto Biológico",
+                            options=sorted(dados["biologicos"]["Nome"].unique().tolist()),
+                            index=None
+                        )
+                        duracao = st.number_input("Duração (horas)", min_value=0, value=0)
+                        resultado = st.selectbox("Resultado", options=["Compatível", "Incompatível", "Não testado"])
                     
-                submitted = st.form_submit_button("Adicionar Compatibilidade")
-                if submitted:
-                    if quimico and biologico:
-                        nova_compatibilidade = {
-                            "Data": data_teste.strftime("%Y-%m-%d"),
-                            "Quimico": quimico,
+                    submitted = st.form_submit_button("Adicionar Compatibilidade")
+                    if submitted:
+                        if quimico and biologico:
+                            nova_compatibilidade = {
+                                "Data": data_teste.strftime("%Y-%m-%d"),
+                                "Quimico": quimico,
                                 "Biologico": biologico,
                                 "Duracao": duracao,
                                 "Tipo": tipo,
@@ -548,14 +562,14 @@ def management():
                             }
                             
                             # Verificar se a combinação já existe
-                        combinacao_existente = dados["resultados"][
+                            combinacao_existente = dados["resultados"][
                                 (dados["resultados"]["Quimico"] == quimico) & 
                                 (dados["resultados"]["Biologico"] == biologico)
                             ]
                             
-                        if not combinacao_existente.empty:
+                            if not combinacao_existente.empty:
                                 st.warning(f"Combinação '{quimico} x {biologico}' já existe!")
-                        else:
+                            else:
                                 # Adicionar à planilha
                                 with st.spinner("Salvando nova compatibilidade..."):
                                     if append_to_sheet(nova_compatibilidade, "Resultados"):
@@ -565,19 +579,19 @@ def management():
                                         st.session_state.local_data["resultados"] = pd.concat([st.session_state.local_data["resultados"], nova_linha], ignore_index=True)
                                     else:
                                         st.error("Falha ao adicionar compatibilidade")
-                    else:
-                        st.warning("Selecione os produtos químico e biológico")
+                        else:
+                            st.warning("Selecione os produtos químico e biológico")
             
-            with st.expander("Tabela de Resultados"):
+            else:  # Visualizar compatibilidades cadastradas
                 # Filtros para a tabela
-                col_a, col_b = st.columns(2)
-                with col_a:
+                col1, col2 = st.columns(2)
+                with col1:
                     filtro_quimico = st.selectbox(
                         "🔍 Filtrar por Produto Químico",
                         options=["Todos"] + sorted(dados["resultados"]["Quimico"].unique().tolist()),
                         index=0
                     )
-                with col_b:
+                with col2:
                     filtro_biologico = st.selectbox(
                         "🔍 Filtrar por Produto Biológico",
                         options=["Todos"] + sorted(dados["resultados"]["Biologico"].unique().tolist()),
@@ -605,12 +619,12 @@ def management():
                         ),
                         "Quimico": st.column_config.SelectboxColumn(
                             "Produto Químico",
-                            options=sorted(dados["quimicos"]['Nome'].unique()),
+                            options=sorted(dados["quimicos"]["Nome"].unique().tolist()),
                             required=True
                         ),
                         "Biologico": st.column_config.SelectboxColumn(
                             "Produto Biológico",
-                            options=sorted(dados["biologicos"]['Nome'].unique()),
+                            options=sorted(dados["biologicos"]["Nome"].unique().tolist()),
                             required=True
                         ),
                         "Duracao": st.column_config.NumberColumn(
@@ -643,132 +657,134 @@ def management():
                             if update_sheet(st.session_state.resultados_editor, "Resultados"):
                                 st.session_state.edited_data = False
                                 st.success("Dados salvos com sucesso!")
-
-########################################## HISTÓRICO E RELATÓRIOS ##########################################
-
-def history_reports():
-    st.title("📊 Histórico e Relatórios")
     
-    # Inicializar dados locais se não existirem na sessão
-    if 'local_data' not in st.session_state:
-        st.session_state.local_data = load_all_data()
-        
-    # Botão para recarregar dados manualmente
-    col1, col2 = st.columns([3, 1])
-    with col2:
-        if st.button("🔄 Recarregar Dados", key="reload_history"):
-            with st.spinner("Recarregando dados..."):
-                st.cache_data.clear()
-                st.session_state.local_data = load_all_data()
-                st.success("Dados recarregados com sucesso!")
-    
-    # Usar dados da sessão em vez de recarregar a cada interação
-    dados = st.session_state.local_data
-    
-    # Criar abas para diferentes relatórios
-    tab1, tab2, tab3 = st.tabs(["Estatísticas", "Testes Realizados", "Solicitações Pendentes"])
-    
-    with tab1:
-        st.subheader("Estatísticas de Compatibilidade")
-        if not dados["resultados"].empty:
-            # Criar estatísticas de compatibilidade
-            df_stats = dados["resultados"].value_counts("Resultado").reset_index()
-            fig = px.pie(df_stats, names="Resultado", values="count", 
-                        title="Distribuição de Resultados de Compatibilidade",
-                        color_discrete_map={'Compatível':'#90EE90', 'Incompatível':'#FFB6C1', 'Não testado':'#ADD8E6'})
-            st.plotly_chart(fig, use_container_width=True)
-            
-            # Adicionar mais estatísticas
-            col1, col2 = st.columns(2)
-            with col1:
-                st.metric("Total de Testes", len(dados["resultados"]))
-                st.metric("Compatíveis", len(dados["resultados"][dados["resultados"]["Resultado"] == "Compatível"]))
-            with col2:
-                st.metric("Incompatíveis", len(dados["resultados"][dados["resultados"]["Resultado"] == "Incompatível"]))
-                st.metric("Não testados", len(dados["resultados"][dados["resultados"]["Resultado"] == "Não testado"]))
+    with tab4:
+        st.subheader("Solicitações")
+        if "solicitacoes" not in dados or dados["solicitacoes"].empty:
+            st.warning("Sem solicitações para exibir")
         else:
-            st.warning("Sem dados de resultados para exibir estatísticas")
-    
-    with tab2:
-        st.subheader("Últimos Testes Realizados")
-        if not dados["resultados"].empty:
-            # Adicionar filtros
-            col1, col2 = st.columns(2)
-            with col1:
-                filtro_quimico = st.multiselect(
-                    "Filtrar por Produto Químico",
-                    options=sorted(dados["resultados"]["Quimico"].unique()),
-                    default=None
-                )
-            with col2:
-                filtro_biologico = st.multiselect(
-                    "Filtrar por Produto Biológico",
-                    options=sorted(dados["resultados"]["Biologico"].unique()),
-                    default=None
-                )
+            # Opções para o usuário escolher entre registrar ou visualizar
+            opcao = st.radio("Escolha uma opção:", ["Registrar nova solicitação", "Visualizar solicitações cadastradas"], key="opcao_solicitacoes")
             
-            # Aplicar filtros
-            df_filtrado = dados["resultados"].copy()
-            if filtro_quimico:
-                df_filtrado = df_filtrado[df_filtrado["Quimico"].isin(filtro_quimico)]
-            if filtro_biologico:
-                df_filtrado = df_filtrado[df_filtrado["Biologico"].isin(filtro_biologico)]
+            if opcao == "Registrar nova solicitação":
+                with st.form("nova_solicitacao_form"):
+                    col1, col2 = st.columns(2)
+                    with col1:
+                        solicitante = st.text_input("Nome do Solicitante")
+                        quimico = st.selectbox(
+                            "Produto Químico",
+                            options=sorted(dados["quimicos"]["Nome"].unique().tolist()),
+                            index=None
+                        )
+                    with col2:
+                        data = st.date_input("Data da Solicitação")
+                        biologico = st.selectbox(
+                            "Produto Biológico",
+                            options=sorted(dados["biologicos"]["Nome"].unique().tolist()),
+                            index=None
+                        )
+                    
+                    observacoes = st.text_area("Observações")
+                    
+                    submitted = st.form_submit_button("Adicionar Solicitação")
+                    if submitted:
+                        if solicitante and quimico and biologico:
+                            nova_solicitacao = {
+                                "Data": data.strftime("%Y-%m-%d"),
+                                "Solicitante": solicitante,
+                                "Quimico": quimico,
+                                "Biologico": biologico,
+                                "Observacoes": observacoes,
+                                "Status": "Pendente"
+                            }
+                            
+                            # Adicionar à planilha
+                            with st.spinner("Salvando nova solicitação..."):
+                                if append_to_sheet(nova_solicitacao, "Solicitacoes"):
+                                    st.success("Solicitação adicionada com sucesso!")
+                                    # Atualizar dados locais
+                                    nova_linha = pd.DataFrame([nova_solicitacao])
+                                    st.session_state.local_data["solicitacoes"] = pd.concat([st.session_state.local_data["solicitacoes"], nova_linha], ignore_index=True)
+                                else:
+                                    st.error("Falha ao adicionar solicitação")
+                        else:
+                            st.warning("Preencha todos os campos obrigatórios")
             
-            # Mostrar dados filtrados
-            st.dataframe(
-                df_filtrado.sort_values("Data", ascending=False),
-                hide_index=True,
-                use_container_width=True
-            )
-        else:
-            st.warning("Sem dados de testes para exibir")
-    
-    with tab3:
-        st.subheader("Solicitações Pendentes")
-        if not dados["solicitacoes"].empty:
-            # Filtrar apenas solicitações pendentes
-            solicitacoes_pendentes = dados["solicitacoes"][dados["solicitacoes"]["Status"] == "Pendente"]
-            
-            if not solicitacoes_pendentes.empty:
-                st.dataframe(
-                    solicitacoes_pendentes.sort_values("Data", ascending=False),
-                    hide_index=True,
+            else:  # Visualizar solicitações cadastradas
+                # Filtros para a tabela
+                col1, col2, col3 = st.columns(3)
+                with col1:
+                    filtro_status = st.selectbox(
+                        "🔍 Filtrar por Status",
+                        options=["Todos", "Pendente", "Aprovado", "Rejeitado"],
+                        index=0
+                    )
+                with col2:
+                    filtro_quimico = st.selectbox(
+                        "🔍 Filtrar por Produto Químico",
+                        options=["Todos"] + sorted(dados["solicitacoes"]["Quimico"].unique().tolist()),
+                        index=0
+                    )
+                with col3:
+                    filtro_biologico = st.selectbox(
+                        "🔍 Filtrar por Produto Biológico",
+                        options=["Todos"] + sorted(dados["solicitacoes"]["Biologico"].unique().tolist()),
+                        index=0
+                    )
+                
+                # Aplicar filtros
+                df_filtrado = dados["solicitacoes"].copy()
+                if filtro_status != "Todos":
+                    df_filtrado = df_filtrado[df_filtrado["Status"] == filtro_status]
+                if filtro_quimico != "Todos":
+                    df_filtrado = df_filtrado[df_filtrado["Quimico"] == filtro_quimico]
+                if filtro_biologico != "Todos":
+                    df_filtrado = df_filtrado[df_filtrado["Biologico"] == filtro_biologico]
+                
+                # Tabela editável
+                st.data_editor(
+                    df_filtrado,
+                    num_rows="dynamic",
+                    key="solicitacoes_editor",
+                    on_change=lambda: st.session_state.update(edited_data=True),
+                    column_config={
+                        "Data": st.column_config.DateColumn(
+                            "Data da Solicitação",
+                            format="YYYY-MM-DD",
+                            required=True
+                        ),
+                        "Solicitante": "Nome do Solicitante",
+                        "Quimico": st.column_config.SelectboxColumn(
+                            "Produto Químico",
+                            options=sorted(dados["quimicos"]["Nome"].unique().tolist()),
+                            required=True
+                        ),
+                        "Biologico": st.column_config.SelectboxColumn(
+                            "Produto Biológico",
+                            options=sorted(dados["biologicos"]["Nome"].unique().tolist()),
+                            required=True
+                        ),
+                        "Observacoes": "Observações",
+                        "Status": st.column_config.SelectboxColumn(
+                            "Status",
+                            options=["Pendente", "Aprovado", "Rejeitado"],
+                            required=True
+                        )
+                    },
                     use_container_width=True
                 )
                 
-                # Adicionar opção para aprovar/rejeitar solicitações
-                with st.expander("Gerenciar Solicitações", expanded=False):
-                    st.info("Selecione uma solicitação para atualizar seu status")
-                    
-                    # Criar lista de solicitações para seleção
-                    solicitacoes_list = [f"{row['Data']} - {row['Quimico']} x {row['Biologico']} ({row.get('Solicitante', 'N/A')})" 
-                                        for _, row in solicitacoes_pendentes.iterrows()]
-                    
-                    if solicitacoes_list:
-                        selecionada = st.selectbox("Selecione uma solicitação", solicitacoes_list)
-                        
-                        if selecionada:
-                            idx = solicitacoes_list.index(selecionada)
-                            solicitacao = solicitacoes_pendentes.iloc[idx]
+                # Botão para salvar alterações
+                if st.button("Salvar Alterações", key="save_solicitacoes"):
+                    with st.spinner("Salvando dados..."):
+                        if 'solicitacoes_editor' in st.session_state:
+                            # Atualizar dados locais primeiro
+                            st.session_state.local_data["solicitacoes"] = st.session_state.solicitacoes_editor
                             
-                            st.write(f"**Solicitante:** {solicitacao.get('Solicitante', 'N/A')}")
-                            st.write(f"**Data:** {solicitacao['Data']}")
-                            st.write(f"**Produtos:** {solicitacao['Quimico']} x {solicitacao['Biologico']}")
-                            st.write(f"**Observações:** {solicitacao['Observacoes']}")
-                            
-                            col1, col2 = st.columns(2)
-                            with col1:
-                                if st.button("✅ Aprovar", key="aprovar_sol"):
-                                    # Lógica para aprovar solicitação
-                                    st.success("Solicitação aprovada!")
-                            with col2:
-                                if st.button("❌ Rejeitar", key="rejeitar_sol"):
-                                    # Lógica para rejeitar solicitação
-                                    st.error("Solicitação rejeitada!")
-            else:
-                st.success("Não há solicitações pendentes!")
-        else:
-            st.warning("Sem solicitações para exibir")
+                            # Depois enviar para o Google Sheets
+                            if update_sheet(st.session_state.solicitacoes_editor, "Solicitacoes"):
+                                st.session_state.edited_data = False
+                                st.success("Dados salvos com sucesso!")
 
 ########################################## CONFIGURAÇÕES ##########################################
 
@@ -860,19 +876,41 @@ def settings_page():
 ########################################## SIDEBAR E ROTEAMENTO ##########################################
 
 def main():
-    st.sidebar.image("imagens/logo-cocal.png", width=150)
-    st.sidebar.title("Navegação")
+    st.set_page_config(
+        page_title="Compatibilidade de Produtos",
+        page_icon="🧪",
+        layout="wide"
+    )
     
-    pages = {
-        "Compatibilidade": compatibilidade,
-        "Gerenciamento de Produtos": management,
-        "Histórico e Relatórios": history_reports,
-        "Configurações": settings_page
-    }
+    # Verificar se o usuário está autenticado
+    if 'authenticated' not in st.session_state:
+        st.session_state.authenticated = False
     
-    selected_page = st.sidebar.radio("Selecione a página", tuple(pages.keys()))
+    # Se não estiver autenticado, mostrar tela de login
+    if not st.session_state.authenticated:
+        login()
+    else:
+        # Sidebar para navegação
+        with st.sidebar:
+            st.title("🧪 Compatibilidade")
+            selected_page = st.radio(
+                "Navegação",
+                ["Compatibilidade", "Gerenciamento", "Configurações"]
+            )
+            
+            # Informações do usuário
+            st.markdown("---")
+            st.markdown(f"**Usuário:** {st.session_state.username}")
+            if st.button("Sair"):
+                st.session_state.authenticated = False
+                st.experimental_rerun()
     
-    with st.spinner("Carregando dados..."):
+        pages = {
+            "Compatibilidade": compatibilidade,
+            "Gerenciamento": management,
+            "Configurações": settings_page
+        }
+        
         pages[selected_page]()
 
 if __name__ == "__main__":
