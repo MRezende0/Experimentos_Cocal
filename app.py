@@ -10,6 +10,7 @@ import certifi
 
 import streamlit as st
 import pandas as pd
+import numpy as np
 import plotly.express as px
 import gspread
 from oauth2client.service_account import ServiceAccountCredentials
@@ -140,9 +141,19 @@ def load_sheet_data(sheet_name: str) -> pd.DataFrame:
 
 def append_to_sheet(data_dict, sheet_name):
     try:
+        # Converter valores para tipos nativos do Python
+        converted_data = {
+            k: int(v) if isinstance(v, (np.int64, np.int32)) else 
+               str(v) if isinstance(v, (np.str_, pd.Timestamp)) else 
+               v for k, v in data_dict.items()
+        }
+        
         worksheet = get_worksheet(sheet_name)
         if worksheet:
-            worksheet.append_row(list(data_dict.values()))
+            # Converter para lista mantendo a ordem das colunas
+            headers = worksheet.row_values(1)
+            row = [converted_data.get(header, "") for header in headers]
+            worksheet.append_row(row)
             return True
         return False
     except Exception as e:
@@ -180,7 +191,7 @@ def get_product_id(df, product_name, product_type):
         st.error(f"{product_type} não encontrado: {product_name}")
         return None
 
-########################################## PÁGINA PRINCIPAL ##########################################
+########################################## COMPATIBILIDADE ##########################################
 
 def compatibilidade():
     st.title("🧪 Compatibilidade")
@@ -245,20 +256,17 @@ def compatibilidade():
                     if st.form_submit_button("Solicitar Teste"):
                         nova_solicitacao = {
                             "Data": data_solicitacao.strftime("%Y-%m-%d"),
-                            "Quimico": id_quimico,
-                            "Biologico": id_biologico,
-                            "Observações": observacoes,
+                            "Quimico": int(id_quimico),  # Converter para int nativo
+                            "Biologico": int(id_biologico),  # Converter para int nativo
+                            "Observacoes": str(observacoes),  # Garantir conversão para string
                             "Status": "Pendente"
                         }
                         
-                        # Adicionar à planilha de Solicitações
-                        try:
-                            worksheet = get_worksheet("Solicitacoes")
-                            worksheet.append_row(list(nova_solicitacao.values()))
+                        if append_to_sheet(nova_solicitacao, "Solicitacoes"):
                             st.success("Solicitação registrada com sucesso!")
                             st.cache_data.clear()
-                        except Exception as e:
-                            st.error(f"Erro ao registrar solicitação: {str(e)}")
+                        else:
+                            st.error("Falha ao registrar solicitação")
 
 ########################################## GERENCIAMENTO DE PRODUTOS ##########################################
 
