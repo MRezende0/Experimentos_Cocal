@@ -512,38 +512,35 @@ def management():
         if dados["resultados"].empty:
             st.error("Erro ao carregar dados dos resultados!")
         else:
-            with st.expander("Adicionar Nova Compatibilidade"):
-                # Formulário para adicionar nova compatibilidade
-                st.subheader("Adicionar Nova Compatibilidade")
-                with st.form("nova_compatibilidade_form"):
-                    col_a, col_b = st.columns(2)
-                    with col_a:
-                        quimico = st.selectbox(
-                            "Produto Químico",
-                            options=sorted(dados["quimicos"]['Nome'].unique()),
-                            index=None
-                        )
-                    with col_b:
-                        biologico = st.selectbox(
-                            "Produto Biológico",
-                            options=sorted(dados["biologicos"]['Nome'].unique()),
-                            index=None
-                        )
+            with st.form("nova_compatibilidade_form"):
+                col_a, col_b = st.columns(2)
+                with col_a:
+                    quimico = st.selectbox(
+                        "Produto Químico",
+                        options=sorted(dados["quimicos"]['Nome'].unique()),
+                        index=None
+                    )
+                with col_b:
+                    biologico = st.selectbox(
+                        "Produto Biológico",
+                        options=sorted(dados["biologicos"]['Nome'].unique()),
+                        index=None
+                    )
+                
+                col_a, col_b = st.columns(2)
+                with col_a:
+                    data_teste = st.date_input("Data do Teste")
+                    duracao = st.number_input("Duração (horas)", min_value=0, value=0)
+                with col_b:
+                    tipo = st.selectbox("Tipo de Teste", options=["Simples", "Composto"])
+                    resultado = st.selectbox("Resultado", options=["Compatível", "Incompatível", "Não testado"])
                     
-                    col_a, col_b = st.columns(2)
-                    with col_a:
-                        data_teste = st.date_input("Data do Teste")
-                        duracao = st.number_input("Duração (horas)", min_value=0, value=0)
-                    with col_b:
-                        tipo = st.selectbox("Tipo de Teste", options=["Simples", "Composto"])
-                        resultado = st.selectbox("Resultado", options=["Compatível", "Incompatível", "Não testado"])
-                    
-                    submitted = st.form_submit_button("Adicionar Compatibilidade")
-                    if submitted:
-                        if quimico and biologico:
-                            nova_compatibilidade = {
-                                "Data": data_teste.strftime("%Y-%m-%d"),
-                                "Quimico": quimico,
+                submitted = st.form_submit_button("Adicionar Compatibilidade")
+                if submitted:
+                    if quimico and biologico:
+                        nova_compatibilidade = {
+                            "Data": data_teste.strftime("%Y-%m-%d"),
+                            "Quimico": quimico,
                                 "Biologico": biologico,
                                 "Duracao": duracao,
                                 "Tipo": tipo,
@@ -551,14 +548,14 @@ def management():
                             }
                             
                             # Verificar se a combinação já existe
-                            combinacao_existente = dados["resultados"][
+                        combinacao_existente = dados["resultados"][
                                 (dados["resultados"]["Quimico"] == quimico) & 
                                 (dados["resultados"]["Biologico"] == biologico)
                             ]
                             
-                            if not combinacao_existente.empty:
+                        if not combinacao_existente.empty:
                                 st.warning(f"Combinação '{quimico} x {biologico}' já existe!")
-                            else:
+                        else:
                                 # Adicionar à planilha
                                 with st.spinner("Salvando nova compatibilidade..."):
                                     if append_to_sheet(nova_compatibilidade, "Resultados"):
@@ -568,8 +565,8 @@ def management():
                                         st.session_state.local_data["resultados"] = pd.concat([st.session_state.local_data["resultados"], nova_linha], ignore_index=True)
                                     else:
                                         st.error("Falha ao adicionar compatibilidade")
-                        else:
-                            st.warning("Selecione os produtos químico e biológico")
+                    else:
+                        st.warning("Selecione os produtos químico e biológico")
             
             with st.expander("Tabela de Resultados"):
                 # Filtros para a tabela
