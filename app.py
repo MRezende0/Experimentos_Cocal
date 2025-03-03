@@ -432,44 +432,41 @@ def management():
         if dados["biologicos"].empty:
             st.error("Erro ao carregar dados dos produtos biológicos!")
         else:            
-            with st.expander("Adicionar Novo Produto"):
-                # Formulário para adicionar novo produto biológico
-                st.subheader("Adicionar Novo Produto")
-                with st.form("novo_biologico_form"):
-                    nome = st.text_input("Nome do Produto")
-                    tipo = st.selectbox("Tipo", options=["Bioestimulante", "Controle Biológico"])
-                    ingrediente_ativo = st.text_input("Ingrediente Ativo")
-                    formulacao = st.text_input("Formulação")
-                    aplicacao = st.text_input("Aplicação")
-                    validade = st.text_input("Validade")
+            with st.form("novo_biologico_form"):
+                nome = st.text_input("Nome do Produto")
+                tipo = st.selectbox("Tipo", options=["Bioestimulante", "Controle Biológico"])
+                ingrediente_ativo = st.text_input("Ingrediente Ativo")
+                formulacao = st.text_input("Formulação")
+                aplicacao = st.text_input("Aplicação")
+                validade = st.text_input("Validade")
                     
-                    submitted = st.form_submit_button("Adicionar Produto")
-                    if submitted:
-                        if nome:
-                            novo_produto = {
-                                "Nome": nome,
-                                "Tipo": tipo,
-                                "IngredienteAtivo": ingrediente_ativo,
-                                "Formulacao": formulacao,
-                                "Aplicacao": aplicacao,
-                                "Validade": validade
-                            }
+                submitted = st.form_submit_button("Adicionar Produto")
+                if submitted:
+                    if nome:
+                        novo_produto = {
+                            "Nome": nome,
+                            "Tipo": tipo,
+                            "IngredienteAtivo": ingrediente_ativo,
+                            "Formulacao": formulacao,
+                            "Aplicacao": aplicacao,
+                            "Validade": validade
+                        }
                             
-                            # Verificar se o produto já existe
-                            if nome in dados["biologicos"]["Nome"].values:
-                                st.warning(f"Produto '{nome}' já existe!")
-                            else:
-                                # Adicionar à planilha
-                                with st.spinner("Salvando novo produto..."):
-                                    if append_to_sheet(novo_produto, "Biologicos"):
-                                        st.success("Produto adicionado com sucesso!")
-                                        # Atualizar dados locais
-                                        nova_linha = pd.DataFrame([novo_produto])
-                                        st.session_state.local_data["biologicos"] = pd.concat([st.session_state.local_data["biologicos"], nova_linha], ignore_index=True)
-                                    else:
-                                        st.error("Falha ao adicionar produto")
+                        # Verificar se o produto já existe
+                        if nome in dados["biologicos"]["Nome"].values:
+                            st.warning(f"Produto '{nome}' já existe!")
                         else:
-                            st.warning("Nome do produto é obrigatório")
+                            # Adicionar à planilha
+                            with st.spinner("Salvando novo produto..."):
+                                if append_to_sheet(novo_produto, "Biologicos"):
+                                    st.success("Produto adicionado com sucesso!")
+                                    # Atualizar dados locais
+                                    nova_linha = pd.DataFrame([novo_produto])
+                                    st.session_state.local_data["biologicos"] = pd.concat([st.session_state.local_data["biologicos"], nova_linha], ignore_index=True)
+                                else:
+                                    st.error("Falha ao adicionar produto")
+                    else:
+                        st.warning("Nome do produto é obrigatório")
             
             with st.expander("Tabela de Produtos Biológicos"):
                 # Filtro para a tabela
