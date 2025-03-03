@@ -184,13 +184,6 @@ def load_all_data():
         "solicitacoes": load_sheet_data("Solicitacoes")
     }
 
-def get_product_id(df, product_name, product_type):
-    try:
-        return df[df['Nome'] == product_name]['ID'].values[0]
-    except IndexError:
-        st.error(f"{product_type} não encontrado: {product_name}")
-        return None
-
 ########################################## COMPATIBILIDADE ##########################################
 
 def compatibilidade():
@@ -219,101 +212,126 @@ def compatibilidade():
         )
     
     if quimico and biologico:
-        # Obter IDs
-        id_quimico = get_product_id(dados["quimicos"], quimico, "Quimico")
-        id_biologico = get_product_id(dados["biologicos"], biologico, "Biologico")
+        # Procurar na planilha de Resultados usando os nomes
+        resultado_existente = dados["resultados"][
+            (dados["resultados"]["Quimico"] == quimico) &
+            (dados["resultados"]["Biologico"] == biologico)
+        ]
         
-        if id_quimico and id_biologico:
-            # Procurar na planilha de Resultados
-            resultado_existente = dados["resultados"][
-                (dados["resultados"]["Quimico"] == id_quimico) &
-                (dados["resultados"]["Biologico"] == id_biologico)
-            ]
+        if not resultado_existente.empty:
+            resultado = resultado_existente.iloc[0]['Resultado']
+            classe = "compativel" if resultado == "Compatível" else "incompativel"
+            st.markdown(f"""
+                <div class="resultado {classe}">
+                    {resultado}
+                </div>
+            """, unsafe_allow_html=True)
             
-            if not resultado_existente.empty:
-                resultado = resultado_existente.iloc[0]['Resultado']
-                classe = "compativel" if resultado == "Compatível" else "incompativel"
-                st.markdown(f"""
-                    <div class="resultado {classe}">
-                        {resultado}
-                    </div>
-                """, unsafe_allow_html=True)
-                
-                # Mostrar detalhes do teste
-                with st.expander("Ver detalhes do teste"):
-                    st.write(f"**Data:** {resultado_existente.iloc[0]['Data']}")
-                    st.write(f"**Tipo:** {resultado_existente.iloc[0]['Tipo']}")
-                    st.write(f"**Duração:** {resultado_existente.iloc[0]['Duracao']} dias")
+            # Mostrar detalhes do teste
+            with st.expander("Ver detalhes do teste"):
+                st.write(f"**Data:** {resultado_existente.iloc[0]['Data']}")
+                st.write(f"**Tipo:** {resultado_existente.iloc[0]['Tipo']}")
+                st.write(f"**Duração:** {resultado_existente.iloc[0]['Duracao']} dias")
+        
+        else:
+            st.warning("Combinação ainda não testada")
             
-            else:
-                st.warning("Combinação ainda não testada")
+            # Solicitar novo teste
+            with st.form("solicitar_teste"):
+                data_solicitacao = st.date_input("Data desejada para o teste")
+                observacoes = st.text_area("Observações")
                 
-                # Solicitar novo teste
-                with st.form("solicitar_teste"):
-                    data_solicitacao = st.date_input("Data desejada para o teste")
-                    observacoes = st.text_area("Observações")
+                if st.form_submit_button("Solicitar Teste"):
+                    nova_solicitacao = {
+                        "Data": data_solicitacao.strftime("%Y-%m-%d"),
+                        "Quimico": quimico,  # Usar nome em vez de ID
+                        "Biologico": biologico,  # Usar nome em vez de ID
+                        "Observacoes": observacoes,
+                        "Status": "Pendente"
+                    }
                     
-                    if st.form_submit_button("Solicitar Teste"):
-                        nova_solicitacao = {
-                            "Data": data_solicitacao.strftime("%Y-%m-%d"),
-                            "Quimico": int(id_quimico),  # Converter para int nativo
-                            "Biologico": int(id_biologico),  # Converter para int nativo
-                            "Observacoes": str(observacoes),  # Garantir conversão para string
-                            "Status": "Pendente"
-                        }
-                        
-                        if append_to_sheet(nova_solicitacao, "Solicitacoes"):
-                            st.success("Solicitação registrada com sucesso!")
-                            st.cache_data.clear()
-                        else:
-                            st.error("Falha ao registrar solicitação")
+                    if append_to_sheet(nova_solicitacao, "Solicitacoes"):
+                        st.success("Solicitação registrada com sucesso!")
+                        st.cache_data.clear()
+                    else:
+                        st.error("Falha ao registrar solicitação")
 
 ########################################## GERENCIAMENTO DE PRODUTOS ##########################################
 
 def product_management():
     st.title("📦 Gerenciamento de Produtos")
     
+    # Forçar recarregamento dos dados para garantir dados atualizados
+    st.cache_data.clear()
     dados = load_all_data()
+    
     tab1, tab2, tab3 = st.tabs(["Quimicos", "Biologicos", "Compatibilidades"])
     
     with tab1:
-        df_edit = st.data_editor(
-            dados["quimicos"],
-            num_rows="dynamic",
-            column_config={
-                "ID": st.column_config.NumberColumn(format="%d"),
-                "Nome": "Produto Químico",
-                "Tipo": st.column_config.SelectboxColumn(options=["Herbicida", "Fungicida", "Inseticida"])
-            }
-        )
-        if st.button("Salvar Quimicos"):
-            update_sheet(df_edit, "Quimicos")
+        st.subheader("Produtos Químicos")
+        if dados["quimicos"].empty:
+            st.error("Erro ao carregar dados dos produtos químicos!")
+        else:
+            df_edit = st.data_editor(
+                dados["quimicos"],
+                num_rows="dynamic",
+                column_config={
+                    "Nome": "Produto Químico",
+                    "Tipo": st.column_config.SelectboxColumn(options=["Herbicida", "Fungicida", "Inseticida"]),
+                    "Fabricante": "Fabricante",
+                    "Concentracao": "Concentração",
+                    "Classe": "Classe",
+                    "ModoAcao": "Modo de Ação"
+                }
+            )
+            if st.button("Salvar Quimicos"):
+                if update_sheet(df_edit, "Quimicos"):
+                    st.success("Dados salvos com sucesso!")
+                    st.cache_data.clear()
     
     with tab2:
-        df_edit = st.data_editor(
-            dados["biologicos"],
-            num_rows="dynamic",
-            column_config={
-                "ID": st.column_config.NumberColumn(format="%d"),
-                "Nome": "Produto Biológico",
-                "Tipo": st.column_config.SelectboxColumn(options=["Bioestimulante", "Controle Biológico"])
-            }
-        )
-        if st.button("Salvar Biológicos"):
-            update_sheet(df_edit, "Biologicos")
+        st.subheader("Produtos Biológicos")
+        if dados["biologicos"].empty:
+            st.error("Erro ao carregar dados dos produtos biológicos!")
+        else:
+            df_edit = st.data_editor(
+                dados["biologicos"],
+                num_rows="dynamic",
+                column_config={
+                    "Nome": "Produto Biológico",
+                    "Tipo": st.column_config.SelectboxColumn(options=["Bioestimulante", "Controle Biológico"]),
+                    "IngredienteAtivo": "Ingrediente Ativo",
+                    "Formulacao": "Formulação",
+                    "Aplicacao": "Aplicação",
+                    "Validade": "Validade"
+                }
+            )
+            if st.button("Salvar Biológicos"):
+                if update_sheet(df_edit, "Biologicos"):
+                    st.success("Dados salvos com sucesso!")
+                    st.cache_data.clear()
     
     with tab3:
-        df_edit = st.data_editor(
-            dados["resultados"],
-            num_rows="dynamic",
-            column_config={
-                "Quimico": st.column_config.NumberColumn(format="%d"),
-                "Biologico": st.column_config.NumberColumn(format="%d"),
-                "Resultado": st.column_config.SelectboxColumn(options=["Compatível", "Incompatível", "Não testado"])
-            }
-        )
-        if st.button("Salvar Resultados"):
-            update_sheet(df_edit, "Resultados")
+        st.subheader("Resultados de Compatibilidade")
+        if dados["resultados"].empty:
+            st.error("Erro ao carregar dados dos resultados!")
+        else:
+            df_edit = st.data_editor(
+                dados["resultados"],
+                num_rows="dynamic",
+                column_config={
+                    "Data": "Data",
+                    "Quimico": "Produto Químico",
+                    "Biologico": "Produto Biológico",
+                    "Duracao": "Duração (dias)",
+                    "Tipo": st.column_config.SelectboxColumn(options=["Simples", "Completo"]),
+                    "Resultado": st.column_config.SelectboxColumn(options=["Compatível", "Incompatível", "Não testado"])
+                }
+            )
+            if st.button("Salvar Resultados"):
+                if update_sheet(df_edit, "Resultados"):
+                    st.success("Dados salvos com sucesso!")
+                    st.cache_data.clear()
 
 ########################################## HISTÓRICO E RELATÓRIOS ##########################################
 
@@ -323,23 +341,31 @@ def history_reports():
     dados = load_all_data()
     
     st.subheader("Estatísticas de Compatibilidade")
-    df_stats = dados["resultados"].value_counts("Resultado").reset_index()
-    fig = px.pie(df_stats, names="Resultado", values="count")
-    st.plotly_chart(fig)
+    if not dados["resultados"].empty:
+        df_stats = dados["resultados"].value_counts("Resultado").reset_index()
+        fig = px.pie(df_stats, names="Resultado", values="count")
+        st.plotly_chart(fig)
+    else:
+        st.warning("Sem dados de resultados para exibir estatísticas")
     
     st.subheader("Últimos Testes Realizados")
-    st.dataframe(
-        dados["resultados"].merge(
-            dados["quimicos"], left_on="Quimico", right_on="ID"
-        ).merge(
-            dados["biologicos"], left_on="Biologico", right_on="ID"
-        )[["Nome_x", "Nome_y", "Resultado"]],
-        hide_index=True,
-        column_config={
-            "Nome_x": "Quimico",
-            "Nome_y": "Biologico"
-        }
-    )
+    if not dados["resultados"].empty:
+        # Usar diretamente os nomes dos produtos que já estão na planilha
+        st.dataframe(
+            dados["resultados"][["Data", "Quimico", "Biologico", "Resultado", "Tipo"]],
+            hide_index=True
+        )
+    else:
+        st.warning("Sem dados de testes para exibir")
+    
+    st.subheader("Solicitações Pendentes")
+    if not dados["solicitacoes"].empty:
+        st.dataframe(
+            dados["solicitacoes"],
+            hide_index=True
+        )
+    else:
+        st.warning("Sem solicitações pendentes")
 
 ########################################## CONFIGURAÇÕES ##########################################
 
