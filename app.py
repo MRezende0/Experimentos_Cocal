@@ -875,34 +875,17 @@ def settings_page():
 
 ########################################## SIDEBAR E ROTEAMENTO ##########################################
 
-def main():    
-    # Verificar se o usuário está autenticado
-    if 'authenticated' not in st.session_state:
-        st.session_state.authenticated = False
-        
-    else:
-        # Sidebar para navegação
-        with st.sidebar:
-            st.title("🧪 Compatibilidade")
-            selected_page = st.radio(
-                "Navegação",
-                ["Compatibilidade", "Gerenciamento", "Configurações"]
-            )
-            
-            # Informações do usuário
-            st.markdown("---")
-            st.markdown(f"**Usuário:** {st.session_state.username}")
-            if st.button("Sair"):
-                st.session_state.authenticated = False
-                st.experimental_rerun()
+def main():
+    st.sidebar.image("imagens/logo-cocal.png", width=150)
+    st.sidebar.title("Navegação")
     
-        pages = {
-            "Compatibilidade": compatibilidade,
-            "Gerenciamento": management,
-            "Configurações": settings_page
-        }
+    pages = {
+        "Compatibilidade": compatibilidade,
+        "Gerenciamento": management,
+        "Configurações": settings_page
+    }
         
-        pages[selected_page]()
+    pages[selected_page]()
 
 if __name__ == "__main__":
     main()
