@@ -270,7 +270,7 @@ def product_management():
     
     with tab1:
         df_edit = st.data_editor(
-            dados["quimicos"],
+            dados["Quimicos"],
             num_rows="dynamic",
             column_config={
                 "ID": st.column_config.NumberColumn(format="%d"),
