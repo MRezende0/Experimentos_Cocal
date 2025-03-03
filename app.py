@@ -239,7 +239,7 @@ def compatibilidade():
             # Solicitar novo teste
             with st.form("solicitar_teste"):
                 data_solicitacao = st.date_input("Data da Solicitação")
-                solicitante = st.name_input("Nome")
+                solicitante = st.text_input("Nome")
                 observacoes = st.text_area("Observações")
                 
                 if st.form_submit_button("Solicitar Teste"):
