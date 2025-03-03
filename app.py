@@ -138,6 +138,16 @@ def load_sheet_data(sheet_name: str) -> pd.DataFrame:
         return pd.DataFrame()
     return result
 
+def append_to_sheet(data_dict, sheet_name):
+    try:
+        worksheet = get_worksheet(sheet_name)
+        if worksheet:
+            worksheet.append_row(list(data_dict.values()))
+            return True
+        return False
+    except Exception as e:
+        st.error(f"Erro ao adicionar dados: {str(e)}")
+        return False
 
 def update_sheet(df: pd.DataFrame, sheet_name: str) -> bool:
     def _update():
@@ -172,10 +182,15 @@ def get_product_id(df, product_name, product_type):
 
 ########################################## PÁGINA PRINCIPAL ##########################################
 
-def main_page():
+def compatibilidade():
     st.title("🧪 Compatibilidade")
     
     dados = load_all_data()
+    
+    # Verificar se os dados foram carregados corretamente
+    if dados["quimicos"].empty or dados["biologicos"].empty:
+        st.error("Erro ao carregar dados dos produtos!")
+        return
     
     col1, col2 = st.columns(2)
     with col1:
@@ -193,33 +208,57 @@ def main_page():
         )
     
     if quimico and biologico:
+        # Obter IDs
         id_quimico = get_product_id(dados["quimicos"], quimico, "Químico")
         id_biologico = get_product_id(dados["biologicos"], biologico, "Biológico")
         
         if id_quimico and id_biologico:
-            resultado = dados["resultados"].query(
-                f"Químico == {id_quimico} and Biológico == {id_biologico}"
-            )
+            # Procurar na planilha de Resultados
+            resultado_existente = dados["resultados"][
+                (dados["resultados"]["Químico"] == id_quimico) &
+                (dados["resultados"]["Biológico"] == id_biologico)
+            ]
             
-            if not resultado.empty:
-                resultado = resultado.iloc[0]['Resultado']
-                classe = "compativel" if resultado == "Compatível" else "Incompatível"
+            if not resultado_existente.empty:
+                resultado = resultado_existente.iloc[0]['Resultado']
+                classe = "compativel" if resultado == "Compatível" else "incompativel"
                 st.markdown(f"""
                     <div class="resultado {classe}">
                         {resultado}
                     </div>
                 """, unsafe_allow_html=True)
+                
+                # Mostrar detalhes do teste
+                with st.expander("Ver detalhes do teste"):
+                    st.write(f"**Data:** {resultado_existente.iloc[0]['Data']}")
+                    st.write(f"**Tipo:** {resultado_existente.iloc[0]['Tipo']}")
+                    st.write(f"**Duração:** {resultado_existente.iloc[0]['Duracao']} dias")
+            
             else:
-                st.warning("Combinação não testada")
-                if st.button("Solicitar Teste"):
-                    nova_solicitacao = {
-                        "Químico": id_quimico,
-                        "Biológico": id_biologico,
-                        "Data": datetime.now().strftime("%Y-%m-%d"),
-                        "Status": "Pendente"
-                    }
-                    if append_to_sheet(nova_solicitacao, "solicitacoes"):
-                        st.success("Solicitação registrada!")
+                st.warning("Combinação ainda não testada")
+                
+                # Solicitar novo teste
+                with st.form("solicitar_teste"):
+                    data_solicitacao = st.date_input("Data desejada para o teste")
+                    observacoes = st.text_area("Observações")
+                    
+                    if st.form_submit_button("Solicitar Teste"):
+                        nova_solicitacao = {
+                            "Data": data_solicitacao.strftime("%Y-%m-%d"),
+                            "Químico": id_quimico,
+                            "Biológico": id_biologico,
+                            "Observações": observacoes,
+                            "Status": "Pendente"
+                        }
+                        
+                        # Adicionar à planilha de Solicitações
+                        try:
+                            worksheet = get_worksheet("Solicitacoes")
+                            worksheet.append_row(list(nova_solicitacao.values()))
+                            st.success("Solicitação registrada com sucesso!")
+                            st.cache_data.clear()
+                        except Exception as e:
+                            st.error(f"Erro ao registrar solicitação: {str(e)}")
 
 ########################################## GERENCIAMENTO DE PRODUTOS ##########################################
 
@@ -321,7 +360,7 @@ def main():
     st.sidebar.title("Navegação")
     
     pages = {
-        "Análise de Compatibilidade": main_page,
+        "Compatibilidade": compatibilidade,
         "Gerenciamento de Produtos": product_management,
         "Histórico e Relatórios": history_reports,
         "Configurações": settings_page
