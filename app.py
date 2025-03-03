@@ -209,8 +209,8 @@ def compatibilidade():
     
     if quimico and biologico:
         # Obter IDs
-        id_quimico = get_product_id(dados["quimicos"], quimico, "Químico")
-        id_biologico = get_product_id(dados["biologicos"], biologico, "Biológico")
+        id_quimico = get_product_id(dados["quimicos"], quimico, "Quimico")
+        id_biologico = get_product_id(dados["biologicos"], biologico, "Biologico")
         
         if id_quimico and id_biologico:
             # Procurar na planilha de Resultados
@@ -245,8 +245,8 @@ def compatibilidade():
                     if st.form_submit_button("Solicitar Teste"):
                         nova_solicitacao = {
                             "Data": data_solicitacao.strftime("%Y-%m-%d"),
-                            "Químico": id_quimico,
-                            "Biológico": id_biologico,
+                            "Quimico": id_quimico,
+                            "Biologico": id_biologico,
                             "Observações": observacoes,
                             "Status": "Pendente"
                         }
