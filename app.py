@@ -241,15 +241,6 @@ def compatibilidade():
     if 'local_data' not in st.session_state:
         st.session_state.local_data = load_all_data()
         
-    # Botão para recarregar dados manualmente
-    col1, col2 = st.columns([3, 1])
-    with col2:
-        if st.button("🔄 Recarregar Dados", key="reload_compat"):
-            with st.spinner("Recarregando dados..."):
-                st.cache_data.clear()
-                st.session_state.local_data = load_all_data()
-                st.success("Dados recarregados com sucesso!")
-    
     # Usar dados da sessão em vez de recarregar a cada interação
     dados = st.session_state.local_data
     
@@ -298,6 +289,7 @@ def compatibilidade():
                 st.write(f"**Biologico:** {resultado_existente.iloc[0]['Biologico']}")
                 st.write(f"**Tipo:** {resultado_existente.iloc[0]['Tipo']}")
                 st.write(f"**Duração:** {resultado_existente.iloc[0]['Duracao']} horas")
+                st.write(f"**Resultado:** {resultado_existente.iloc[0]['Resultado']}")
         
         else:
             st.warning("Combinação ainda não testada")
@@ -426,62 +418,80 @@ def product_management():
         if dados["resultados"].empty:
             st.error("Erro ao carregar dados dos resultados!")
         else:
-            # Adicionar um formulário para nova compatibilidade em vez de editar toda a tabela
-            with st.expander("Adicionar Nova Compatibilidade", expanded=False):
-                with st.form("nova_compatibilidade"):
-                    col1, col2 = st.columns(2)
-                    with col1:
-                        quimico = st.selectbox(
-                            "Produto Químico",
-                            options=sorted(dados["quimicos"]['Nome'].unique()),
-                            index=None
-                        )
-                    with col2:
-                        biologico = st.selectbox(
-                            "Produto Biológico",
-                            options=sorted(dados["biologicos"]['Nome'].unique()),
-                            index=None
-                        )
-                    
-                    col1, col2 = st.columns(2)
-                    with col1:
-                        data_teste = st.date_input("Data do Teste")
-                        duracao = st.number_input("Duração (horas)", min_value=0, value=0)
-                    with col2:
-                        tipo = st.selectbox("Tipo de Teste", options=["Simples", "Composto"])
-                        resultado = st.selectbox("Resultado", options=["Compatível", "Incompatível", "Não testado"])
-                    
-                    if st.form_submit_button("Adicionar Compatibilidade"):
-                        if quimico and biologico:
-                            nova_compatibilidade = {
-                                "Data": data_teste.strftime("%Y-%m-%d"),
-                                "Quimico": quimico,
-                                "Biologico": biologico,
-                                "Duracao": duracao,
-                                "Tipo": tipo,
-                                "Resultado": resultado
-                            }
-                            
-                            # Adicionar à planilha
-                            with st.spinner("Salvando nova compatibilidade..."):
-                                if append_to_sheet(nova_compatibilidade, "Resultados"):
-                                    st.success("Compatibilidade adicionada com sucesso!")
-                                    # Atualizar dados locais
-                                    if "resultados" in st.session_state.local_data:
-                                        nova_linha = pd.DataFrame([nova_compatibilidade])
-                                        st.session_state.local_data["resultados"] = pd.concat([st.session_state.local_data["resultados"], nova_linha], ignore_index=True)
-                                else:
-                                    st.error("Falha ao adicionar compatibilidade")
-                        else:
-                            st.warning("Selecione os produtos químico e biológico")
+            # Criar uma cópia editável dos resultados
+            if 'resultados_editor' not in st.session_state:
+                st.session_state.resultados_editor = dados["resultados"].copy()
             
-            # Mostrar tabela atual de compatibilidades (somente visualização)
-            st.subheader("Compatibilidades Existentes")
-            st.dataframe(
-                dados["resultados"],
-                hide_index=True,
+            # Adicionar botão para adicionar nova linha
+            if st.button("➕ Adicionar Nova Compatibilidade", key="add_compat"):
+                # Criar uma nova linha com valores padrão
+                nova_linha = pd.DataFrame([{
+                    "Data": datetime.now().strftime("%Y-%m-%d"),
+                    "Quimico": dados["quimicos"]['Nome'].iloc[0] if not dados["quimicos"].empty else "",
+                    "Biologico": dados["biologicos"]['Nome'].iloc[0] if not dados["biologicos"].empty else "",
+                    "Duracao": 0,
+                    "Tipo": "Simples",
+                    "Resultado": "Não testado"
+                }])
+                
+                # Adicionar à tabela editável
+                st.session_state.resultados_editor = pd.concat([st.session_state.resultados_editor, nova_linha], ignore_index=True)
+                st.session_state.update(edited_data=True)
+            
+            # Editor de tabela para resultados
+            st.data_editor(
+                st.session_state.resultados_editor,
+                key="resultados_editor",
+                num_rows="dynamic",
+                on_change=lambda: st.session_state.update(edited_data=True),
+                column_config={
+                    "Data": st.column_config.DateColumn(
+                        "Data do Teste",
+                        format="YYYY-MM-DD",
+                        required=True
+                    ),
+                    "Quimico": st.column_config.SelectboxColumn(
+                        "Produto Químico",
+                        options=sorted(dados["quimicos"]['Nome'].unique()),
+                        required=True
+                    ),
+                    "Biologico": st.column_config.SelectboxColumn(
+                        "Produto Biológico",
+                        options=sorted(dados["biologicos"]['Nome'].unique()),
+                        required=True
+                    ),
+                    "Duracao": st.column_config.NumberColumn(
+                        "Duração (horas)",
+                        min_value=0,
+                        default=0
+                    ),
+                    "Tipo": st.column_config.SelectboxColumn(
+                        "Tipo de Teste",
+                        options=["Simples", "Composto"],
+                        required=True
+                    ),
+                    "Resultado": st.column_config.SelectboxColumn(
+                        "Resultado",
+                        options=["Compatível", "Incompatível", "Não testado"],
+                        required=True
+                    )
+                },
                 use_container_width=True
             )
+            
+            # Botão para salvar alterações
+            if st.button("💾 Salvar Compatibilidades", key="save_compat"):
+                with st.spinner("Salvando dados..."):
+                    if 'resultados_editor' in st.session_state:
+                        # Atualizar dados locais primeiro
+                        st.session_state.local_data["resultados"] = st.session_state.resultados_editor
+                        
+                        # Depois enviar para o Google Sheets
+                        if update_sheet(st.session_state.resultados_editor, "Resultados"):
+                            st.session_state.edited_data = False
+                            st.success("Dados salvos com sucesso!")
+                        else:
+                            st.error("Erro ao salvar dados!")
 
 ########################################## HISTÓRICO E RELATÓRIOS ##########################################
 
@@ -688,16 +698,16 @@ def settings_page():
         # Mostrar informações sobre o aplicativo
         st.info("Aplicativo de Experimentos Cocal")
         st.write("**Versão:** 1.0.0")
-        st.write("**Desenvolvido por:** Equipe de Tecnologia Cocal")
+        st.write("**Desenvolvido por:** Matheus Rezende")
         
         # Mostrar informações sobre o ambiente
         st.subheader("Ambiente de Execução")
-        st.code(f"""
-        Python: {pd.__version__}
-        Pandas: {pd.__version__}
-        Streamlit: {st.__version__}
-        Plotly: {px.__version__}
-        """)
+        # st.code(f"""
+        # Python: {pd.__version__}
+        # Pandas: {pd.__version__}
+        # Streamlit: {st.__version__}
+        # Plotly: {px.__version__}
+        # """)
         
         # Adicionar link para documentação
         st.markdown("[Documentação do Google Sheets API](https://developers.google.com/sheets/api/guides/concepts)")
