@@ -326,7 +326,7 @@ def compatibilidade():
     with col2:
         biologico = st.selectbox(
             "Produto Biológico",
-            options=sorted(dados["biologicos"]['Nome'].unique()),
+            options=sorted(dados["biologicos"]['Nome'].unique()) if not dados["biologicos"].empty and 'Nome' in dados["biologicos"].columns else [],
             index=None,
             key="biologico_compat"
         )
