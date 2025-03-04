@@ -219,10 +219,13 @@ def append_to_sheet(data_dict, sheet_name):
 def update_sheet(df, sheet_name: str) -> bool:
     def _update():
         try:
-            # Verificar se df é um DataFrame, caso contrário, converter
+            # Converter para DataFrame se não for
             if not isinstance(df, pd.DataFrame):
-                st.error(f"Erro ao atualizar planilha: o objeto não é um DataFrame")
-                return False
+                try:
+                    df = pd.DataFrame(df)
+                except Exception as e:
+                    st.error(f"Erro ao converter dados para DataFrame: {str(e)}")
+                    return False
                 
             # Criar uma cópia do DataFrame para não modificar o original
             df_copy = df.copy()
