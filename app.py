@@ -209,10 +209,9 @@ def update_sheet(df, sheet_name: str) -> bool:
         try:
             # Criar uma cópia do DataFrame para não modificar o original
             df_copy = df.copy()
-            df_copy['Data'] = pd.to_datetime(df_copy['Data'], errors='coerce')
-            
+                        
             # Converter todas as colunas de data para string no formato YYYY-MM-DD
-            date_columns = df_copy.select_dtypes(include=['datetime64[ns]']).columns
+            date_columns = df_copy.select_dtypes(include=['datetime64[ns]']).columns.tolist()
             for col in date_columns:
                 df_copy[col] = df_copy[col].dt.strftime("%Y-%m-%d")
             
@@ -794,7 +793,7 @@ def gerenciamento():
                     df_filtrado = dados["solicitacoes"].copy()
                 else:
                     df_filtrado = pd.DataFrame()
-                    
+
                 if filtro_status != "Todos":
                     df_filtrado = df_filtrado[df_filtrado["Status"] == filtro_status]
                 if filtro_quimico != "Todos":
