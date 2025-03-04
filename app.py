@@ -219,52 +219,34 @@ def append_to_sheet(data_dict, sheet_name):
 def update_sheet(df, sheet_name: str) -> bool:
     def _update():
         try:
-            # Converter para DataFrame se não for
-            if not isinstance(df, pd.DataFrame):
-                try:
-                    df = pd.DataFrame(df)
-                except Exception as e:
-                    st.error(f"Erro ao converter dados para DataFrame: {str(e)}")
-                    return False
+            # Corrigir escopo da variável e conversão
+            df_converted = pd.DataFrame(df) if not isinstance(df, pd.DataFrame) else df
+            
+            if df_converted.empty:
+                st.error("Erro: DataFrame vazio!")
+                return False
                 
-            # Criar uma cópia do DataFrame para não modificar o original
-            df_copy = df.copy()
-
-            # Converter todas as colunas de data para string no formato YYYY-MM-DD
-            # Verificar se há colunas de data antes de tentar select_dtypes
-            try:
-                date_columns = df_copy.select_dtypes(include=['datetime64[ns]']).columns.tolist()
-                for col in date_columns:
-                    df_copy[col] = df_copy[col].dt.strftime("%Y-%m-%d")
-            except Exception as e:
-                # Se falhar ao selecionar tipos de dados, continuar sem essa conversão
-                st.warning(f"Aviso: Não foi possível converter datas automaticamente: {str(e)}")
-            
-            # Converter todos os valores NaN/None para string vazia
-            df_copy = df_copy.fillna("")
-            
+            # Restante do código original...
             worksheet = get_worksheet(sheet_name)
             if worksheet is None:
                 return False
                 
-            # Limpar a planilha
+            # Converter datas para string
+            date_columns = df_converted.select_dtypes(include=['datetime64[ns]']).columns.tolist()
+            for col in date_columns:
+                df_converted[col] = df_converted[col].dt.strftime("%Y-%m-%d")
+                
+            # Atualizar planilha
             worksheet.clear()
-            
-            # Obter os dados do DataFrame como lista
-            data = [df_copy.columns.tolist()] + df_copy.values.tolist()
-            
-            # Atualizar a planilha
+            data = [df_converted.columns.tolist()] + df_converted.values.tolist()
             worksheet.update(data)
             
-            # Limpar cache para forçar recarregamento dos dados
-            st.cache_data.clear()
             return True
+            
         except Exception as e:
-            if "Quota exceeded" in str(e):
-                raise e
             st.error(f"Erro ao atualizar planilha: {str(e)}")
             return False
-            
+
     return retry_with_backoff(_update, initial_delay=2)
 
 @st.cache_data(ttl=3600)
@@ -336,7 +318,7 @@ def compatibilidade():
     with col1:
         quimico = st.selectbox(
             "Produto Químico",
-            options=sorted(dados["quimicos"]['Nome'].unique()),
+            options=sorted(dados["quimicos"]['Nome'].unique()) if not dados["quimicos"].empty and 'Nome' in dados["quimicos"].columns else [],
             index=None,
             key="quimico_compat"
         )
