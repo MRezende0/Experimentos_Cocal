@@ -21,20 +21,8 @@ import streamlit.components.v1 as components
 st.set_page_config(
     page_title="Experimentos",
     page_icon="🧪",
-    layout="wide",
-    initial_sidebar_state="expanded",
-    menu_items={
-        'Get Help': 'https://www.cocal.com.br',
-        'Report a bug': 'https://www.cocal.com.br',
-        'About': 'Aplicação para gerenciamento de experimentos de compatibilidade'
-    }
+    layout="wide"
 )
-
-# Desativar avisos de depreciação
-warnings.filterwarnings('ignore')
-
-# Configuração para melhorar desempenho
-st.config.set_option('deprecation.showPyplotGlobalUse', False)
 
 # Estilos CSS personalizados
 def local_css():
@@ -318,23 +306,10 @@ def load_all_data():
         }
 
 def _load_sheet_with_delay(sheet_name):
-    """
-    Carrega uma planilha específica com tratamento de erros aprimorado.
-    
-    Args:
-        sheet_name: Nome da planilha a ser carregada
-        
-    Returns:
-        DataFrame com os dados da planilha ou DataFrame vazio em caso de erro
-    """
     try:
-        df = load_sheet_data(sheet_name)
-        if df is None:
-            st.warning(f"Não foi possível carregar a planilha {sheet_name}. Usando dados em cache se disponíveis.")
-            return pd.DataFrame()
-        return df
+        return load_sheet_data(sheet_name)
     except Exception as e:
-        st.warning(f"Erro ao carregar {sheet_name}: {str(e)}. Usando dados em cache se disponíveis.")
+        st.error(f"Erro ao carregar {sheet_name}: {str(e)}")
         return pd.DataFrame()
 
 ########################################## COMPATIBILIDADE ##########################################
@@ -459,7 +434,7 @@ def gerenciamento():
             opcao = st.radio("Escolha uma opção:", ["Novo produto", "Produtos cadastrados"], key="opcao_quimicos")
             
             if opcao == "Novo produto":
-                with st.form(key="novo_quimico_form"):
+                with st.form("novo_quimico_form"):
                     col1, col2 = st.columns(2)
                     with col1:
                         nome = st.text_input("Nome do Produto")
@@ -470,10 +445,7 @@ def gerenciamento():
                         classe = st.text_input("Classe")
                         modo_acao = st.text_input("Modo de Ação")
                     
-                    # Botão de submit dentro do formulário
-                    submitted = st.form_submit_button(label="Adicionar Produto")
-                    
-                    # Processar o formulário quando enviado
+                    submitted = st.form_submit_button("Adicionar Produto")
                     if submitted:
                         if nome:
                             novo_produto = {
@@ -562,7 +534,7 @@ def gerenciamento():
             opcao = st.radio("Escolha uma opção:", ["Novo produto", "Produtos cadastrados"], key="opcao_biologicos")
             
             if opcao == "Novo produto":
-                with st.form(key="novo_biologico_form"):
+                with st.form("novo_biologico_form"):
                     col1, col2 = st.columns(2)
                     with col1:
                         nome = st.text_input("Nome do Produto")
@@ -573,10 +545,7 @@ def gerenciamento():
                         aplicacao = st.text_input("Aplicação")
                         validade = st.text_input("Validade")
                     
-                    # Botão de submit dentro do formulário
-                    submitted = st.form_submit_button(label="Adicionar Produto")
-                    
-                    # Processar o formulário quando enviado
+                    submitted = st.form_submit_button("Adicionar Produto")
                     if submitted:
                         if nome:
                             novo_produto = {
@@ -665,7 +634,7 @@ def gerenciamento():
             opcao = st.radio("Escolha uma opção:", ["Nova compatibilidade", "Compatibilidades cadastradas"], key="opcao_compat")
             
             if opcao == "Nova compatibilidade":
-                with st.form(key="nova_compatibilidade_form"):
+                with st.form("nova_compatibilidade_form"):
                     col_a, col_b = st.columns(2)
                     with col_a:
                         quimico = st.selectbox(
@@ -684,10 +653,7 @@ def gerenciamento():
                         duracao = st.number_input("Duração (horas)", min_value=0, value=0)
                         resultado = st.selectbox("Resultado", options=["Compatível", "Incompatível", "Não testado"])
                     
-                    # Botão de submit dentro do formulário
-                    submitted = st.form_submit_button(label="Adicionar Compatibilidade")
-                    
-                    # Processar o formulário quando enviado
+                    submitted = st.form_submit_button("Adicionar Compatibilidade")
                     if submitted:
                         if quimico and biologico:
                             nova_compatibilidade = {
@@ -805,7 +771,7 @@ def gerenciamento():
             opcao = st.radio("Escolha uma opção:", ["Registrar nova solicitação", "Visualizar solicitações cadastradas"], key="opcao_solicitacoes")
             
             if opcao == "Registrar nova solicitação":
-                with st.form(key="nova_solicitacao_form"):
+                with st.form("nova_solicitacao_form"):
                     col1, col2 = st.columns(2)
                     with col1:
                         solicitante = st.text_input("Nome do Solicitante")
@@ -824,10 +790,7 @@ def gerenciamento():
                     
                     observacoes = st.text_area("Observações")
                     
-                    # Botão de submit dentro do formulário
-                    submitted = st.form_submit_button(label="Adicionar Solicitação")
-                    
-                    # Processar o formulário quando enviado
+                    submitted = st.form_submit_button("Adicionar Solicitação")
                     if submitted:
                         if solicitante and quimico and biologico:
                             nova_solicitacao = {
@@ -1021,27 +984,20 @@ def configuracoes():
 ########################################## SIDEBAR ##########################################
 
 def main():
-    # Sidebar
-    st.sidebar.title("Experimentos Cocal")
-    st.sidebar.image("https://www.cocal.com.br/wp-content/uploads/2023/03/logo-cocal-branco.svg", width=200)
-    
-    # Inicializar dados locais na sessão apenas uma vez
-    if 'local_data' not in st.session_state:
-        with st.spinner("Carregando dados iniciais..."):
-            st.session_state.local_data = load_all_data()
-    
-    # Menu de navegação
-    menu = st.sidebar.radio(
-        "Navegação",
-        ["Compatibilidade", "Gerenciamento", "Configurações"]
+    st.sidebar.image("imagens/logo-cocal.png")
+    st.sidebar.title("Menu")
+    menu_option = st.sidebar.radio(
+        "Selecione a funcionalidade:",
+        ("Compatibilidade", "Gerenciamento", "Configurações")
     )
-    
-    # Redirecionar para a página selecionada
-    if menu == "Compatibilidade":
+
+    st.sidebar.markdown("---")  # Linha separadora
+
+    if menu_option == "Compatibilidade":
         compatibilidade()
-    elif menu == "Gerenciamento":
+    elif menu_option == "Gerenciamento":
         gerenciamento()
-    elif menu == "Configurações":
+    elif menu_option == "Configurações":
         configuracoes()
 
 ########################################## EXECUÇÃO ##########################################
