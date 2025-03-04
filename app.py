@@ -443,6 +443,7 @@ def gerenciamento():
                     )
 
                 # Aplicar filtro
+                df_filtrado = dados["quimicos"].copy()
                 if filtro_nome != "Todos":
                     df_filtrado = df_filtrado[df_filtrado["Nome"] == filtro_nome]
                 if filtro_tipo != "Todos":
@@ -542,6 +543,7 @@ def gerenciamento():
                     )
 
                 # Aplicar filtro
+                df_filtrado = dados["biologicos"].copy()
                 if filtro_nome != "Todos":
                     df_filtrado = df_filtrado[df_filtrado["Nome"] == filtro_nome]
                 if filtro_tipo != "Todos":
@@ -788,7 +790,11 @@ def gerenciamento():
                     )
                 
                 # Aplicar filtros
-                df_filtrado = dados["solicitacoes"].copy()
+                if not dados["solicitacoes"].empty:
+                    df_filtrado = dados["solicitacoes"].copy()
+                else:
+                    df_filtrado = pd.DataFrame()
+                    
                 if filtro_status != "Todos":
                     df_filtrado = df_filtrado[df_filtrado["Status"] == filtro_status]
                 if filtro_quimico != "Todos":
