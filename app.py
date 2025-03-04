@@ -384,9 +384,9 @@ def gerenciamento():
             st.error("Erro ao carregar dados dos produtos químicos!")
         else:
             # Opções para o usuário escolher entre registrar ou visualizar
-            opcao = st.radio("Escolha uma opção:", ["Registrar novo produto", "Visualizar produtos cadastrados"], key="opcao_quimicos")
+            opcao = st.radio("Escolha uma opção:", ["Novo produto", "Produtos cadastrados"], key="opcao_quimicos")
             
-            if opcao == "Registrar novo produto":
+            if opcao == "Novo produto":
                 with st.form("novo_quimico_form"):
                     col1, col2 = st.columns(2)
                     with col1:
@@ -394,7 +394,7 @@ def gerenciamento():
                         tipo = st.selectbox("Tipo", options=["Herbicida", "Fungicida", "Inseticida"])
                         fabricante = st.text_input("Fabricante")
                     with col2:
-                        concentracao = st.text_input("Concentração")
+                        concentracao = st.number_input("Concentração", value=0.0, step=1.0)
                         classe = st.text_input("Classe")
                         modo_acao = st.text_input("Modo de Ação")
                     
@@ -427,14 +427,26 @@ def gerenciamento():
                             st.warning("Nome do produto é obrigatório")
             
             else:  # Visualizar produtos cadastrados
-                # Filtro para a tabela
-                filtro_nome = st.text_input("🔍 Filtrar por nome", key="filtro_quimicos")
-                
+                # Filtros para a tabela
+                col1, col2 = st.columns(2)
+                with col1:
+                    filtro_nome = st.selectbox(
+                        "🔍 Filtrar por Produto",
+                        options=["Todos"] + sorted(dados["quimicos"]["Nome"].unique().tolist()),
+                        index=0
+                    )
+                with col2:
+                    filtro_tipo = st.selectbox(
+                        "🔍 Filtrar por Tipo",
+                        options=["Todos"] + sorted(dados["quimicos"]["Tipo"].unique().tolist()),
+                        index=0
+                    )
+
                 # Aplicar filtro
-                if filtro_nome:
-                    df_filtrado = dados["quimicos"][dados["quimicos"]["Nome"].str.contains(filtro_nome, case=False)]
-                else:
-                    df_filtrado = dados["quimicos"]
+                if filtro_nome != "Todos":
+                    df_filtrado = df_filtrado[df_filtrado["Nome"] == filtro_nome]
+                if filtro_tipo != "Todos":
+                    df_filtrado = df_filtrado[df_filtrado["Tipo"] == filtro_tipo]
                 
                 # Tabela editável
                 st.data_editor(
@@ -471,9 +483,9 @@ def gerenciamento():
             st.error("Erro ao carregar dados dos produtos biológicos!")
         else:
             # Opções para o usuário escolher entre registrar ou visualizar
-            opcao = st.radio("Escolha uma opção:", ["Registrar novo produto", "Visualizar produtos cadastrados"], key="opcao_biologicos")
+            opcao = st.radio("Escolha uma opção:", ["Novo produto", "Produtos cadastrados"], key="opcao_biologicos")
             
-            if opcao == "Registrar novo produto":
+            if opcao == "Novo produto":
                 with st.form("novo_biologico_form"):
                     col1, col2 = st.columns(2)
                     with col1:
@@ -514,14 +526,26 @@ def gerenciamento():
                             st.warning("Nome do produto é obrigatório")
             
             else:  # Visualizar produtos cadastrados
-                # Filtro para a tabela
-                filtro_nome = st.text_input("🔍 Filtrar por nome", key="filtro_biologicos")
-                
+                # Filtros para a tabela
+                col1, col2 = st.columns(2)
+                with col1:
+                    filtro_nome = st.selectbox(
+                        "🔍 Filtrar por Produto",
+                        options=["Todos"] + sorted(dados["biologicos"]["Nome"].unique().tolist()),
+                        index=0
+                    )
+                with col2:
+                    filtro_tipo = st.selectbox(
+                        "🔍 Filtrar por Tipo",
+                        options=["Todos"] + sorted(dados["biologicos"]["Tipo"].unique().tolist()),
+                        index=0
+                    )
+
                 # Aplicar filtro
-                if filtro_nome:
-                    df_filtrado = dados["biologicos"][dados["biologicos"]["Nome"].str.contains(filtro_nome, case=False)]
-                else:
-                    df_filtrado = dados["biologicos"]
+                if filtro_nome != "Todos":
+                    df_filtrado = df_filtrado[df_filtrado["Nome"] == filtro_nome]
+                if filtro_tipo != "Todos":
+                    df_filtrado = df_filtrado[df_filtrado["Tipo"] == filtro_tipo]
                 
                 # Tabela editável
                 st.data_editor(
@@ -558,9 +582,9 @@ def gerenciamento():
             st.error("Erro ao carregar dados dos resultados!")
         else:
             # Opções para o usuário escolher entre registrar ou visualizar
-            opcao = st.radio("Escolha uma opção:", ["Registrar nova compatibilidade", "Visualizar compatibilidades cadastradas"], key="opcao_compat")
+            opcao = st.radio("Escolha uma opção:", ["Nova compatibilidade", "Compatibilidades cadastradas"], key="opcao_compat")
             
-            if opcao == "Registrar nova compatibilidade":
+            if opcao == "Nova compatibilidade":
                 with st.form("nova_compatibilidade_form"):
                     col_a, col_b = st.columns(2)
                     with col_a:
