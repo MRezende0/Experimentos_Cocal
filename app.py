@@ -209,7 +209,7 @@ def update_sheet(df, sheet_name: str) -> bool:
         try:
             # Criar uma cópia do DataFrame para não modificar o original
             df_copy = df.copy()
-                        
+
             # Converter todas as colunas de data para string no formato YYYY-MM-DD
             date_columns = df_copy.select_dtypes(include=['datetime64[ns]']).columns.tolist()
             for col in date_columns:
@@ -455,7 +455,7 @@ def gerenciamento():
                     key="quimicos_editor",
                     on_change=lambda: st.session_state.update(edited_data=True),
                     column_config={
-                        "Nome": "Produto Químico",
+                        "Nome": "Nome",
                         "Tipo": st.column_config.SelectboxColumn(options=["Herbicida", "Fungicida", "Inseticida"]),
                         "Fabricante": "Fabricante",
                         "Concentracao": "Concentração",
