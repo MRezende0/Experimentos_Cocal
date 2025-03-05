@@ -3,10 +3,6 @@ import ssl
 import time
 from datetime import datetime, timedelta
 from random import uniform
-import warnings
-import httplib2
-import requests
-import certifi
 
 import streamlit as st
 import pandas as pd
@@ -158,31 +154,6 @@ def retry_with_backoff(func, max_retries=5, initial_delay=1):
             
     return None
 
-@st.cache_data(ttl=3600, show_spinner=False, hash_funcs={pd.DataFrame: lambda _: None})
-def load_sheet_data(sheet_name: str) -> pd.DataFrame:
-    def _load():
-        worksheet = get_worksheet(sheet_name)
-        if worksheet:
-            try:
-                # Adicionar tratamento de erro específico para quota excedida
-                return pd.DataFrame(worksheet.get_all_records())
-            except Exception as e:
-                if "Quota exceeded" in str(e):
-                    st.warning(f"Limite de requisições excedido para {sheet_name}. Usando dados em cache.")
-                    # Retornar DataFrame vazio mas não mostrar erro
-                    return pd.DataFrame()
-                else:
-                    st.error(f"Erro ao carregar dados de {sheet_name}: {str(e)}")
-                    return pd.DataFrame()
-        return pd.DataFrame()  # Retorna DataFrame vazio se worksheet for None
-    
-    result = retry_with_backoff(_load)
-    
-    # Verificação explícita para None ou DataFrame vazio
-    if result is None or result.empty:
-        return pd.DataFrame()
-    return result
-
 def append_to_sheet(data_dict, sheet_name):
     def _append():
         try:
@@ -216,31 +187,43 @@ def append_to_sheet(data_dict, sheet_name):
             
     return retry_with_backoff(_append, initial_delay=2)
 
-def update_sheet(df, sheet_name: str) -> bool:
+def load_sheet_data(sheet_name: str) -> pd.DataFrame:
+    def _load():
+        worksheet = get_worksheet(sheet_name)
+        if worksheet is None:
+            return pd.DataFrame()
+            
+        data = worksheet.get_all_records()
+        return pd.DataFrame(data)
+        
+    return retry_with_backoff(_load)
+
+def update_sheet(df: pd.DataFrame, sheet_name: str) -> bool:
     def _update():
         try:
-            # Corrigir escopo da variável e conversão
-            df_converted = pd.DataFrame(df) if not isinstance(df, pd.DataFrame) else df
+            # Criar uma cópia do DataFrame para não modificar o original
+            df_copy = df.copy()
+            df_copy['Data'] = pd.to_datetime(df_copy['Data'], errors='coerce')
             
-            if df_converted.empty:
-                st.error("Erro: DataFrame vazio!")
-                return False
+            # Converter todas as colunas de data para string no formato YYYY-MM-DD
+            date_columns = df_copy.select_dtypes(include=['datetime64[ns]']).columns
+            for col in date_columns:
+                df_copy[col] = df_copy[col].dt.strftime("%Y-%m-%d")
+            
+            # Converter todos os valores NaN/None para string vazia
+            df_copy = df_copy.fillna("")
                 
-            # Restante do código original...
             worksheet = get_worksheet(sheet_name)
             if worksheet is None:
                 return False
                 
-            # Converter datas para string
-            date_columns = df_converted.select_dtypes(include=['datetime64[ns]']).columns.tolist()
-            for col in date_columns:
-                df_converted[col] = df_converted[col].dt.strftime("%Y-%m-%d")
-                
-            # Atualizar planilha
             worksheet.clear()
-            data = [df_converted.columns.tolist()] + df_converted.values.tolist()
+
+            data = [df_copy.columns.tolist()] + df_copy.values.tolist()
+
             worksheet.update(data)
-            
+
+            st.cache_data.clear()
             return True
             
         except Exception as e:
@@ -248,6 +231,31 @@ def update_sheet(df, sheet_name: str) -> bool:
             return False
 
     return retry_with_backoff(_update, initial_delay=2)
+
+def update_worksheet(df_editado: pd.DataFrame, worksheet_name: str):
+    """Função genérica para atualizar worksheet"""
+    try:
+        worksheet = get_worksheet(worksheet_name)
+        if worksheet is not None:
+            # Identificar as linhas alteradas
+            df_original = pd.DataFrame(worksheet.get_all_records())
+            df_alterado = df_editado.copy()
+            
+            # Remover colunas de controle antes de salvar
+            if 'DELETE' in df_alterado.columns:
+                df_alterado = df_alterado.drop(columns=['DELETE'])
+            
+            # Limpar a planilha e reescrever os dados
+            worksheet.clear()
+            headers = df_alterado.columns.tolist()
+            worksheet.append_row(headers)
+            worksheet.append_rows(df_alterado.values.tolist())
+            
+            st.cache_data.clear()
+            st.success("Dados atualizados com sucesso!")
+            st.rerun()
+    except Exception as e:
+        st.error(f"Erro ao atualizar planilha: {str(e)}")
 
 @st.cache_data(ttl=3600)
 def load_all_data():
