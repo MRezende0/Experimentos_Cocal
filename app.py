@@ -82,6 +82,13 @@ SHEET_GIDS = {
     "Solicitacoes": "1408097520"
 }
 
+COLUNAS_ESPERADAS = {
+    "Quimicos": ["Nome", "Tipo", "Fabricante", "Concentracao", "Classe", "ModoAcao"],
+    "Biologicos": ["Nome", "Tipo", "IngredienteAtivo", "Formulacao", "Aplicacao", "Validade"],
+    "Resultados": ["Data", "Quimico", "Biologico", "Duracao", "Tipo", "Resultado"],
+    "Solicitacoes": ["Data", "Solicitante", "Quimico", "Biologico", "Observacoes", "Status"]
+}
+
 @st.cache_resource
 def get_google_sheets_client():
     try:
@@ -231,16 +238,12 @@ def load_sheet_data(sheet_name: str) -> pd.DataFrame:
 def update_sheet(df: pd.DataFrame, sheet_name: str) -> bool:
     def _update():
         try:
-            # Mapeamento de colunas obrigatórias para cada planilha
-            COLUNAS_ESPERADAS = {
-                "Quimicos": ["Nome", "Tipo", "Fabricante", "Concentracao", "Classe", "ModoAcao"],
-                "Biologicos": ["Nome", "Tipo", "IngredienteAtivo", "Formulacao", "Aplicacao", "Validade"],
-                "Resultados": ["Data", "Quimico", "Biologico", "Duracao", "Tipo", "Resultado"],
-                "Solicitacoes": ["Data", "Solicitante", "Quimico", "Biologico", "Observacoes", "Status"]
-            }
+            # Verificar se a sheet_name é válida
+            if sheet_name not in COLUNAS_ESPERADAS:
+                raise ValueError(f"Planilha {sheet_name} não configurada!")
             
             # Verificar colunas obrigatórias
-            colunas_esperadas = COLUNAS_ESPERADAS.get(sheet_name, [])
+            colunas_esperadas = COLUNAS_ESPERADAS[sheet_name]
             for coluna in colunas_esperadas:
                 if coluna not in df.columns:
                     raise ValueError(f"Coluna obrigatória '{coluna}' não encontrada!")
