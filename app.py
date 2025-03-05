@@ -571,7 +571,7 @@ def gerenciamento():
                     df_filtrado,
                     num_rows="dynamic",
                     key="quimicos_editor",
-                    on_change=lambda: st.session_state.edited_data.update({"quimicos": True}),
+                    on_change=lambda data: st.session_state.edited_data.update({"quimicos": not data.equals(df_filtrado)}),
                     disabled=["Nome"],
                     column_config={
                         "Nome": st.column_config.TextColumn("Nome do Produto", required=True),
@@ -589,8 +589,13 @@ def gerenciamento():
                     with st.spinner("Salvando dados..."):
                         if 'quimicos_editor' in st.session_state:
                             try:
-                                # Atualizar dados locais primeiro
+                                # Obter o dataframe editado
                                 edited_df = st.session_state.quimicos_editor
+                                
+                                # Verificar se é um DataFrame
+                                if not isinstance(edited_df, pd.DataFrame):
+                                    st.error("Erro: Os dados editados não são um DataFrame válido")
+                                    st.stop()
                                 
                                 # Garantir que todas as colunas necessárias estejam presentes
                                 for col in COLUNAS_ESPERADAS["Quimicos"]:
@@ -684,7 +689,7 @@ def gerenciamento():
                     df_filtrado[COLUNAS_ESPERADAS["Biologicos"]],
                     num_rows="dynamic",
                     key="biologicos_editor",
-                    on_change=lambda: st.session_state.edited_data.update({"biologicos": True}),
+                    on_change=lambda data: st.session_state.edited_data.update({"biologicos": not data.equals(df_filtrado)}),
                     column_config={
                         "Nome": "Produto Biológico",
                         "Tipo": st.column_config.SelectboxColumn(options=["Bioestimulante", "Controle Biológico"]),
@@ -701,8 +706,13 @@ def gerenciamento():
                     with st.spinner("Salvando dados..."):
                         if 'biologicos_editor' in st.session_state:
                             try:
-                                # Atualizar dados locais primeiro
+                                # Obter o dataframe editado
                                 edited_df = st.session_state.biologicos_editor
+                                
+                                # Verificar se é um DataFrame
+                                if not isinstance(edited_df, pd.DataFrame):
+                                    st.error("Erro: Os dados editados não são um DataFrame válido")
+                                    st.stop()
                                 
                                 # Garantir que todas as colunas necessárias estejam presentes
                                 for col in COLUNAS_ESPERADAS["Biologicos"]:
@@ -804,16 +814,20 @@ def gerenciamento():
                 if filtro_biologico != "Todos":
                     df_filtrado = df_filtrado[df_filtrado["Biologico"] == filtro_biologico]
                 
+                # Garantir que a coluna Data seja do tipo correto
+                if 'Data' in df_filtrado.columns:
+                    # Converter para string para evitar problemas de compatibilidade
+                    df_filtrado['Data'] = df_filtrado['Data'].astype(str)
+                
                 # Tabela editável
                 st.data_editor(
                     df_filtrado[COLUNAS_ESPERADAS["Resultados"]],
                     num_rows="dynamic",
                     key="resultados_editor",
-                    on_change=lambda: st.session_state.edited_data.update({"resultados": True}),
+                    on_change=lambda data: st.session_state.edited_data.update({"resultados": not data.equals(df_filtrado)}),
                     column_config={
-                        "Data": st.column_config.DateColumn(
+                        "Data": st.column_config.TextColumn(
                             "Data do Teste",
-                            format="YYYY-MM-DD",
                             required=True
                         ),
                         "Quimico": st.column_config.SelectboxColumn(
@@ -850,8 +864,13 @@ def gerenciamento():
                     with st.spinner("Salvando dados..."):
                         if 'resultados_editor' in st.session_state:
                             try:
-                                # Atualizar dados locais primeiro
+                                # Obter o dataframe editado
                                 edited_df = st.session_state.resultados_editor
+                                
+                                # Verificar se é um DataFrame
+                                if not isinstance(edited_df, pd.DataFrame):
+                                    st.error("Erro: Os dados editados não são um DataFrame válido")
+                                    st.stop()
                                 
                                 # Garantir que todas as colunas necessárias estejam presentes
                                 for col in COLUNAS_ESPERADAS["Resultados"]:
@@ -956,16 +975,20 @@ def gerenciamento():
                 if filtro_biologico != "Todos":
                     df_filtrado = df_filtrado[df_filtrado["Biologico"] == filtro_biologico]
                 
+                # Garantir que a coluna Data seja do tipo correto
+                if 'Data' in df_filtrado.columns:
+                    # Converter para string para evitar problemas de compatibilidade
+                    df_filtrado['Data'] = df_filtrado['Data'].astype(str)
+                
                 # Tabela editável
                 st.data_editor(
                     df_filtrado[COLUNAS_ESPERADAS["Solicitacoes"]],
                     num_rows="dynamic",
                     key="solicitacoes_editor",
-                    on_change=lambda: st.session_state.edited_data.update({"solicitacoes": True}),
+                    on_change=lambda data: st.session_state.edited_data.update({"solicitacoes": not data.equals(df_filtrado)}),
                     column_config={
-                        "Data": st.column_config.DateColumn(
+                        "Data": st.column_config.TextColumn(
                             "Data da Solicitação",
-                            format="YYYY-MM-DD",
                             required=True
                         ),
                         "Solicitante": "Nome do Solicitante",
@@ -994,8 +1017,13 @@ def gerenciamento():
                     with st.spinner("Salvando dados..."):
                         if 'solicitacoes_editor' in st.session_state:
                             try:
-                                # Atualizar dados locais primeiro
+                                # Obter o dataframe editado
                                 edited_df = st.session_state.solicitacoes_editor
+                                
+                                # Verificar se é um DataFrame
+                                if not isinstance(edited_df, pd.DataFrame):
+                                    st.error("Erro: Os dados editados não são um DataFrame válido")
+                                    st.stop()
                                 
                                 # Garantir que todas as colunas necessárias estejam presentes
                                 for col in COLUNAS_ESPERADAS["Solicitacoes"]:
