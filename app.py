@@ -306,57 +306,61 @@ def load_all_data():
     Carrega todos os dados das planilhas com cache para melhorar o desempenho.
     O cache expira após 1 hora (3600 segundos).
     """
+    # Verificar se já temos dados na sessão
+    if 'local_data' in st.session_state and all(key in st.session_state.local_data for key in ["quimicos", "biologicos", "resultados", "solicitacoes"]):
+        return st.session_state.local_data
+    
+    # Inicializar dicionário de dados
+    dados = {}
+    
+    # Carregar dados com tratamento de erros e delays para evitar sobrecarga
+    dados["quimicos"] = _load_sheet_with_delay("Quimicos")
+    dados["biologicos"] = _load_sheet_with_delay("Biologicos")
+    dados["resultados"] = _load_sheet_with_delay("Resultados")
+    dados["solicitacoes"] = _load_sheet_with_delay("Solicitacoes")
+    
+    # Validar dados carregados
+    for sheet_name in ["quimicos", "biologicos", "resultados", "solicitacoes"]:
+        dados[sheet_name] = _load_and_validate_sheet(sheet_name) if dados[sheet_name].empty else dados[sheet_name]
+    
+    # Armazenar na sessão para acesso rápido
+    st.session_state.local_data = dados
+    
+    return dados
+
+def _load_sheet_with_delay(sheet_name):
     try:
-        # Carregar dados com verificação de estrutura
-        dados = {
-            "resultados": _load_and_validate_sheet("Resultados", ["Quimico", "Biologico"]),
-            "quimicos": _load_and_validate_sheet("Quimicos", ["Nome", "Tipo"]),
-            "biologicos": _load_and_validate_sheet("Biologicos", ["Nome", "Tipo"]),
-            "solicitacoes": _load_and_validate_sheet("Solicitacoes", ["Quimico", "Biologico"])
-        }
-
-        # Converter datas
-        for sheet in ["resultados", "solicitacoes"]:
-            if not dados[sheet].empty and 'Data' in dados[sheet].columns:
-                dados[sheet]["Data"] = pd.to_datetime(dados[sheet]["Data"], errors='coerce')
-
-        return dados
+        # Adicionar pequeno delay para evitar sobrecarga da API
+        time.sleep(uniform(0.2, 0.5))
+        return load_sheet_data(sheet_name)
     except Exception as e:
-        st.error(f"Falha crítica no carregamento de dados: {str(e)}")
-        return {
-            "resultados": pd.DataFrame(),
-            "quimicos": pd.DataFrame(),
-            "biologicos": pd.DataFrame(),
-            "solicitacoes": pd.DataFrame()
-        }
+        st.error(f"Erro ao carregar {sheet_name}: {str(e)}")
+        return pd.DataFrame()
 
 def _load_and_validate_sheet(sheet_name):
     try:
         df = load_sheet_data(sheet_name)
         
         if df.empty:
-            st.error(f"Planilha {sheet_name} está vazia!")
             return pd.DataFrame()
-            
+        
         # Verificar coluna Nome
-        if "Nome" not in df.columns:
+        if sheet_name in ["Quimicos", "Biologicos"] and "Nome" not in df.columns:
             st.error(f"Coluna 'Nome' não encontrada em {sheet_name}")
             return pd.DataFrame()
             
-        # Remover linhas com Nome vazio
-        df = df[df["Nome"].notna()]
+        # Remover linhas com Nome vazio para planilhas que exigem Nome
+        if sheet_name in ["Quimicos", "Biologicos"] and "Nome" in df.columns:
+            df = df[df["Nome"].notna()]
+        
+        # Converter colunas de data
+        if sheet_name in ["Resultados", "Solicitacoes"] and "Data" in df.columns:
+            df["Data"] = pd.to_datetime(df["Data"], errors='coerce')
         
         return df
         
     except Exception as e:
         st.error(f"Falha crítica ao carregar {sheet_name}: {str(e)}")
-        return pd.DataFrame()
-
-def _load_sheet_with_delay(sheet_name):
-    try:
-        return load_sheet_data(sheet_name)
-    except Exception as e:
-        st.error(f"Erro ao carregar {sheet_name}: {str(e)}")
         return pd.DataFrame()
 
 ########################################## COMPATIBILIDADE ##########################################
@@ -472,7 +476,12 @@ def gerenciamento():
     st.title("📦 Gerenciamento")
 
     if 'edited_data' not in st.session_state:
-        st.session_state.edited_data = {}
+        st.session_state.edited_data = {
+            "quimicos": False,
+            "biologicos": False,
+            "resultados": False,
+            "solicitacoes": False
+        }
     
     # Inicializar dados locais se não existirem na sessão
     if 'local_data' not in st.session_state:
@@ -548,16 +557,21 @@ def gerenciamento():
                     )
 
                 # Aplicar filtro
-                df_filtrado = df_filtrado[COLUNAS_ESPERADAS["Quimicos"]].copy()                if filtro_nome != "Todos":
-                df_filtrado = df_filtrado[df_filtrado["Nome"] == filtro_nome]
+                df_filtrado = dados["quimicos"].copy()
+                if filtro_nome != "Todos":
+                    df_filtrado = df_filtrado[df_filtrado["Nome"] == filtro_nome]
                 if filtro_tipo != "Todos":
                     df_filtrado = df_filtrado[df_filtrado["Tipo"] == filtro_tipo]
+                
+                # Garantir que apenas as colunas esperadas estejam presentes
+                df_filtrado = df_filtrado[COLUNAS_ESPERADAS["Quimicos"]].copy()
                 
                 # Tabela editável
                 st.data_editor(
                     df_filtrado,
                     num_rows="dynamic",
                     key="quimicos_editor",
+                    on_change=lambda: st.session_state.edited_data.update({"quimicos": True}),
                     disabled=["Nome"],
                     column_config={
                         "Nome": st.column_config.TextColumn("Nome do Produto", required=True),
@@ -574,13 +588,25 @@ def gerenciamento():
                 if st.button("Salvar Alterações", key="save_quimicos"):
                     with st.spinner("Salvando dados..."):
                         if 'quimicos_editor' in st.session_state:
-                            # Atualizar dados locais primeiro
-                            st.session_state.local_data["quimicos"] = st.session_state.quimicos_editor
-                            
-                            # Depois enviar para o Google Sheets
-                            if update_sheet(st.session_state.quimicos_editor, "Quimicos"):
-                                st.session_state.edited_data = False
-                                st.success("Dados salvos com sucesso!")
+                            try:
+                                # Atualizar dados locais primeiro
+                                edited_df = st.session_state.quimicos_editor
+                                
+                                # Garantir que todas as colunas necessárias estejam presentes
+                                for col in COLUNAS_ESPERADAS["Quimicos"]:
+                                    if col not in edited_df.columns:
+                                        st.error(f"Coluna obrigatória '{col}' não encontrada nos dados editados")
+                                        st.stop()
+                                
+                                # Atualizar dados na sessão
+                                st.session_state.local_data["quimicos"] = edited_df
+                                
+                                # Depois enviar para o Google Sheets
+                                if update_sheet(edited_df, "Quimicos"):
+                                    st.session_state.edited_data["quimicos"] = False
+                                    st.success("Dados salvos com sucesso!")
+                            except Exception as e:
+                                st.error(f"Erro ao salvar alterações: {str(e)}")
     
     with tab2:
         st.subheader("Produtos Biológicos")
@@ -658,7 +684,7 @@ def gerenciamento():
                     df_filtrado[COLUNAS_ESPERADAS["Biologicos"]],
                     num_rows="dynamic",
                     key="biologicos_editor",
-                    on_change=lambda: st.session_state.update(edited_data=True),
+                    on_change=lambda: st.session_state.edited_data.update({"biologicos": True}),
                     column_config={
                         "Nome": "Produto Biológico",
                         "Tipo": st.column_config.SelectboxColumn(options=["Bioestimulante", "Controle Biológico"]),
@@ -674,13 +700,25 @@ def gerenciamento():
                 if st.button("Salvar Alterações", key="save_biologicos"):
                     with st.spinner("Salvando dados..."):
                         if 'biologicos_editor' in st.session_state:
-                            # Atualizar dados locais primeiro
-                            st.session_state.local_data["biologicos"] = st.session_state.biologicos_editor
-                            
-                            # Depois enviar para o Google Sheets
-                            if update_sheet(st.session_state.biologicos_editor, "Biologicos"):
-                                st.session_state.edited_data = False
-                                st.success("Dados salvos com sucesso!")
+                            try:
+                                # Atualizar dados locais primeiro
+                                edited_df = st.session_state.biologicos_editor
+                                
+                                # Garantir que todas as colunas necessárias estejam presentes
+                                for col in COLUNAS_ESPERADAS["Biologicos"]:
+                                    if col not in edited_df.columns:
+                                        st.error(f"Coluna obrigatória '{col}' não encontrada nos dados editados")
+                                        st.stop()
+                                
+                                # Atualizar dados na sessão
+                                st.session_state.local_data["biologicos"] = edited_df
+                                
+                                # Depois enviar para o Google Sheets
+                                if update_sheet(edited_df, "Biologicos"):
+                                    st.session_state.edited_data["biologicos"] = False
+                                    st.success("Dados salvos com sucesso!")
+                            except Exception as e:
+                                st.error(f"Erro ao salvar alterações: {str(e)}")
     
     with tab3:
         st.subheader("Resultados de Compatibilidade")
@@ -771,7 +809,7 @@ def gerenciamento():
                     df_filtrado[COLUNAS_ESPERADAS["Resultados"]],
                     num_rows="dynamic",
                     key="resultados_editor",
-                    on_change=lambda: st.session_state.update(edited_data=True),
+                    on_change=lambda: st.session_state.edited_data.update({"resultados": True}),
                     column_config={
                         "Data": st.column_config.DateColumn(
                             "Data do Teste",
@@ -811,13 +849,25 @@ def gerenciamento():
                 if st.button("Salvar Alterações", key="save_resultados"):
                     with st.spinner("Salvando dados..."):
                         if 'resultados_editor' in st.session_state:
-                            # Atualizar dados locais primeiro
-                            st.session_state.local_data["resultados"] = st.session_state.resultados_editor
-                            
-                            # Depois enviar para o Google Sheets
-                            if update_sheet(st.session_state.resultados_editor, "Resultados"):
-                                st.session_state.edited_data = False
-                                st.success("Dados salvos com sucesso!")
+                            try:
+                                # Atualizar dados locais primeiro
+                                edited_df = st.session_state.resultados_editor
+                                
+                                # Garantir que todas as colunas necessárias estejam presentes
+                                for col in COLUNAS_ESPERADAS["Resultados"]:
+                                    if col not in edited_df.columns:
+                                        st.error(f"Coluna obrigatória '{col}' não encontrada nos dados editados")
+                                        st.stop()
+                                
+                                # Atualizar dados na sessão
+                                st.session_state.local_data["resultados"] = edited_df
+                                
+                                # Depois enviar para o Google Sheets
+                                if update_sheet(edited_df, "Resultados"):
+                                    st.session_state.edited_data["resultados"] = False
+                                    st.success("Dados salvos com sucesso!")
+                            except Exception as e:
+                                st.error(f"Erro ao salvar alterações: {str(e)}")
     
     with tab4:
         st.subheader("Solicitações")
@@ -911,7 +961,7 @@ def gerenciamento():
                     df_filtrado[COLUNAS_ESPERADAS["Solicitacoes"]],
                     num_rows="dynamic",
                     key="solicitacoes_editor",
-                    on_change=lambda: st.session_state.update(edited_data=True),
+                    on_change=lambda: st.session_state.edited_data.update({"solicitacoes": True}),
                     column_config={
                         "Data": st.column_config.DateColumn(
                             "Data da Solicitação",
@@ -943,13 +993,25 @@ def gerenciamento():
                 if st.button("Salvar Alterações", key="save_solicitacoes"):
                     with st.spinner("Salvando dados..."):
                         if 'solicitacoes_editor' in st.session_state:
-                            # Atualizar dados locais primeiro
-                            st.session_state.local_data["solicitacoes"] = st.session_state.solicitacoes_editor
-                            
-                            # Depois enviar para o Google Sheets
-                            if update_sheet(st.session_state.solicitacoes_editor, "Solicitacoes"):
-                                st.session_state.edited_data = False
-                                st.success("Dados salvos com sucesso!")
+                            try:
+                                # Atualizar dados locais primeiro
+                                edited_df = st.session_state.solicitacoes_editor
+                                
+                                # Garantir que todas as colunas necessárias estejam presentes
+                                for col in COLUNAS_ESPERADAS["Solicitacoes"]:
+                                    if col not in edited_df.columns:
+                                        st.error(f"Coluna obrigatória '{col}' não encontrada nos dados editados")
+                                        st.stop()
+                                
+                                # Atualizar dados na sessão
+                                st.session_state.local_data["solicitacoes"] = edited_df
+                                
+                                # Depois enviar para o Google Sheets
+                                if update_sheet(edited_df, "Solicitacoes"):
+                                    st.session_state.edited_data["solicitacoes"] = False
+                                    st.success("Dados salvos com sucesso!")
+                            except Exception as e:
+                                st.error(f"Erro ao salvar alterações: {str(e)}")
 
 ########################################## CONFIGURAÇÕES ##########################################
 
