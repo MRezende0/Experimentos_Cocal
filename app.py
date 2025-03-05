@@ -238,18 +238,18 @@ def load_sheet_data(sheet_name: str) -> pd.DataFrame:
 def update_sheet(df: pd.DataFrame, sheet_name: str) -> bool:
     def _update():
         try:
-            # Verificar se a sheet_name é válida
-            if sheet_name not in COLUNAS_ESPERADAS:
-                raise ValueError(f"Planilha {sheet_name} não configurada!")
-            
+            # Verificar se o DataFrame é válido
+            if df.empty:
+                raise ValueError("DataFrame vazio recebido para atualização")
+                
             # Verificar colunas obrigatórias
-            colunas_esperadas = COLUNAS_ESPERADAS[sheet_name]
-            for coluna in colunas_esperadas:
-                if coluna not in df.columns:
-                    raise ValueError(f"Coluna obrigatória '{coluna}' não encontrada!")
-
+            required_columns = COLUNAS_ESPERADAS.get(sheet_name, [])
+            missing = [col for col in required_columns if col not in df.columns]
+            if missing:
+                raise ValueError(f"Colunas faltando: {', '.join(missing)}")
+                
             # Manter apenas colunas relevantes
-            df = df[colunas_esperadas].copy()
+            df = df[required_columns].copy()
             
             # Converter colunas de data somente se existirem
             if 'Data' in df.columns:
@@ -330,16 +330,27 @@ def load_all_data():
             "solicitacoes": pd.DataFrame()
         }
 
-def _load_and_validate_sheet(sheet_name, required_cols):
-    df = load_sheet_data(sheet_name)
-    
-    if not df.empty:
-        missing = [col for col in required_cols if col not in df.columns]
-        if missing:
-            st.error(f"Planilha {sheet_name} inválida! Colunas faltando: {', '.join(missing)}")
+def _load_and_validate_sheet(sheet_name):
+    try:
+        df = load_sheet_data(sheet_name)
+        
+        if df.empty:
+            st.error(f"Planilha {sheet_name} está vazia!")
             return pd.DataFrame()
             
-    return df
+        # Verificar coluna Nome
+        if "Nome" not in df.columns:
+            st.error(f"Coluna 'Nome' não encontrada em {sheet_name}")
+            return pd.DataFrame()
+            
+        # Remover linhas com Nome vazio
+        df = df[df["Nome"].notna()]
+        
+        return df
+        
+    except Exception as e:
+        st.error(f"Falha crítica ao carregar {sheet_name}: {str(e)}")
+        return pd.DataFrame()
 
 def _load_sheet_with_delay(sheet_name):
     try:
@@ -537,20 +548,19 @@ def gerenciamento():
                     )
 
                 # Aplicar filtro
-                df_filtrado = dados["quimicos"].copy()
-                if filtro_nome != "Todos":
-                    df_filtrado = df_filtrado[df_filtrado["Nome"] == filtro_nome]
+                df_filtrado = df_filtrado[COLUNAS_ESPERADAS["Quimicos"]].copy()                if filtro_nome != "Todos":
+                df_filtrado = df_filtrado[df_filtrado["Nome"] == filtro_nome]
                 if filtro_tipo != "Todos":
                     df_filtrado = df_filtrado[df_filtrado["Tipo"] == filtro_tipo]
                 
                 # Tabela editável
                 st.data_editor(
-                    df_filtrado[COLUNAS_ESPERADAS["Quimicos"]],
+                    df_filtrado,
                     num_rows="dynamic",
                     key="quimicos_editor",
-                    on_change=lambda: st.session_state.update(edited_data=True),
+                    disabled=["Nome"],
                     column_config={
-                        "Nome": "Nome",
+                        "Nome": st.column_config.TextColumn("Nome do Produto", required=True),
                         "Tipo": st.column_config.SelectboxColumn(options=["Herbicida", "Fungicida", "Inseticida"]),
                         "Fabricante": "Fabricante",
                         "Concentracao": "Concentração",
