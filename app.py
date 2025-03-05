@@ -189,12 +189,42 @@ def append_to_sheet(data_dict, sheet_name):
 
 def load_sheet_data(sheet_name: str) -> pd.DataFrame:
     def _load():
-        worksheet = get_worksheet(sheet_name)
-        if worksheet is None:
-            return pd.DataFrame()
+        try:
+            worksheet = get_worksheet(sheet_name)
+            if worksheet is None:
+                st.warning(f"Planilha {sheet_name} não encontrada")
+                return pd.DataFrame()
             
-        data = worksheet.get_all_records()
-        return pd.DataFrame(data)
+            try:
+                data = worksheet.get_all_records()
+                if not data:
+                    st.warning(f"A planilha {sheet_name} está vazia")
+                    return pd.DataFrame()
+            except gspread.exceptions.APIError as e:
+                st.error(f"Erro na API: {str(e)}")
+                return pd.DataFrame()
+
+            # Converter para DataFrame com tratamento de erros
+            df = pd.DataFrame(data)
+            
+            # Verificar colunas essenciais
+            required_columns = {
+                "Quimicos": ["Nome", "Tipo"],
+                "Biologicos": ["Nome", "Tipo"],
+                "Resultados": ["Quimico", "Biologico"],
+                "Solicitacoes": ["Quimico", "Biologico"]
+            }
+            
+            if sheet_name in required_columns:
+                for col in required_columns[sheet_name]:
+                    if col not in df.columns:
+                        st.error(f"Coluna obrigatória '{col}' não encontrada em {sheet_name}")
+                        return pd.DataFrame()
+            return df
+
+        except Exception as e:
+            st.error(f"Erro crítico ao carregar {sheet_name}: {str(e)}")
+            return pd.DataFrame()
         
     return retry_with_backoff(_load)
 
@@ -321,16 +351,27 @@ def _load_sheet_with_delay(sheet_name):
 def compatibilidade():
     st.title("🧪 Compatibilidade")
     
-    # Inicializar dados locais se não existirem na sessão
-    if 'local_data' not in st.session_state:
-        st.session_state.local_data = load_all_data()
-        
-    # Usar dados da sessão em vez de recarregar a cada interação
-    dados = st.session_state.local_data
+    dados = load_all_data()
     
-    # Verificar se os dados foram carregados corretamente
-    if dados["quimicos"].empty or dados["biologicos"].empty:
-        st.error("Erro ao carregar dados dos produtos!")
+    # Verificação detalhada dos dados
+    if dados["quimicos"].empty:
+        st.warning("""
+            **Nenhum produto químico cadastrado!**
+            Por favor:
+            1. Verifique a planilha 'Quimicos' no Google Sheets
+            2. Confira se há dados na planilha
+            3. Verifique as permissões de acesso
+        """)
+        return
+
+    if dados["biologicos"].empty:
+        st.warning("""
+            **Nenhum produto biológico cadastrado!**
+            Por favor:
+            1. Verifique a planilha 'Biologicos' no Google Sheets
+            2. Confira se há dados na planilha
+            3. Verifique as permissões de acesso
+        """)
         return
     
     col1, col2 = st.columns(2)
