@@ -571,11 +571,11 @@ def gerenciamento():
                     st.session_state.edited_data[tabela] = True
                 
                 # Tabela editável
-                st.data_editor(
+                edited_df = st.data_editor(
                     df_filtrado,
                     num_rows="dynamic",
                     key="quimicos_editor",
-                    on_change=lambda: marcar_como_editado("quimicos"),
+                    on_change=lambda: st.session_state.edited_data.update({"quimicos": True}),
                     disabled=["Nome"],
                     column_config={
                         "Nome": st.column_config.TextColumn("Nome do Produto", required=True),
@@ -591,31 +591,27 @@ def gerenciamento():
                 # Botão para salvar alterações
                 if st.button("Salvar Alterações", key="save_quimicos"):
                     with st.spinner("Salvando dados..."):
-                        if 'quimicos_editor' in st.session_state:
-                            try:
-                                # Obter o dataframe editado
-                                edited_df = st.session_state.quimicos_editor
-                                
-                                # Verificar se é um DataFrame
-                                if not isinstance(edited_df, pd.DataFrame):
-                                    st.error("Erro: Os dados editados não são um DataFrame válido")
+                        try:
+                            # Verificar se é um DataFrame
+                            if not isinstance(edited_df, pd.DataFrame):
+                                st.error("Erro: Os dados editados não são um DataFrame válido")
+                                st.stop()
+                            
+                            # Garantir que todas as colunas necessárias estejam presentes
+                            for col in COLUNAS_ESPERADAS["Quimicos"]:
+                                if col not in edited_df.columns:
+                                    st.error(f"Coluna obrigatória '{col}' não encontrada nos dados editados")
                                     st.stop()
-                                
-                                # Garantir que todas as colunas necessárias estejam presentes
-                                for col in COLUNAS_ESPERADAS["Quimicos"]:
-                                    if col not in edited_df.columns:
-                                        st.error(f"Coluna obrigatória '{col}' não encontrada nos dados editados")
-                                        st.stop()
-                                
-                                # Atualizar dados na sessão
-                                st.session_state.local_data["quimicos"] = edited_df
-                                
-                                # Depois enviar para o Google Sheets
-                                if update_sheet(edited_df, "Quimicos"):
-                                    st.session_state.edited_data["quimicos"] = False
-                                    st.success("Dados salvos com sucesso!")
-                            except Exception as e:
-                                st.error(f"Erro ao salvar alterações: {str(e)}")
+                            
+                            # Atualizar dados na sessão
+                            st.session_state.local_data["quimicos"] = edited_df
+                            
+                            # Depois enviar para o Google Sheets
+                            if update_sheet(edited_df, "Quimicos"):
+                                st.session_state.edited_data["quimicos"] = False
+                                st.success("Dados salvos com sucesso!")
+                        except Exception as e:
+                            st.error(f"Erro ao salvar alterações: {str(e)}")
     
     with tab2:
         st.subheader("Produtos Biológicos")
@@ -689,7 +685,7 @@ def gerenciamento():
                     df_filtrado = df_filtrado[df_filtrado["Tipo"] == filtro_tipo]
                 
                 # Tabela editável
-                st.data_editor(
+                edited_df = st.data_editor(
                     df_filtrado[COLUNAS_ESPERADAS["Biologicos"]],
                     num_rows="dynamic",
                     key="biologicos_editor",
@@ -708,31 +704,27 @@ def gerenciamento():
                 # Botão para salvar alterações
                 if st.button("Salvar Alterações", key="save_biologicos"):
                     with st.spinner("Salvando dados..."):
-                        if 'biologicos_editor' in st.session_state:
-                            try:
-                                # Obter o dataframe editado
-                                edited_df = st.session_state.biologicos_editor
-                                
-                                # Verificar se é um DataFrame
-                                if not isinstance(edited_df, pd.DataFrame):
-                                    st.error("Erro: Os dados editados não são um DataFrame válido")
+                        try:
+                            # Verificar se é um DataFrame
+                            if not isinstance(edited_df, pd.DataFrame):
+                                st.error("Erro: Os dados editados não são um DataFrame válido")
+                                st.stop()
+                            
+                            # Garantir que todas as colunas necessárias estejam presentes
+                            for col in COLUNAS_ESPERADAS["Biologicos"]:
+                                if col not in edited_df.columns:
+                                    st.error(f"Coluna obrigatória '{col}' não encontrada nos dados editados")
                                     st.stop()
-                                
-                                # Garantir que todas as colunas necessárias estejam presentes
-                                for col in COLUNAS_ESPERADAS["Biologicos"]:
-                                    if col not in edited_df.columns:
-                                        st.error(f"Coluna obrigatória '{col}' não encontrada nos dados editados")
-                                        st.stop()
-                                
-                                # Atualizar dados na sessão
-                                st.session_state.local_data["biologicos"] = edited_df
-                                
-                                # Depois enviar para o Google Sheets
-                                if update_sheet(edited_df, "Biologicos"):
-                                    st.session_state.edited_data["biologicos"] = False
-                                    st.success("Dados salvos com sucesso!")
-                            except Exception as e:
-                                st.error(f"Erro ao salvar alterações: {str(e)}")
+                            
+                            # Atualizar dados na sessão
+                            st.session_state.local_data["biologicos"] = edited_df
+                            
+                            # Depois enviar para o Google Sheets
+                            if update_sheet(edited_df, "Biologicos"):
+                                st.session_state.edited_data["biologicos"] = False
+                                st.success("Dados salvos com sucesso!")
+                        except Exception as e:
+                            st.error(f"Erro ao salvar alterações: {str(e)}")
     
     with tab3:
         st.subheader("Resultados de Compatibilidade")
@@ -824,7 +816,7 @@ def gerenciamento():
                     df_filtrado['Data'] = df_filtrado['Data'].astype(str)
                 
                 # Tabela editável
-                st.data_editor(
+                edited_df = st.data_editor(
                     df_filtrado[COLUNAS_ESPERADAS["Resultados"]],
                     num_rows="dynamic",
                     key="resultados_editor",
@@ -866,31 +858,27 @@ def gerenciamento():
                 # Botão para salvar alterações
                 if st.button("Salvar Alterações", key="save_resultados"):
                     with st.spinner("Salvando dados..."):
-                        if 'resultados_editor' in st.session_state:
-                            try:
-                                # Obter o dataframe editado
-                                edited_df = st.session_state.resultados_editor
-                                
-                                # Verificar se é um DataFrame
-                                if not isinstance(edited_df, pd.DataFrame):
-                                    st.error("Erro: Os dados editados não são um DataFrame válido")
+                        try:
+                            # Verificar se é um DataFrame
+                            if not isinstance(edited_df, pd.DataFrame):
+                                st.error("Erro: Os dados editados não são um DataFrame válido")
+                                st.stop()
+                            
+                            # Garantir que todas as colunas necessárias estejam presentes
+                            for col in COLUNAS_ESPERADAS["Resultados"]:
+                                if col not in edited_df.columns:
+                                    st.error(f"Coluna obrigatória '{col}' não encontrada nos dados editados")
                                     st.stop()
-                                
-                                # Garantir que todas as colunas necessárias estejam presentes
-                                for col in COLUNAS_ESPERADAS["Resultados"]:
-                                    if col not in edited_df.columns:
-                                        st.error(f"Coluna obrigatória '{col}' não encontrada nos dados editados")
-                                        st.stop()
-                                
-                                # Atualizar dados na sessão
-                                st.session_state.local_data["resultados"] = edited_df
-                                
-                                # Depois enviar para o Google Sheets
-                                if update_sheet(edited_df, "Resultados"):
-                                    st.session_state.edited_data["resultados"] = False
-                                    st.success("Dados salvos com sucesso!")
-                            except Exception as e:
-                                st.error(f"Erro ao salvar alterações: {str(e)}")
+                            
+                            # Atualizar dados na sessão
+                            st.session_state.local_data["resultados"] = edited_df
+                            
+                            # Depois enviar para o Google Sheets
+                            if update_sheet(edited_df, "Resultados"):
+                                st.session_state.edited_data["resultados"] = False
+                                st.success("Dados salvos com sucesso!")
+                        except Exception as e:
+                            st.error(f"Erro ao salvar alterações: {str(e)}")
     
     with tab4:
         st.subheader("Solicitações")
@@ -950,7 +938,7 @@ def gerenciamento():
                 with col1:
                     filtro_status = st.selectbox(
                         "🔍 Filtrar por Status",
-                        options=["Todos", "Pendente", "Aprovado", "Rejeitado"],
+                        options=["Todos", "Pendente", "Em Análise", "Concluído", "Cancelado"],
                         index=0
                     )
                 with col2:
@@ -985,11 +973,11 @@ def gerenciamento():
                     df_filtrado['Data'] = df_filtrado['Data'].astype(str)
                 
                 # Tabela editável
-                st.data_editor(
+                edited_df = st.data_editor(
                     df_filtrado[COLUNAS_ESPERADAS["Solicitacoes"]],
                     num_rows="dynamic",
                     key="solicitacoes_editor",
-                    on_change=lambda data: st.session_state.edited_data.update({"solicitacoes": not data.equals(df_filtrado)}),
+                    on_change=lambda: st.session_state.edited_data.update({"solicitacoes": True}),
                     column_config={
                         "Data": st.column_config.TextColumn(
                             "Data da Solicitação",
@@ -1009,7 +997,7 @@ def gerenciamento():
                         "Observacoes": "Observações",
                         "Status": st.column_config.SelectboxColumn(
                             "Status",
-                            options=["Pendente", "Aprovado", "Rejeitado"],
+                            options=["Pendente", "Em Análise", "Concluído", "Cancelado"],
                             required=True
                         )
                     },
@@ -1019,31 +1007,27 @@ def gerenciamento():
                 # Botão para salvar alterações
                 if st.button("Salvar Alterações", key="save_solicitacoes"):
                     with st.spinner("Salvando dados..."):
-                        if 'solicitacoes_editor' in st.session_state:
-                            try:
-                                # Obter o dataframe editado
-                                edited_df = st.session_state.solicitacoes_editor
-                                
-                                # Verificar se é um DataFrame
-                                if not isinstance(edited_df, pd.DataFrame):
-                                    st.error("Erro: Os dados editados não são um DataFrame válido")
+                        try:
+                            # Verificar se é um DataFrame
+                            if not isinstance(edited_df, pd.DataFrame):
+                                st.error("Erro: Os dados editados não são um DataFrame válido")
+                                st.stop()
+                            
+                            # Garantir que todas as colunas necessárias estejam presentes
+                            for col in COLUNAS_ESPERADAS["Solicitacoes"]:
+                                if col not in edited_df.columns:
+                                    st.error(f"Coluna obrigatória '{col}' não encontrada nos dados editados")
                                     st.stop()
-                                
-                                # Garantir que todas as colunas necessárias estejam presentes
-                                for col in COLUNAS_ESPERADAS["Solicitacoes"]:
-                                    if col not in edited_df.columns:
-                                        st.error(f"Coluna obrigatória '{col}' não encontrada nos dados editados")
-                                        st.stop()
-                                
-                                # Atualizar dados na sessão
-                                st.session_state.local_data["solicitacoes"] = edited_df
-                                
-                                # Depois enviar para o Google Sheets
-                                if update_sheet(edited_df, "Solicitacoes"):
-                                    st.session_state.edited_data["solicitacoes"] = False
-                                    st.success("Dados salvos com sucesso!")
-                            except Exception as e:
-                                st.error(f"Erro ao salvar alterações: {str(e)}")
+                            
+                            # Atualizar dados na sessão
+                            st.session_state.local_data["solicitacoes"] = edited_df
+                            
+                            # Depois enviar para o Google Sheets
+                            if update_sheet(edited_df, "Solicitacoes"):
+                                st.session_state.edited_data["solicitacoes"] = False
+                                st.success("Dados salvos com sucesso!")
+                        except Exception as e:
+                            st.error(f"Erro ao salvar alterações: {str(e)}")
 
 ########################################## CONFIGURAÇÕES ##########################################
 
