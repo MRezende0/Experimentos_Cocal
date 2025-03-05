@@ -398,7 +398,7 @@ def compatibilidade():
             "Produto Químico",
             options=sorted(dados["quimicos"]['Nome'].unique()) if not dados["quimicos"].empty and 'Nome' in dados["quimicos"].columns else [],
             index=None,
-            key="quimico_compat"
+            key="compatibilidade_quimico"
         )
     
     with col2:
@@ -406,7 +406,7 @@ def compatibilidade():
             "Produto Biológico",
             options=sorted(dados["biologicos"]['Nome'].unique()) if not dados["biologicos"].empty and 'Nome' in dados["biologicos"].columns else [],
             index=None,
-            key="biologico_compat"
+            key="compatibilidade_biologico"
         )
     
     if quimico and biologico:
@@ -506,7 +506,7 @@ def gerenciamento():
                     col1, col2 = st.columns(2)
                     with col1:
                         nome = st.text_input("Nome do Produto")
-                        tipo = st.selectbox("Tipo", options=["Herbicida", "Fungicida", "Inseticida"])
+                        tipo = st.selectbox("Tipo", options=["Herbicida", "Fungicida", "Inseticida"], key="tipo_quimico")
                         fabricante = st.text_input("Fabricante")
                     with col2:
                         concentracao = st.number_input("Concentração", value=0.0, step=1.0)
@@ -546,15 +546,17 @@ def gerenciamento():
                 col1, col2 = st.columns(2)
                 with col1:
                     filtro_nome = st.selectbox(
-                        "🔍 Filtrar por Produto",
+                        "🔍 Filtrar por Nome",
                         options=["Todos"] + sorted(dados["quimicos"]['Nome'].unique().tolist()),
-                        index=0
+                        index=0,
+                        key="filtro_nome_quimicos"
                     )
                 with col2:
                     filtro_tipo = st.selectbox(
                         "🔍 Filtrar por Tipo",
-                        options=["Todos"] + sorted(dados["quimicos"]["Tipo"].unique().tolist()),
-                        index=0
+                        options=["Todos", "Herbicida", "Fungicida", "Inseticida"],
+                        index=0,
+                        key="filtro_tipo_quimicos"
                     )
 
                 # Aplicar filtro
@@ -627,7 +629,7 @@ def gerenciamento():
                     col1, col2 = st.columns(2)
                     with col1:
                         nome = st.text_input("Nome do Produto")
-                        tipo = st.selectbox("Tipo", options=["Bioestimulante", "Controle Biológico"])
+                        tipo = st.selectbox("Tipo", options=["Bioestimulante", "Controle Biológico"], key="tipo_biologico")
                         ingrediente_ativo = st.text_input("Ingrediente Ativo")
                     with col2:
                         formulacao = st.text_input("Formulação")
@@ -667,15 +669,17 @@ def gerenciamento():
                 col1, col2 = st.columns(2)
                 with col1:
                     filtro_nome = st.selectbox(
-                        "🔍 Filtrar por Produto",
+                        "🔍 Filtrar por Nome",
                         options=["Todos"] + sorted(dados["biologicos"]["Nome"].unique().tolist()),
-                        index=0
+                        index=0,
+                        key="filtro_nome_biologicos"
                     )
                 with col2:
                     filtro_tipo = st.selectbox(
                         "🔍 Filtrar por Tipo",
-                        options=["Todos"] + sorted(dados["biologicos"]["Tipo"].unique().tolist()),
-                        index=0
+                        options=["Todos", "Bioestimulante", "Controle Biológico"],
+                        index=0,
+                        key="filtro_tipo_biologicos"
                     )
 
                 # Aplicar filtro
@@ -742,18 +746,18 @@ def gerenciamento():
                         quimico = st.selectbox(
                             "Produto Químico",
                             options=sorted(dados["quimicos"]["Nome"].unique().tolist()),
-                            index=None
+                            key="resultado_quimico"
                         )
                         data_teste = st.date_input("Data do Teste")
-                        tipo = st.selectbox("Tipo de Teste", options=["Simples", "Composto"])
+                        tipo = st.selectbox("Tipo de Teste", options=["Simples", "Composto"], key="resultado_tipo")
                     with col_b:
                         biologico = st.selectbox(
                             "Produto Biológico",
                             options=sorted(dados["biologicos"]["Nome"].unique().tolist()),
-                            index=None
+                            key="resultado_biologico"
                         )
                         duracao = st.number_input("Duração (horas)", min_value=0, value=0)
-                        resultado = st.selectbox("Resultado", options=["Compatível", "Incompatível", "Não testado"])
+                        resultado = st.selectbox("Resultado", options=["Compatível", "Incompatível", "Não testado"], key="resultado_status")
                     
                     submitted = st.form_submit_button("Adicionar Compatibilidade")
                     if submitted:
@@ -795,13 +799,15 @@ def gerenciamento():
                     filtro_quimico = st.selectbox(
                         "🔍 Filtrar por Produto Químico",
                         options=["Todos"] + sorted(dados["resultados"]["Quimico"].unique().tolist()),
-                        index=0
+                        index=0,
+                        key="filtro_quimico_resultados"
                     )
                 with col2:
                     filtro_biologico = st.selectbox(
                         "🔍 Filtrar por Produto Biológico",
                         options=["Todos"] + sorted(dados["resultados"]["Biologico"].unique().tolist()),
-                        index=0
+                        index=0,
+                        key="filtro_biologico_resultados"
                     )
                 
                 # Aplicar filtros
@@ -897,14 +903,16 @@ def gerenciamento():
                         quimico = st.selectbox(
                             "Produto Químico",
                             options=sorted(dados["quimicos"]["Nome"].unique().tolist()),
-                            index=None
+                            index=None,
+                            key="nova_solicitacao_quimico"
                         )
                     with col2:
                         data = st.date_input("Data da Solicitação")
                         biologico = st.selectbox(
                             "Produto Biológico",
                             options=sorted(dados["biologicos"]["Nome"].unique().tolist()),
-                            index=None
+                            index=None,
+                            key="nova_solicitacao_biologico"
                         )
                     
                     observacoes = st.text_area("Observações")
@@ -940,19 +948,22 @@ def gerenciamento():
                     filtro_status = st.selectbox(
                         "🔍 Filtrar por Status",
                         options=["Todos", "Pendente", "Em Análise", "Concluído", "Cancelado"],
-                        index=0
+                        index=0,
+                        key="filtro_status_solicitacoes"
                     )
                 with col2:
                     filtro_quimico = st.selectbox(
                         "🔍 Filtrar por Produto Químico",
                         options=["Todos"] + sorted(dados["solicitacoes"]["Quimico"].unique().tolist()),
-                        index=0
+                        index=0,
+                        key="filtro_quimico_solicitacoes"
                     )
                 with col3:
                     filtro_biologico = st.selectbox(
                         "🔍 Filtrar por Produto Biológico",
                         options=["Todos"] + sorted(dados["solicitacoes"]["Biologico"].unique().tolist()),
-                        index=0
+                        index=0,
+                        key="filtro_biologico_solicitacoes"
                     )
                 
                 # Aplicar filtros
