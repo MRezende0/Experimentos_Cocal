@@ -304,40 +304,39 @@ def load_all_data():
     O cache expira após 1 hora (3600 segundos).
     """
     try:
-        # Carregar dados com um pequeno atraso entre as requisições para evitar exceder a quota
-        resultados = _load_sheet_with_delay("Resultados")
-        # Converter coluna de data para datetime apenas se não estiver vazia
-        if not resultados.empty and 'Data' in resultados.columns:
-            resultados["Data"] = pd.to_datetime(resultados["Data"], format="%Y-%m-%d", errors="coerce")
-        
-        time.sleep(0.5)  # Reduzir o delay para melhorar o desempenho
-        quimicos = _load_sheet_with_delay("Quimicos")
-        
-        time.sleep(0.5)  # Reduzir o delay para melhorar o desempenho
-        biologicos = _load_sheet_with_delay("Biologicos")
-        
-        time.sleep(0.5)  # Reduzir o delay para melhorar o desempenho
-        solicitacoes = _load_sheet_with_delay("Solicitacoes")
-        # Converter coluna de data para datetime apenas se não estiver vazia
-        if not solicitacoes.empty and 'Data' in solicitacoes.columns:
-            solicitacoes["Data"] = pd.to_datetime(solicitacoes["Data"], format="%Y-%m-%d", errors="coerce")
-        
-        # Converter datas apenas onde existem
-        for df_name in ["resultados", "solicitacoes"]:
-            if not dados[df_name].empty and 'Data' in dados[df_name].columns:
-                dados[df_name]["Data"] = pd.to_datetime(dados[df_name]["Data"], errors="coerce")
-    
+        # Carregar dados com verificação de estrutura
+        dados = {
+            "resultados": _load_and_validate_sheet("Resultados", ["Quimico", "Biologico"]),
+            "quimicos": _load_and_validate_sheet("Quimicos", ["Nome", "Tipo"]),
+            "biologicos": _load_and_validate_sheet("Biologicos", ["Nome", "Tipo"]),
+            "solicitacoes": _load_and_validate_sheet("Solicitacoes", ["Quimico", "Biologico"])
+        }
+
+        # Converter datas
+        for sheet in ["resultados", "solicitacoes"]:
+            if not dados[sheet].empty and 'Data' in dados[sheet].columns:
+                dados[sheet]["Data"] = pd.to_datetime(dados[sheet]["Data"], errors='coerce')
+
         return dados
-    
     except Exception as e:
-        st.error(f"Erro ao carregar dados: {str(e)}")
-        # Retornar DataFrames vazios em caso de erro
+        st.error(f"Falha crítica no carregamento de dados: {str(e)}")
         return {
             "resultados": pd.DataFrame(),
             "quimicos": pd.DataFrame(),
             "biologicos": pd.DataFrame(),
             "solicitacoes": pd.DataFrame()
         }
+
+def _load_and_validate_sheet(sheet_name, required_cols):
+    df = load_sheet_data(sheet_name)
+    
+    if not df.empty:
+        missing = [col for col in required_cols if col not in df.columns]
+        if missing:
+            st.error(f"Planilha {sheet_name} inválida! Colunas faltando: {', '.join(missing)}")
+            return pd.DataFrame()
+            
+    return df
 
 def _load_sheet_with_delay(sheet_name):
     try:
