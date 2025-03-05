@@ -566,12 +566,16 @@ def gerenciamento():
                 # Garantir que apenas as colunas esperadas estejam presentes
                 df_filtrado = df_filtrado[COLUNAS_ESPERADAS["Quimicos"]].copy()
                 
+                # Definir função para marcar dados como editados
+                def marcar_como_editado(tabela):
+                    st.session_state.edited_data[tabela] = True
+                
                 # Tabela editável
                 st.data_editor(
                     df_filtrado,
                     num_rows="dynamic",
                     key="quimicos_editor",
-                    on_change=lambda data: st.session_state.edited_data.update({"quimicos": not data.equals(df_filtrado)}),
+                    on_change=lambda: marcar_como_editado("quimicos"),
                     disabled=["Nome"],
                     column_config={
                         "Nome": st.column_config.TextColumn("Nome do Produto", required=True),
@@ -689,7 +693,7 @@ def gerenciamento():
                     df_filtrado[COLUNAS_ESPERADAS["Biologicos"]],
                     num_rows="dynamic",
                     key="biologicos_editor",
-                    on_change=lambda data: st.session_state.edited_data.update({"biologicos": not data.equals(df_filtrado)}),
+                    on_change=lambda: st.session_state.edited_data.update({"biologicos": True}),
                     column_config={
                         "Nome": "Produto Biológico",
                         "Tipo": st.column_config.SelectboxColumn(options=["Bioestimulante", "Controle Biológico"]),
@@ -824,7 +828,7 @@ def gerenciamento():
                     df_filtrado[COLUNAS_ESPERADAS["Resultados"]],
                     num_rows="dynamic",
                     key="resultados_editor",
-                    on_change=lambda data: st.session_state.edited_data.update({"resultados": not data.equals(df_filtrado)}),
+                    on_change=lambda: st.session_state.edited_data.update({"resultados": True}),
                     column_config={
                         "Data": st.column_config.TextColumn(
                             "Data do Teste",
