@@ -201,33 +201,43 @@ def load_sheet_data(sheet_name: str) -> pd.DataFrame:
 def update_sheet(df: pd.DataFrame, sheet_name: str) -> bool:
     def _update():
         try:
-            # Criar uma cópia do DataFrame para não modificar o original
-            df_copy = df.copy()
-            df_copy['Data'] = pd.to_datetime(df_copy['Data'], errors='coerce')
+            # Mapeamento de colunas obrigatórias para cada planilha
+            COLUNAS_ESPERADAS = {
+                "Quimicos": ["Nome", "Tipo", "Fabricante", "Concentracao", "Classe", "ModoAcao"],
+                "Biologicos": ["Nome", "Tipo", "IngredienteAtivo", "Formulacao", "Aplicacao", "Validade"],
+                "Resultados": ["Data", "Quimico", "Biologico", "Duracao", "Tipo", "Resultado"],
+                "Solicitacoes": ["Data", "Solicitante", "Quimico", "Biologico", "Observacoes", "Status"]
+            }
             
-            # Converter todas as colunas de data para string no formato YYYY-MM-DD
-            date_columns = df_copy.select_dtypes(include=['datetime64[ns]']).columns
-            for col in date_columns:
-                df_copy[col] = df_copy[col].dt.strftime("%Y-%m-%d")
+            # Verificar colunas obrigatórias
+            colunas_esperadas = COLUNAS_ESPERADAS.get(sheet_name, [])
+            for coluna in colunas_esperadas:
+                if coluna not in df.columns:
+                    raise ValueError(f"Coluna obrigatória '{coluna}' não encontrada!")
+
+            # Manter apenas colunas relevantes
+            df = df[colunas_esperadas].copy()
             
-            # Converter todos os valores NaN/None para string vazia
-            df_copy = df_copy.fillna("")
+            # Converter colunas de data somente se existirem
+            if 'Data' in df.columns:
+                df['Data'] = pd.to_datetime(df['Data'], errors='coerce').dt.strftime("%Y-%m-%d")
+            
+            # Preencher valores NaN
+            df = df.fillna("")
                 
             worksheet = get_worksheet(sheet_name)
             if worksheet is None:
                 return False
                 
             worksheet.clear()
-
-            data = [df_copy.columns.tolist()] + df_copy.values.tolist()
-
+            data = [df.columns.tolist()] + df.values.tolist()
             worksheet.update(data)
-
+            
             st.cache_data.clear()
             return True
             
         except Exception as e:
-            st.error(f"Erro ao atualizar planilha: {str(e)}")
+            st.error(f"Erro ao atualizar planilha {sheet_name}: {str(e)}")
             return False
 
     return retry_with_backoff(_update, initial_delay=2)
@@ -282,12 +292,13 @@ def load_all_data():
         if not solicitacoes.empty and 'Data' in solicitacoes.columns:
             solicitacoes["Data"] = pd.to_datetime(solicitacoes["Data"], format="%Y-%m-%d", errors="coerce")
         
-        return {
-            "resultados": resultados,
-            "quimicos": quimicos,
-            "biologicos": biologicos,
-            "solicitacoes": solicitacoes
-        }
+        # Converter datas apenas onde existem
+        for df_name in ["resultados", "solicitacoes"]:
+            if not dados[df_name].empty and 'Data' in dados[df_name].columns:
+                dados[df_name]["Data"] = pd.to_datetime(dados[df_name]["Data"], errors="coerce")
+    
+        return dados
+    
     except Exception as e:
         st.error(f"Erro ao carregar dados: {str(e)}")
         # Retornar DataFrames vazios em caso de erro
@@ -491,7 +502,7 @@ def gerenciamento():
                 
                 # Tabela editável
                 st.data_editor(
-                    df_filtrado,
+                    df_filtrado[COLUNAS_ESPERADAS["Quimicos"]],
                     num_rows="dynamic",
                     key="quimicos_editor",
                     on_change=lambda: st.session_state.update(edited_data=True),
@@ -591,7 +602,7 @@ def gerenciamento():
                 
                 # Tabela editável
                 st.data_editor(
-                    df_filtrado,
+                    df_filtrado[COLUNAS_ESPERADAS["Biologicos"]],
                     num_rows="dynamic",
                     key="biologicos_editor",
                     on_change=lambda: st.session_state.update(edited_data=True),
@@ -704,7 +715,7 @@ def gerenciamento():
                 
                 # Tabela editável
                 st.data_editor(
-                    df_filtrado,
+                    df_filtrado[COLUNAS_ESPERADAS["Resultados"]],
                     num_rows="dynamic",
                     key="resultados_editor",
                     on_change=lambda: st.session_state.update(edited_data=True),
@@ -844,7 +855,7 @@ def gerenciamento():
                 
                 # Tabela editável
                 st.data_editor(
-                    df_filtrado,
+                    df_filtrado[COLUNAS_ESPERADAS["Solicitacoes"]],
                     num_rows="dynamic",
                     key="solicitacoes_editor",
                     on_change=lambda: st.session_state.update(edited_data=True),
