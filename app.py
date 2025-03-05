@@ -162,22 +162,23 @@ def retry_with_backoff(func, max_retries=5, initial_delay=1):
     return None
 
 def append_to_sheet(data_dict, sheet_name):
-    def _append():
+    def _append(data_dict=data_dict, sheet_name=sheet_name):
         try:
             worksheet = get_worksheet(sheet_name)
             if worksheet is None:
                 return False
                 
             # Converter objetos datetime para strings
-            for key in data_dict:
-                if isinstance(data_dict[key], (datetime, pd.Timestamp)):
-                    data_dict[key] = data_dict[key].strftime("%Y-%m-%d")
+            data_dict_copy = data_dict.copy()
+            for key in data_dict_copy:
+                if isinstance(data_dict_copy[key], (datetime, pd.Timestamp)):
+                    data_dict_copy[key] = data_dict_copy[key].strftime("%Y-%m-%d")
                     
             # Get headers from worksheet
             headers = worksheet.row_values(1)
             
             # Create new row based on headers
-            row = [data_dict.get(header, "") for header in headers]
+            row = [data_dict_copy.get(header, "") for header in headers]
             
             # Append row to worksheet
             worksheet.append_row(row)
@@ -195,7 +196,7 @@ def append_to_sheet(data_dict, sheet_name):
     return retry_with_backoff(_append, initial_delay=2)
 
 def load_sheet_data(sheet_name: str) -> pd.DataFrame:
-    def _load():
+    def _load(sheet_name=sheet_name):
         try:
             worksheet = get_worksheet(sheet_name)
             if worksheet is None:
@@ -249,21 +250,21 @@ def update_sheet(df: pd.DataFrame, sheet_name: str) -> bool:
                 raise ValueError(f"Colunas faltando: {', '.join(missing)}")
                 
             # Manter apenas colunas relevantes
-            df = df[required_columns].copy()
+            df_copy = df[required_columns].copy()
             
             # Converter colunas de data somente se existirem
-            if 'Data' in df.columns:
-                df['Data'] = pd.to_datetime(df['Data'], errors='coerce').dt.strftime("%Y-%m-%d")
+            if 'Data' in df_copy.columns:
+                df_copy['Data'] = pd.to_datetime(df_copy['Data'], errors='coerce').dt.strftime("%Y-%m-%d")
             
             # Preencher valores NaN
-            df = df.fillna("")
+            df_copy = df_copy.fillna("")
                 
             worksheet = get_worksheet(sheet_name)
             if worksheet is None:
                 return False
                 
             worksheet.clear()
-            data = [df.columns.tolist()] + df.values.tolist()
+            data = [df_copy.columns.tolist()] + df_copy.values.tolist()
             worksheet.update(data)
             
             st.cache_data.clear()
