@@ -829,7 +829,7 @@ def gerenciamento():
                             ]
                             
                             if not combinacao_existente.empty:
-                                st.warning(f"Combinação '{quimico} x {biologico}' já existe!")
+                                st.warning(f"Combinação {quimico} e {biologico} já existe!")
                             else:
                                 # Adicionar à planilha
                                 with st.spinner("Salvando nova compatibilidade..."):
@@ -1131,93 +1131,6 @@ def gerenciamento():
                             except Exception as e:
                                 st.error(f"Erro ao salvar alterações: {str(e)}")
 
-########################################## CONFIGURAÇÕES ##########################################
-
-def configuracoes():
-    st.title("⚙️ Configurações")
-    
-    # Criar abas para diferentes configurações
-    tab1, tab2, tab3 = st.tabs(["Conectividade", "Cache", "Informações"])
-    
-    with tab1:
-        st.subheader("Conectividade com Google Sheets")
-        if st.button("Testar Conexão", key="test_connection"):
-            with st.spinner("Testando conexão..."):
-                try:
-                    client = get_google_sheets_client()
-                    if client:
-                        st.success("✅ Conexão bem-sucedida!")
-                        
-                        # Mostrar informações adicionais
-                        st.info("Planilha conectada: Experimentos Cocal")
-                        st.code(f"ID da Planilha: {SHEET_ID}")
-                        
-                        # Testar acesso a cada planilha
-                        st.subheader("Status das Planilhas")
-                        col1, col2 = st.columns(2)
-                        
-                        for sheet_name in ["Resultados", "Quimicos", "Biologicos", "Solicitacoes"]:
-                            try:
-                                worksheet = client.open_by_key(SHEET_ID).worksheet(sheet_name)
-                                with col1:
-                                    st.write(f"📊 {sheet_name}")
-                                with col2:
-                                    st.write("✅ Acessível")
-                            except Exception as e:
-                                with col1:
-                                    st.write(f"📊 {sheet_name}")
-                                with col2:
-                                    st.write("❌ Erro de acesso")
-                except Exception as e:
-                    st.error(f"❌ Erro na conexão: {e}")
-    
-    with tab2:
-        st.subheader("Gerenciamento de Cache")
-        
-        # Mostrar informações sobre o cache
-        if 'local_data' in st.session_state:
-            st.info("Status dos dados em cache:")
-            
-            for key, df in st.session_state.local_data.items():
-                if not df.empty:
-                    st.success(f"✅ {key.capitalize()}: {len(df)} registros carregados")
-                else:
-                    st.warning(f"⚠️ {key.capitalize()}: Sem dados")
-        
-        col1, col2 = st.columns(2)
-        with col1:
-            if st.button("🧹 Limpar Cache", key="clear_cache"):
-                st.cache_data.clear()
-                st.cache_resource.clear()
-                
-                # Limpar dados da sessão
-                if 'local_data' in st.session_state:
-                    del st.session_state['local_data']
-                
-                st.success("✅ Cache limpo com sucesso!")
-                st.info("Os dados serão recarregados na próxima interação.")
-        
-        with col2:
-            if st.button("🔄 Recarregar Todos os Dados", key="reload_all"):
-                with st.spinner("Recarregando todos os dados..."):
-                    st.cache_data.clear()
-                    st.session_state.local_data = load_all_data()
-                    st.success("✅ Dados recarregados com sucesso!")
-    
-    with tab3:
-        st.subheader("Informações do Sistema")
-        
-        # Mostrar informações sobre o aplicativo
-        st.info("Aplicativo de Experimentos Cocal")
-        st.write("**Versão:** 1.0.0")
-        st.write("**Desenvolvido por:** Matheus Rezende - Analista de Geotecnologia")
-        
-        # Mostrar informações sobre o ambiente
-        st.subheader("Ambiente de Execução")
-        
-        # Adicionar link para documentação
-        st.markdown("[Documentação do Google Sheets API](https://developers.google.com/sheets/api/guides/concepts)")
-
 ########################################## SIDEBAR ##########################################
 
 def main():
@@ -1233,7 +1146,7 @@ def main():
     st.sidebar.title("Menu")
     menu_option = st.sidebar.radio(
         "Selecione a funcionalidade:",
-        ("Compatibilidade", "Gerenciamento", "Configurações")
+        ("Compatibilidade", "Gerenciamento")
     )
 
     st.sidebar.markdown("---")  # Linha separadora
@@ -1242,8 +1155,6 @@ def main():
         compatibilidade()
     elif menu_option == "Gerenciamento":
         gerenciamento()
-    elif menu_option == "Configurações":
-        configuracoes()
 
 ########################################## EXECUÇÃO ##########################################
 
