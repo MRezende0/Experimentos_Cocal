@@ -56,7 +56,7 @@ def local_css():
                 color: #8B0000;
             }
             /* Estabilizar tabelas */
-            [data-testid="stDataFrame"], [data-testid="stTable"] {
+            [data-testid="stDataFrame"], [data-testid="stTable"], [data-testid="stDataEditor"] {
                 width: 100% !important;
                 min-height: 400px;
                 height: auto !important;
