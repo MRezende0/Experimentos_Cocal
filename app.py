@@ -486,7 +486,7 @@ def compatibilidade():
 ########################################## GERENCIAMENTO ##########################################
 
 def gerenciamento():
-    st.title("📦 Gerenciamento")
+    st.title("⚙️ Gerenciamento")
 
     if 'edited_data' not in st.session_state:
         st.session_state.edited_data = {
