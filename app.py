@@ -68,16 +68,23 @@ def local_css():
                 width: 100% !important;
                 min-height: 400px;
                 height: auto !important;
-            }
-            /* Evitar que tabelas "tremam" */
-            [data-testid="StyledFullScreenFrame"] {
-                position: static !important;
+                max-height: none !important;
                 transform: none !important;
                 transition: none !important;
             }
             /* Reduzir espaço entre tabelas e botões */
             .stButton {
                 margin-top: 0px;
+            }
+            /* Corrigir problemas de renderização em tabelas editáveis */
+            [data-testid="stDataEditor"] [data-testid="column"] {
+                overflow: visible !important;
+            }
+            [data-testid="stDataEditor"] [data-testid="dataframe-cell-input"] {
+                min-height: 32px !important;
+            }
+            [data-testid="stDataEditor"] [data-testid="dataframe-add-rows"] {
+                margin-top: 8px !important;
             }
         </style>
     """, unsafe_allow_html=True)
@@ -133,8 +140,6 @@ def get_worksheet(sheet_name: str):
             worksheet = spreadsheet.worksheet(sheet_name)
             return worksheet
         except Exception as e:
-            if "Quota exceeded" in str(e):
-                raise e  # Re-raise quota errors to trigger retry
             st.error(f"Erro ao acessar planilha {sheet_name}: {str(e)}")
             return None
             
@@ -200,8 +205,6 @@ def append_to_sheet(data_dict, sheet_name):
             return True
             
         except Exception as e:
-            if "Quota exceeded" in str(e):
-                raise e  # Re-raise quota errors to trigger retry
             st.error(f"Erro ao adicionar dados: {str(e)}")
             return False
             
@@ -578,6 +581,12 @@ def gerenciamento():
                 # Garantir que apenas as colunas esperadas estejam presentes
                 df_filtrado = df_filtrado[COLUNAS_ESPERADAS["Quimicos"]].copy()
                 
+                # Garantir que o DataFrame tenha pelo menos uma linha vazia para adição
+                if df_filtrado.empty:
+                    df_vazio = pd.DataFrame(columns=COLUNAS_ESPERADAS["Quimicos"])
+                    # Adicionar uma linha vazia para facilitar a adição de novos dados
+                    df_filtrado = df_vazio
+                
                 # Definir função para marcar dados como editados
                 def marcar_como_editado(tabela):
                     st.session_state.edited_data[tabela] = True
@@ -586,10 +595,10 @@ def gerenciamento():
                 edited_df = st.data_editor(
                     df_filtrado,
                     num_rows="dynamic",
-                    key="quimicos_editor",
+                    key=f"quimicos_editor_{filtro_nome}_{filtro_tipo}",
                     hide_index=True,
                     on_change=lambda: st.session_state.edited_data.update({"quimicos": True}),
-                    disabled=["Nome"],
+                    disabled=["Nome"] if not df_filtrado.empty else [],
                     column_config={
                         "Nome": st.column_config.TextColumn("Nome do Produto", required=True),
                         "Tipo": st.column_config.SelectboxColumn(options=["Herbicida", "Fungicida", "Inseticida"]),
@@ -598,7 +607,8 @@ def gerenciamento():
                         "Classe": "Classe",
                         "ModoAcao": "Modo de Ação"
                     },
-                    use_container_width=True
+                    use_container_width=True,
+                    height=400
                 )
                 
                 # Botão para salvar alterações
@@ -617,6 +627,14 @@ def gerenciamento():
                                     if col not in edited_df.columns:
                                         st.error(f"Coluna obrigatória '{col}' não encontrada nos dados editados")
                                         st.stop()
+                                
+                                # Remover linhas vazias
+                                edited_df = edited_df.dropna(subset=["Nome"], how="all").reset_index(drop=True)
+                                
+                                # Verificar se há dados para salvar
+                                if edited_df.empty:
+                                    st.warning("Não há dados para salvar")
+                                    st.stop()
                                 
                                 # Atualizar dados na sessão
                                 st.session_state.local_data["quimicos"] = edited_df
@@ -682,7 +700,7 @@ def gerenciamento():
                 with col1:
                     filtro_nome = st.selectbox(
                         "🔍 Filtrar por Nome",
-                        options=["Todos"] + sorted(dados["biologicos"]["Nome"].unique().tolist()),
+                        options=["Todos"] + sorted(dados["biologicos"]['Nome'].unique().tolist()),
                         index=0,
                         key="filtro_nome_biologicos"
                     )
@@ -701,11 +719,20 @@ def gerenciamento():
                 if filtro_tipo != "Todos":
                     df_filtrado = df_filtrado[df_filtrado["Tipo"] == filtro_tipo]
                 
+                # Garantir que apenas as colunas esperadas estejam presentes
+                df_filtrado = df_filtrado[COLUNAS_ESPERADAS["Biologicos"]].copy()
+                
+                # Garantir que o DataFrame tenha pelo menos uma linha vazia para adição
+                if df_filtrado.empty:
+                    df_vazio = pd.DataFrame(columns=COLUNAS_ESPERADAS["Biologicos"])
+                    # Adicionar uma linha vazia para facilitar a adição de novos dados
+                    df_filtrado = df_vazio
+                
                 # Tabela editável
                 edited_df = st.data_editor(
-                    df_filtrado[COLUNAS_ESPERADAS["Biologicos"]],
+                    df_filtrado,
                     num_rows="dynamic",
-                    key="biologicos_editor",
+                    key=f"biologicos_editor_{filtro_nome}_{filtro_tipo}",
                     hide_index=True,
                     on_change=lambda: st.session_state.edited_data.update({"biologicos": True}),
                     column_config={
@@ -716,7 +743,8 @@ def gerenciamento():
                         "Aplicacao": "Aplicação",
                         "Validade": "Validade"
                     },
-                    use_container_width=True
+                    use_container_width=True,
+                    height=400
                 )
                 
                 # Botão para salvar alterações
@@ -735,6 +763,14 @@ def gerenciamento():
                                     if col not in edited_df.columns:
                                         st.error(f"Coluna obrigatória '{col}' não encontrada nos dados editados")
                                         st.stop()
+                                
+                                # Remover linhas vazias
+                                edited_df = edited_df.dropna(subset=["Nome"], how="all").reset_index(drop=True)
+                                
+                                # Verificar se há dados para salvar
+                                if edited_df.empty:
+                                    st.warning("Não há dados para salvar")
+                                    st.stop()
                                 
                                 # Atualizar dados na sessão
                                 st.session_state.local_data["biologicos"] = edited_df
@@ -832,6 +868,15 @@ def gerenciamento():
                 if filtro_biologico != "Todos":
                     df_filtrado = df_filtrado[df_filtrado["Biologico"] == filtro_biologico]
                 
+                # Garantir que apenas as colunas esperadas estejam presentes
+                df_filtrado = df_filtrado[COLUNAS_ESPERADAS["Resultados"]].copy()
+                
+                # Garantir que o DataFrame tenha pelo menos uma linha vazia para adição
+                if df_filtrado.empty:
+                    df_vazio = pd.DataFrame(columns=COLUNAS_ESPERADAS["Resultados"])
+                    # Adicionar uma linha vazia para facilitar a adição de novos dados
+                    df_filtrado = df_vazio
+                
                 # Garantir que a coluna Data seja do tipo correto
                 if 'Data' in df_filtrado.columns:
                     # Converter para string para evitar problemas de compatibilidade
@@ -839,9 +884,9 @@ def gerenciamento():
                 
                 # Tabela editável
                 edited_df = st.data_editor(
-                    df_filtrado[COLUNAS_ESPERADAS["Resultados"]],
+                    df_filtrado,
                     num_rows="dynamic",
-                    key="resultados_editor",
+                    key=f"resultados_editor_{filtro_quimico}_{filtro_biologico}",
                     hide_index=True,
                     on_change=lambda: st.session_state.edited_data.update({"resultados": True}),
                     column_config={
@@ -875,7 +920,8 @@ def gerenciamento():
                             required=True
                         )
                     },
-                    use_container_width=True
+                    use_container_width=True,
+                    height=400
                 )
                 
                 # Botão para salvar alterações
@@ -894,6 +940,14 @@ def gerenciamento():
                                     if col not in edited_df.columns:
                                         st.error(f"Coluna obrigatória '{col}' não encontrada nos dados editados")
                                         st.stop()
+                                
+                                # Remover linhas vazias
+                                edited_df = edited_df.dropna(subset=["Quimico", "Biologico"], how="all").reset_index(drop=True)
+                                
+                                # Verificar se há dados para salvar
+                                if edited_df.empty:
+                                    st.warning("Não há dados para salvar")
+                                    st.stop()
                                 
                                 # Atualizar dados na sessão
                                 st.session_state.local_data["resultados"] = edited_df
@@ -997,42 +1051,49 @@ def gerenciamento():
                 if filtro_biologico != "Todos":
                     df_filtrado = df_filtrado[df_filtrado["Biologico"] == filtro_biologico]
                 
+                # Garantir que apenas as colunas esperadas estejam presentes
+                df_filtrado = df_filtrado[COLUNAS_ESPERADAS["Solicitacoes"]].copy()
+                
+                # Garantir que o DataFrame tenha pelo menos uma linha vazia para adição
+                if df_filtrado.empty:
+                    df_vazio = pd.DataFrame(columns=COLUNAS_ESPERADAS["Solicitacoes"])
+                    # Adicionar uma linha vazia para facilitar a adição de novos dados
+                    df_filtrado = df_vazio
+                
                 # Garantir que a coluna Data seja do tipo correto
                 if 'Data' in df_filtrado.columns:
                     # Converter para string para evitar problemas de compatibilidade
                     df_filtrado['Data'] = df_filtrado['Data'].astype(str)
                 
-                # Tabela editável
+                # Tabela editável com ordenação por Data
+                if not df_filtrado.empty:
+                    df_filtrado = df_filtrado.sort_values(by="Data", ascending=False).reset_index(drop=True)
+                
                 edited_df = st.data_editor(
-                    df_filtrado[COLUNAS_ESPERADAS["Solicitacoes"]],
+                    df_filtrado,
                     num_rows="dynamic",
-                    key="solicitacoes_editor",
+                    key=f"solicitacoes_editor_{filtro_status}_{filtro_quimico}_{filtro_biologico}",
                     hide_index=True,
                     on_change=lambda: st.session_state.edited_data.update({"solicitacoes": True}),
                     column_config={
-                        "Data": st.column_config.TextColumn(
-                            "Data da Solicitação",
-                            required=True
-                        ),
-                        "Solicitante": "Nome do Solicitante",
+                        "Data": st.column_config.TextColumn("Data da Solicitação"),
+                        "Solicitante": "Solicitante",
                         "Quimico": st.column_config.SelectboxColumn(
                             "Produto Químico",
-                            options=sorted(dados["quimicos"]["Nome"].unique().tolist()),
-                            required=True
+                            options=sorted(dados["quimicos"]["Nome"].unique().tolist())
                         ),
                         "Biologico": st.column_config.SelectboxColumn(
                             "Produto Biológico",
-                            options=sorted(dados["biologicos"]["Nome"].unique().tolist()),
-                            required=True
+                            options=sorted(dados["biologicos"]["Nome"].unique().tolist())
                         ),
                         "Observacoes": "Observações",
                         "Status": st.column_config.SelectboxColumn(
                             "Status",
-                            options=["Pendente", "Em Análise", "Concluído", "Cancelado"],
-                            required=True
+                            options=["Pendente", "Em Análise", "Concluído", "Cancelado"]
                         )
                     },
-                    use_container_width=True
+                    use_container_width=True,
+                    height=400
                 )
                 
                 # Botão para salvar alterações
@@ -1051,6 +1112,14 @@ def gerenciamento():
                                     if col not in edited_df.columns:
                                         st.error(f"Coluna obrigatória '{col}' não encontrada nos dados editados")
                                         st.stop()
+                                
+                                # Remover linhas vazias
+                                edited_df = edited_df.dropna(subset=["Solicitante"], how="all").reset_index(drop=True)
+                                
+                                # Verificar se há dados para salvar
+                                if edited_df.empty:
+                                    st.warning("Não há dados para salvar")
+                                    st.stop()
                                 
                                 # Atualizar dados na sessão
                                 st.session_state.local_data["solicitacoes"] = edited_df
@@ -1100,7 +1169,7 @@ def configuracoes():
                                 with col2:
                                     st.write("❌ Erro de acesso")
                 except Exception as e:
-                    st.error(f"❌ Erro na conexão: {str(e)}")
+                    st.error(f"❌ Erro na conexão: {e}")
     
     with tab2:
         st.subheader("Gerenciamento de Cache")
