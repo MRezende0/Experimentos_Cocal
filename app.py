@@ -1143,7 +1143,6 @@ def main():
         }
 
     st.sidebar.image("imagens/logo-cocal.png")
-    st.sidebar.markdown("---")
     st.sidebar.title("Menu")
     menu_option = st.sidebar.radio(
         "Selecione a funcionalidade:",
