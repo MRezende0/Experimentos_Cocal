@@ -1143,13 +1143,14 @@ def main():
         }
 
     st.sidebar.image("imagens/logo-cocal.png")
+    st.sidebar.markdown("---")
     st.sidebar.title("Menu")
     menu_option = st.sidebar.radio(
         "Selecione a funcionalidade:",
         ("Compatibilidade", "Gerenciamento")
     )
 
-    st.sidebar.markdown("---")  # Linha separadora
+    st.sidebar.markdown("---")
 
     if menu_option == "Compatibilidade":
         compatibilidade()
