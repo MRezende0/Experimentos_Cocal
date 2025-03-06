@@ -13,6 +13,14 @@ from oauth2client.service_account import ServiceAccountCredentials
 from google.oauth2 import service_account
 import streamlit.components.v1 as components
 
+if 'local_data' not in st.session_state:
+    st.session_state.local_data = {
+        "quimicos": pd.DataFrame(),
+        "biologicos": pd.DataFrame(),
+        "resultados": pd.DataFrame(),
+        "solicitacoes": pd.DataFrame()
+    }
+
 # Configurações iniciais
 st.set_page_config(
     page_title="Experimentos",
@@ -305,33 +313,27 @@ def update_worksheet(df_editado: pd.DataFrame, worksheet_name: str):
     except Exception as e:
         st.error(f"Erro ao atualizar planilha: {str(e)}")
 
-@st.cache_data(ttl=3600)
 def load_all_data():
-    """
-    Carrega todos os dados das planilhas com cache para melhorar o desempenho.
-    O cache expira após 1 hora (3600 segundos).
-    """
-    # Verificar se já temos dados na sessão
-    if 'local_data' in st.session_state and all(key in st.session_state.local_data for key in ["quimicos", "biologicos", "resultados", "solicitacoes"]):
+    """Carrega todos os dados das planilhas e armazena na session_state"""
+    try:
+        # Verificar se já temos dados na sessão
+        if not st.session_state.local_data["quimicos"].empty and \
+           not st.session_state.local_data["biologicos"].empty and \
+           not st.session_state.local_data["resultados"].empty and \
+           not st.session_state.local_data["solicitacoes"].empty:
+            return st.session_state.local_data
+            
+        # Carregar dados se estiverem vazios
+        st.session_state.local_data["quimicos"] = _load_sheet_with_delay("Quimicos")
+        st.session_state.local_data["biologicos"] = _load_sheet_with_delay("Biologicos")
+        st.session_state.local_data["resultados"] = _load_sheet_with_delay("Resultados")
+        st.session_state.local_data["solicitacoes"] = _load_sheet_with_delay("Solicitacoes")
+        
         return st.session_state.local_data
-    
-    # Inicializar dicionário de dados
-    dados = {}
-    
-    # Carregar dados com tratamento de erros e delays para evitar sobrecarga
-    dados["quimicos"] = _load_sheet_with_delay("Quimicos")
-    dados["biologicos"] = _load_sheet_with_delay("Biologicos")
-    dados["resultados"] = _load_sheet_with_delay("Resultados")
-    dados["solicitacoes"] = _load_sheet_with_delay("Solicitacoes")
-    
-    # Validar dados carregados
-    for sheet_name in ["quimicos", "biologicos", "resultados", "solicitacoes"]:
-        dados[sheet_name] = _load_and_validate_sheet(sheet_name) if dados[sheet_name].empty else dados[sheet_name]
-    
-    # Armazenar na sessão para acesso rápido
-    st.session_state.local_data = dados
-    
-    return dados
+        
+    except Exception as e:
+        st.error(f"Erro crítico ao carregar dados: {str(e)}")
+        return st.session_state.local_data
 
 def _load_sheet_with_delay(sheet_name):
     try:
@@ -464,14 +466,17 @@ def compatibilidade():
                     with st.spinner("Registrando solicitação..."):
                         if append_to_sheet(nova_solicitacao, "Solicitacoes"):
                             st.success("Solicitação registrada com sucesso!")
+
+                            # Atualizar dados locais de forma segura
+                            nova_linha = pd.DataFrame([nova_solicitacao])
                             
-                            # Atualizar dados locais
                             if "solicitacoes" in st.session_state.local_data:
-                                nova_linha = pd.DataFrame([nova_solicitacao])
                                 st.session_state.local_data["solicitacoes"] = pd.concat(
                                     [st.session_state.local_data["solicitacoes"], nova_linha], 
                                     ignore_index=True
                                 )
+                            else:
+                                st.session_state.local_data["solicitacoes"] = nova_linha
                         else:
                             st.error("Falha ao registrar solicitação")
 
@@ -1147,6 +1152,14 @@ def configuracoes():
 ########################################## SIDEBAR ##########################################
 
 def main():
+    if 'local_data' not in st.session_state:
+        st.session_state.local_data = {
+            "quimicos": pd.DataFrame(),
+            "biologicos": pd.DataFrame(),
+            "resultados": pd.DataFrame(),
+            "solicitacoes": pd.DataFrame()
+        }
+
     st.sidebar.image("imagens/logo-cocal.png")
     st.sidebar.title("Menu")
     menu_option = st.sidebar.radio(
