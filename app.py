@@ -562,8 +562,6 @@ def mostrar_formulario_solicitacao(quimico=None, biologico=None):
                         else:
                             st.session_state.local_data["solicitacoes"] = nova_linha
                         
-                        # Forçar recarregamento para mostrar a mensagem de sucesso
-                        st.rerun()
                         break
                     else:
                         if tentativa < 2:  # Se não for a última tentativa
