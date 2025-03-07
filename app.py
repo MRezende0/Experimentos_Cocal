@@ -581,16 +581,10 @@ def mostrar_formulario_solicitacao(quimico=None, biologico=None):
                         else:
                             st.session_state.local_data["solicitacoes"] = nova_linha
                         
-                        # Forçar recarregamento para mostrar a mensagem de sucesso
-                        st.rerun()
                         break
                     else:
-                        if tentativa < 2:  # Se não for a última tentativa
-                            st.warning(f"Tentativa {tentativa+1} falhou. Tentando novamente...")
-                            time.sleep(2)  # Esperar antes de tentar novamente
-                        else:
-                            st.error("Falha ao registrar solicitação após múltiplas tentativas.")
-                            st.session_state.form_success = False
+                        st.error("Falha ao registrar solicitação.")
+                        st.session_state.form_success = False
 
 ########################################## GERENCIAMENTO ##########################################
 
