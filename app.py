@@ -33,7 +33,7 @@ def local_css():
     st.markdown("""
         <style>
             [data-testid="stSidebar"] {
-                background-color: #ffff;
+                background-color: #f8f9fa;
                 padding: 20px;
             }
             h1, h2, h3 {
@@ -88,7 +88,7 @@ def local_css():
             }
             /* Otimizações de performance */
             .stApp {
-                background-color: #f8f9fa;
+                background-color: #ffff;
             }
             /* Reduzir animações para melhorar performance */
             * {
