@@ -396,7 +396,7 @@ def compatibilidade():
         return
     
     # Adicionar botão para solicitar novo teste na tela inicial
-    col1, col2, col3 = st.columns([2, 2, 1])
+    col1, col2 = st.columns([2, 2])
     with col1:
         quimico = st.selectbox(
             "Produto Químico",
@@ -413,12 +413,11 @@ def compatibilidade():
             key="compatibilidade_biologico"
         )
     
-    with col3:
-        st.write("")
-        st.write("")
-        if st.button("Solicitar Novo Teste", key="btn_novo_teste"):
-            st.session_state.solicitar_novo_teste = True
-            st.rerun()
+    st.write("")
+    st.write("")
+    if st.button("Solicitar Novo Teste", key="btn_novo_teste"):
+        st.session_state.solicitar_novo_teste = True
+        st.rerun()
     
     # Verificar se o botão de novo teste foi pressionado
     if 'solicitar_novo_teste' in st.session_state and st.session_state.solicitar_novo_teste:
