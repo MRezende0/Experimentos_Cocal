@@ -1018,7 +1018,7 @@ def gerenciamento():
                     if submitted:
                         if solicitante and quimico and biologico:
                             nova_solicitacao = {
-                                "Data": data.strftime("%d-%m-%Y"),
+                                "Data": data.strftime("%Y-%m-%d"),
                                 "Solicitante": solicitante,
                                 "Quimico": quimico,
                                 "Biologico": biologico,
