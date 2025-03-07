@@ -415,7 +415,6 @@ def compatibilidade():
             if 'form_success' in st.session_state:
                 st.session_state.form_success = False
             st.session_state.solicitar_novo_teste = True
-            st.rerun()
             
         st.markdown("</div>", unsafe_allow_html=True)
     
@@ -535,7 +534,6 @@ def mostrar_formulario_solicitacao(quimico=None, biologico=None):
                 'biologico': biologico if biologico else '',
                 'observacoes': ''
             }
-            st.rerun()
         return
     
     # Mostrar o formulário se não foi enviado ou se houve erro
@@ -1132,7 +1130,6 @@ def gerenciamento():
                             'biologico': '',
                             'observacoes': ''
                         }
-                        st.rerun()
                     return
                 
                 # Mostrar o formulário se não foi enviado ou se houve erro
