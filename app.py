@@ -295,7 +295,8 @@ def update_sheet(df: pd.DataFrame, sheet_name: str) -> bool:
         
         # Usar batch_update para melhorar a performance
         worksheet.clear()
-        worksheet.update(values=all_values)
+        # Corrigir o erro de atualização especificando a célula inicial 'A1'
+        worksheet.update('A1', all_values)
         
         # Atualizar o cache local
         st.session_state.local_data[sheet_name.lower()] = df
@@ -491,26 +492,14 @@ def compatibilidade():
         else:
             # Mostrar aviso de que não existe compatibilidade cadastrada
             st.warning(f"""
-                **Compatibilidade não cadastrada!**
+                **Teste não realizado! Solicite um novo teste.**
                 
                 Não há resultados de compatibilidade entre:
                 - Produto Químico: **{quimico}**
                 - Produto Biológico: **{biologico}**
-                
-                Utilize o botão "Solicitar Novo Teste" no canto superior direito para solicitar um teste de compatibilidade.
             """)
             
-            # Adicionar botão para solicitar teste diretamente
-            if st.button("Solicitar teste para esta combinação", key="btn_solicitar_esta_combinacao"):
-                st.session_state.form_submitted = False
-                st.session_state.form_success = False
-                st.session_state.last_submission = None
-                st.session_state.solicitar_novo_teste = True
-                st.session_state.pre_selecionado_quimico = quimico
-                st.session_state.pre_selecionado_biologico = biologico
-                st.rerun()
-
-# Função auxiliar para mostrar o formulário de solicitação
+    # Função auxiliar para mostrar o formulário de solicitação
 def mostrar_formulario_solicitacao(quimico=None, biologico=None):
     """
     Exibe o formulário para solicitar um novo teste de compatibilidade.
@@ -602,7 +591,12 @@ def mostrar_formulario_solicitacao(quimico=None, biologico=None):
     # Mostrar mensagens de sucesso ou erro abaixo do formulário
     if st.session_state.form_submitted:
         if st.session_state.form_success:
-            st.success("Solicitação registrada com sucesso!")
+            # Usar um container para destacar a mensagem de sucesso
+            success_container = st.container()
+            with success_container:
+                st.markdown("---")
+                st.success("### Solicitação registrada com sucesso! ✅")
+                st.markdown("---")
             
             # Mostrar detalhes da última submissão
             if st.session_state.last_submission:
