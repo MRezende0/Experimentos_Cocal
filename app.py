@@ -600,9 +600,7 @@ def mostrar_formulario_solicitacao(quimico=None, biologico=None):
                     )
                 else:
                     st.session_state.local_data["solicitacoes"] = nova_linha
-                
-                # Forçar recarregamento para mostrar a mensagem de sucesso
-                st.rerun()
+
             else:
                 st.error("Falha ao registrar solicitação.")
                 st.session_state.form_success = False
@@ -1187,9 +1185,7 @@ def gerenciamento():
                             # Atualizar dados locais
                             nova_linha = pd.DataFrame([nova_solicitacao])
                             st.session_state.local_data["solicitacoes"] = pd.concat([st.session_state.local_data["solicitacoes"], nova_linha], ignore_index=True)
-                            
-                            # Forçar recarregamento para mostrar a mensagem de sucesso
-                            st.rerun()
+
                         else:
                             st.error("Falha ao adicionar solicitação")
                             st.session_state.gerenciamento_form_success = False
