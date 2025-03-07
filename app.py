@@ -440,19 +440,7 @@ def compatibilidade():
     if 'form_submitted' in st.session_state and st.session_state.form_submitted:
         if st.session_state.form_success:
             st.success("Solicitação registrada com sucesso!")
-            
-            # Mostrar detalhes da última submissão
-            if 'last_submission' in st.session_state and st.session_state.last_submission:
-                with st.expander("Ver detalhes da solicitação"):
-                    for key, value in st.session_state.last_submission.items():
-                        st.write(f"**{key}:** {value}")
-                        
-            # Botão para fazer nova solicitação
-            if st.button("Fazer nova solicitação", key="btn_nova_solicitacao_compat"):
-                st.session_state.form_submitted = False
-                st.session_state.form_success = False
-                st.session_state.last_submission = None
-                st.rerun()
+
         else:
             st.error("Por favor, preencha todos os campos obrigatórios: Produto Químico, Produto Biológico e Solicitante.")
             mostrar_formulario_solicitacao()
