@@ -86,6 +86,20 @@ def local_css():
             [data-testid="stDataEditor"] [data-testid="dataframe-add-rows"] {
                 margin-top: 8px !important;
             }
+            /* Otimizações de performance */
+            .stApp {
+                background-color: #f8f9fa;
+            }
+            /* Reduzir animações para melhorar performance */
+            * {
+                transition-duration: 0s !important;
+                animation-duration: 0s !important;
+            }
+            /* Melhorar performance de tabelas grandes */
+            .stDataFrame {
+                max-height: 600px;
+                overflow-y: auto;
+            }
         </style>
     """, unsafe_allow_html=True)
 
@@ -252,100 +266,80 @@ def load_sheet_data(sheet_name: str) -> pd.DataFrame:
     return retry_with_backoff(_load)
 
 def update_sheet(df: pd.DataFrame, sheet_name: str) -> bool:
-    def _update():
-        try:
-            # Verificar se o DataFrame é válido
-            if df.empty:
-                raise ValueError("DataFrame vazio recebido para atualização")
-                
-            # Verificar colunas obrigatórias
-            required_columns = COLUNAS_ESPERADAS.get(sheet_name, [])
-            missing = [col for col in required_columns if col not in df.columns]
-            if missing:
-                raise ValueError(f"Colunas faltando: {', '.join(missing)}")
-                
-            # Manter apenas colunas relevantes
-            df_copy = df[required_columns].copy()
-            
-            # Converter colunas de data somente se existirem
-            if 'Data' in df_copy.columns:
-                df_copy['Data'] = pd.to_datetime(df_copy['Data'], errors='coerce').dt.strftime("%Y-%m-%d")
-            
-            # Preencher valores NaN
-            df_copy = df_copy.fillna("")
-                
-            worksheet = get_worksheet(sheet_name)
-            if worksheet is None:
-                return False
-                
-            worksheet.clear()
-            data = [df_copy.columns.tolist()] + df_copy.values.tolist()
-            worksheet.update(data)
-            
-            st.cache_data.clear()
-            return True
-            
-        except Exception as e:
-            st.error(f"Erro ao atualizar planilha {sheet_name}: {str(e)}")
-            return False
-
-    return retry_with_backoff(_update, initial_delay=2)
-
-def update_worksheet(df_editado: pd.DataFrame, worksheet_name: str):
-    """Função genérica para atualizar worksheet"""
+    """
+    Atualiza uma planilha no Google Sheets e também atualiza o cache local
+    """
     try:
-        worksheet = get_worksheet(worksheet_name)
-        if worksheet is not None:
-            # Identificar as linhas alteradas
-            df_original = pd.DataFrame(worksheet.get_all_records())
-            df_alterado = df_editado.copy()
+        worksheet = get_worksheet(sheet_name)
+        if worksheet is None:
+            st.error(f"Não foi possível acessar a planilha {sheet_name}")
+            return False
             
-            # Remover colunas de controle antes de salvar
-            if 'DELETE' in df_alterado.columns:
-                df_alterado = df_alterado.drop(columns=['DELETE'])
+        # Verificar se o DataFrame está vazio
+        if df.empty:
+            st.error(f"DataFrame vazio para {sheet_name}")
+            return False
             
-            # Limpar a planilha e reescrever os dados
-            worksheet.clear()
-            headers = df_alterado.columns.tolist()
-            worksheet.append_row(headers)
-            worksheet.append_rows(df_alterado.values.tolist())
-            
-            st.cache_data.clear()
-            st.success("Dados atualizados com sucesso!")
-            st.rerun()
+        # Converter colunas datetime para string
+        df_copy = df.copy()
+        for col in df_copy.columns:
+            if df_copy[col].dtype == 'datetime64[ns]':
+                df_copy[col] = df_copy[col].dt.strftime('%Y-%m-%d')
+                
+        # Preparar dados para atualização
+        header = df_copy.columns.tolist()
+        values = df_copy.values.tolist()
+        all_values = [header] + values
+        
+        # Usar batch_update para melhorar a performance
+        worksheet.clear()
+        worksheet.update(values=all_values)
+        
+        # Atualizar o cache local
+        st.session_state.local_data[sheet_name.lower()] = df
+        
+        return True
     except Exception as e:
-        st.error(f"Erro ao atualizar planilha: {str(e)}")
+        st.error(f"Erro ao atualizar planilha {sheet_name}: {str(e)}")
+        return False
 
 def load_all_data():
-    """Carrega todos os dados das planilhas e armazena na session_state"""
-    try:
-        # Verificar se já temos dados na sessão
-        if not st.session_state.local_data["quimicos"].empty and \
-           not st.session_state.local_data["biologicos"].empty and \
-           not st.session_state.local_data["resultados"].empty and \
-           not st.session_state.local_data["solicitacoes"].empty:
+    """
+    Carrega todos os dados das planilhas e armazena na session_state
+    Usa cache de sessão para minimizar requisições ao Google Sheets
+    """
+    # Verificar se os dados já estão na sessão e se foram carregados há menos de 5 minutos
+    if 'data_timestamp' in st.session_state and 'local_data' in st.session_state:
+        elapsed_time = (datetime.now() - st.session_state.data_timestamp).total_seconds()
+        # Usar dados em cache se foram carregados há menos de 5 minutos
+        if elapsed_time < 300:  # 5 minutos em segundos
             return st.session_state.local_data
+    
+    # Carregar dados com paralelismo para melhorar a performance
+    with st.spinner("Carregando dados..."):
+        # Inicializar dicionário de dados
+        dados = {}
+        
+        # Definir função para carregar uma planilha específica
+        def load_sheet(sheet_name):
+            return sheet_name, _load_and_validate_sheet(sheet_name)
+        
+        # Usar threads para carregar as planilhas em paralelo
+        import concurrent.futures
+        with concurrent.futures.ThreadPoolExecutor(max_workers=4) as executor:
+            # Submeter tarefas para carregar cada planilha
+            futures = {executor.submit(load_sheet, name): name for name in ["Quimicos", "Biologicos", "Resultados", "Solicitacoes"]}
             
-        # Carregar dados se estiverem vazios
-        st.session_state.local_data["quimicos"] = _load_sheet_with_delay("Quimicos")
-        st.session_state.local_data["biologicos"] = _load_sheet_with_delay("Biologicos")
-        st.session_state.local_data["resultados"] = _load_sheet_with_delay("Resultados")
-        st.session_state.local_data["solicitacoes"] = _load_sheet_with_delay("Solicitacoes")
-        
-        return st.session_state.local_data
-        
-    except Exception as e:
-        st.error(f"Erro crítico ao carregar dados: {str(e)}")
-        return st.session_state.local_data
-
-def _load_sheet_with_delay(sheet_name):
-    try:
-        # Adicionar pequeno delay para evitar sobrecarga da API
-        time.sleep(uniform(0.2, 0.5))
-        return load_sheet_data(sheet_name)
-    except Exception as e:
-        st.error(f"Erro ao carregar {sheet_name}: {str(e)}")
-        return pd.DataFrame()
+            # Coletar resultados à medida que ficam disponíveis
+            for future in concurrent.futures.as_completed(futures):
+                sheet_name, df = future.result()
+                dados[sheet_name.lower()] = df
+    
+    # Armazenar dados na sessão com timestamp
+    st.session_state.local_data = dados
+    st.session_state.data_timestamp = datetime.now()
+    
+    return dados
 
 def _load_and_validate_sheet(sheet_name):
     try:
@@ -401,7 +395,8 @@ def compatibilidade():
         """)
         return
     
-    col1, col2 = st.columns(2)
+    # Adicionar botão para solicitar novo teste na tela inicial
+    col1, col2, col3 = st.columns([2, 2, 1])
     with col1:
         quimico = st.selectbox(
             "Produto Químico",
@@ -418,7 +413,19 @@ def compatibilidade():
             key="compatibilidade_biologico"
         )
     
-    if quimico and biologico:
+    with col3:
+        st.write("")
+        st.write("")
+        if st.button("Solicitar Novo Teste", key="btn_novo_teste"):
+            st.session_state.solicitar_novo_teste = True
+            st.rerun()
+    
+    # Verificar se o botão de novo teste foi pressionado
+    if 'solicitar_novo_teste' in st.session_state and st.session_state.solicitar_novo_teste:
+        st.session_state.solicitar_novo_teste = False
+        mostrar_formulario_solicitacao()
+    
+    elif quimico and biologico:
         # Procurar na planilha de Resultados usando os nomes
         resultado_existente = dados["resultados"][
             (dados["resultados"]["Quimico"] == quimico) &
@@ -444,44 +451,57 @@ def compatibilidade():
                 st.write(f"**Resultado:** {resultado_existente.iloc[0]['Resultado']}")
         
         else:
-            st.warning("Combinação ainda não testada")
-            
-            # Solicitar novo teste - Corrigindo o formulário para incluir o botão de submit
-            with st.form(key="solicitar_teste_form"):
-                data_solicitacao = st.date_input("Data da Solicitação")
-                solicitante = st.text_input("Nome do solicitante")
-                observacoes = st.text_area("Observações")
-                
-                # Botão de submit dentro do formulário
-                submit_button = st.form_submit_button(label="Solicitar Teste")
-                
-                # Processar o formulário quando enviado
-                if submit_button:
-                    nova_solicitacao = {
-                        "Data": data_solicitacao.strftime("%Y-%m-%d"),
-                        "Solicitante": solicitante,
-                        "Quimico": quimico,
-                        "Biologico": biologico,
-                        "Observacoes": observacoes,
-                        "Status": "Pendente"
-                    }
-                    
-                    with st.spinner("Registrando solicitação..."):
-                        if append_to_sheet(nova_solicitacao, "Solicitacoes"):
-                            st.success("Solicitação registrada com sucesso!")
+            # Em vez de mostrar aviso, mostrar diretamente o formulário de solicitação
+            mostrar_formulario_solicitacao(quimico, biologico)
 
-                            # Atualizar dados locais de forma segura
-                            nova_linha = pd.DataFrame([nova_solicitacao])
-                            
-                            if "solicitacoes" in st.session_state.local_data:
-                                st.session_state.local_data["solicitacoes"] = pd.concat(
-                                    [st.session_state.local_data["solicitacoes"], nova_linha], 
-                                    ignore_index=True
-                                )
-                            else:
-                                st.session_state.local_data["solicitacoes"] = nova_linha
-                        else:
-                            st.error("Falha ao registrar solicitação")
+# Função auxiliar para mostrar o formulário de solicitação
+def mostrar_formulario_solicitacao(quimico=None, biologico=None):
+    with st.form(key="solicitar_teste_form"):
+        st.subheader("Solicitar Novo Teste")
+        
+        data_solicitacao = st.date_input("Data da Solicitação")
+        solicitante = st.text_input("Nome do solicitante")
+        
+        # Usar campos de texto para permitir novos produtos
+        quimico_input = st.text_input("Nome do Produto Químico", value=quimico if quimico else "")
+        biologico_input = st.text_input("Nome do Produto Biológico", value=biologico if biologico else "")
+        
+        observacoes = st.text_area("Observações")
+        
+        # Botão de submit dentro do formulário
+        submit_button = st.form_submit_button(label="Solicitar Teste")
+        
+        # Processar o formulário quando enviado
+        if submit_button:
+            if not quimico_input or not biologico_input or not solicitante:
+                st.error("Por favor, preencha todos os campos obrigatórios: Produto Químico, Produto Biológico e Solicitante.")
+                return
+                
+            nova_solicitacao = {
+                "Data": data_solicitacao.strftime("%Y-%m-%d"),
+                "Solicitante": solicitante,
+                "Quimico": quimico_input,
+                "Biologico": biologico_input,
+                "Observacoes": observacoes,
+                "Status": "Pendente"
+            }
+            
+            with st.spinner("Registrando solicitação..."):
+                if append_to_sheet(nova_solicitacao, "Solicitacoes"):
+                    st.success("Solicitação registrada com sucesso!")
+
+                    # Atualizar dados locais de forma segura
+                    nova_linha = pd.DataFrame([nova_solicitacao])
+                    
+                    if "solicitacoes" in st.session_state.local_data:
+                        st.session_state.local_data["solicitacoes"] = pd.concat(
+                            [st.session_state.local_data["solicitacoes"], nova_linha], 
+                            ignore_index=True
+                        )
+                    else:
+                        st.session_state.local_data["solicitacoes"] = nova_linha
+                else:
+                    st.error("Falha ao registrar solicitação")
 
 ########################################## GERENCIAMENTO ##########################################
 
@@ -1019,7 +1039,7 @@ def gerenciamento():
                 with col1:
                     filtro_status = st.selectbox(
                         "🔍 Filtrar por Status",
-                        options=["Todos", "Pendente", "Em Análise", "Concluído", "Cancelado"],
+                        options=["Todos", "Pendente", "Em andamento", "Concluído", "Cancelado"],
                         index=0,
                         key="filtro_status_solicitacoes"
                     )
