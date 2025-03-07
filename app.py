@@ -211,9 +211,9 @@ def append_to_sheet(data_dict, sheet_name):
                 st.error(f"Planilha '{sheet_name}' não encontrada.")
                 return False
             
-            # Verificar se todos os campos obrigatórios estão presentes
-            if not all(key in data_dict for key in ["Data", "Solicitante"]):
-                st.error("Dados incompletos. Certifique-se de preencher todos os campos obrigatórios.")
+            # Verificar se há dados para adicionar
+            if not data_dict:
+                st.error("Nenhum dado para adicionar.")
                 return False
             
             # Adicionar os dados à planilha
@@ -478,26 +478,20 @@ def compatibilidade():
 
 # Função auxiliar para mostrar o formulário de solicitação
 def mostrar_formulario_solicitacao(quimico=None, biologico=None):
+    """
+    Exibe o formulário para solicitar um novo teste de compatibilidade.
+    
+    Args:
+        quimico (str, optional): Nome do produto químico pré-selecionado
+        biologico (str, optional): Nome do produto biológico pré-selecionado
+    """
     # Inicializar variáveis de estado se não existirem
     if 'form_submitted' not in st.session_state:
         st.session_state.form_submitted = False
-    
-    # Se o formulário foi enviado com sucesso, mostrar mensagem e opção de novo teste
-    if st.session_state.form_submitted and 'last_submission' in st.session_state:
-        st.success("Solicitação registrada com sucesso!")
-        
-        # Mostrar detalhes da solicitação
-        st.info("**Detalhes da solicitação:**")
-        st.write(f"**Data:** {st.session_state.last_submission.get('Data', '')}")
-        st.write(f"**Solicitante:** {st.session_state.last_submission.get('Solicitante', '')}")
-        st.write(f"**Produto Químico:** {st.session_state.last_submission.get('Quimico', '')}")
-        st.write(f"**Produto Biológico:** {st.session_state.last_submission.get('Biologico', '')}")
-        
-        if st.button("Fazer nova solicitação", key="btn_nova_solicitacao"):
-            st.session_state.form_submitted = False
-            if 'last_submission' in st.session_state:
-                del st.session_state.last_submission
-        return
+    if 'form_success' not in st.session_state:
+        st.session_state.form_success = False
+    if 'last_submission' not in st.session_state:
+        st.session_state.last_submission = None
     
     # Função para processar o envio do formulário
     def submit_form():
@@ -510,7 +504,8 @@ def mostrar_formulario_solicitacao(quimico=None, biologico=None):
         
         # Validar campos obrigatórios
         if not quimico_input or not biologico_input or not solicitante:
-            st.error("Por favor, preencha todos os campos obrigatórios: Produto Químico, Produto Biológico e Solicitante.")
+            st.session_state.form_submitted = True
+            st.session_state.form_success = False
             return
         
         # Preparar dados da solicitação
@@ -524,27 +519,26 @@ def mostrar_formulario_solicitacao(quimico=None, biologico=None):
         }
         
         # Tentar salvar no Google Sheets
-        with st.spinner("Registrando solicitação..."):
-            if append_to_sheet(nova_solicitacao, "Solicitacoes"):
-                # Atualizar dados locais de forma segura
-                nova_linha = pd.DataFrame([nova_solicitacao])
-                
-                if "solicitacoes" in st.session_state.local_data:
-                    st.session_state.local_data["solicitacoes"] = pd.concat(
-                        [st.session_state.local_data["solicitacoes"], nova_linha], 
-                        ignore_index=True
-                    )
-                else:
-                    st.session_state.local_data["solicitacoes"] = nova_linha
-                
-                # Salvar a última submissão para exibir detalhes
-                st.session_state.last_submission = nova_solicitacao
-                # Marcar como enviado com sucesso
-                st.session_state.form_submitted = True
-                return True
+        if append_to_sheet(nova_solicitacao, "Solicitacoes"):
+            # Atualizar dados locais de forma segura
+            nova_linha = pd.DataFrame([nova_solicitacao])
+            
+            if "solicitacoes" in st.session_state.local_data:
+                st.session_state.local_data["solicitacoes"] = pd.concat(
+                    [st.session_state.local_data["solicitacoes"], nova_linha], 
+                    ignore_index=True
+                )
             else:
-                st.error("Falha ao registrar solicitação.")
-                return False
+                st.session_state.local_data["solicitacoes"] = nova_linha
+            
+            # Salvar a última submissão para exibir detalhes
+            st.session_state.last_submission = nova_solicitacao
+            # Marcar como enviado com sucesso
+            st.session_state.form_submitted = True
+            st.session_state.form_success = True
+        else:
+            st.session_state.form_submitted = True
+            st.session_state.form_success = False
     
     # Mostrar o formulário para entrada de dados
     st.subheader("Solicitar Novo Teste")
@@ -566,7 +560,20 @@ def mostrar_formulario_solicitacao(quimico=None, biologico=None):
         
         # Botão de submit
         submitted = st.form_submit_button("Solicitar Teste", on_click=submit_form)
-
+    
+    # Mostrar mensagens de sucesso ou erro abaixo do formulário
+    if st.session_state.form_submitted:
+        if st.session_state.form_success:
+            st.success("Solicitação registrada com sucesso!")
+            
+            # Mostrar detalhes da última submissão
+            if st.session_state.last_submission:
+                with st.expander("Ver detalhes da solicitação"):
+                    for key, value in st.session_state.last_submission.items():
+                        st.write(f"**{key}:** {value}")
+        else:
+            st.error("Por favor, preencha todos os campos obrigatórios: Produto Químico, Produto Biológico e Solicitante.")
+    
 ########################################## GERENCIAMENTO ##########################################
 
 def gerenciamento():
@@ -598,44 +605,76 @@ def gerenciamento():
             opcao = st.radio("Escolha uma opção:", ["Novo produto", "Produtos cadastrados"], key="opcao_quimicos")
             
             if opcao == "Novo produto":
+                # Inicializar variáveis de estado se não existirem
+                if 'quimico_form_submitted' not in st.session_state:
+                    st.session_state.quimico_form_submitted = False
+                if 'quimico_form_success' not in st.session_state:
+                    st.session_state.quimico_form_success = False
+                if 'quimico_form_error' not in st.session_state:
+                    st.session_state.quimico_form_error = ""
+                
+                # Função para processar o envio do formulário
+                def submit_quimico_form():
+                    nome = st.session_state.quimico_nome
+                    tipo = st.session_state.tipo_quimico
+                    fabricante = st.session_state.quimico_fabricante
+                    concentracao = st.session_state.quimico_concentracao
+                    classe = st.session_state.quimico_classe
+                    modo_acao = st.session_state.quimico_modo_acao
+                    
+                    if nome:
+                        novo_produto = {
+                            "Nome": nome,
+                            "Tipo": tipo,
+                            "Fabricante": fabricante,
+                            "Concentracao": concentracao,
+                            "Classe": classe,
+                            "ModoAcao": modo_acao
+                        }
+                        
+                        # Verificar se o produto já existe
+                        if nome in dados["quimicos"]["Nome"].values:
+                            st.session_state.quimico_form_submitted = True
+                            st.session_state.quimico_form_success = False
+                            st.session_state.quimico_form_error = f"Produto '{nome}' já existe!"
+                        else:
+                            # Adicionar à planilha
+                            if append_to_sheet(novo_produto, "Quimicos"):
+                                # Atualizar dados locais
+                                nova_linha = pd.DataFrame([novo_produto])
+                                st.session_state.local_data["quimicos"] = pd.concat([st.session_state.local_data["quimicos"], nova_linha], ignore_index=True)
+                                
+                                st.session_state.quimico_form_submitted = True
+                                st.session_state.quimico_form_success = True
+                                st.session_state.quimico_form_error = ""
+                            else:
+                                st.session_state.quimico_form_submitted = True
+                                st.session_state.quimico_form_success = False
+                                st.session_state.quimico_form_error = "Falha ao adicionar produto"
+                    else:
+                        st.session_state.quimico_form_submitted = True
+                        st.session_state.quimico_form_success = False
+                        st.session_state.quimico_form_error = "Nome do produto é obrigatório"
+                
                 with st.form("novo_quimico_form"):
                     col1, col2 = st.columns(2)
                     with col1:
-                        nome = st.text_input("Nome do Produto")
-                        tipo = st.selectbox("Tipo", options=["Herbicida", "Fungicida", "Inseticida"], key="tipo_quimico")
-                        fabricante = st.text_input("Fabricante")
+                        st.text_input("Nome do Produto", key="quimico_nome")
+                        st.selectbox("Tipo", options=["Herbicida", "Fungicida", "Inseticida"], key="tipo_quimico")
+                        st.text_input("Fabricante", key="quimico_fabricante")
                     with col2:
-                        concentracao = st.number_input("Concentração", value=0.0, step=1.0)
-                        classe = st.text_input("Classe")
-                        modo_acao = st.text_input("Modo de Ação")
+                        st.number_input("Concentração", value=0.0, step=1.0, key="quimico_concentracao")
+                        st.text_input("Classe", key="quimico_classe")
+                        st.text_input("Modo de Ação", key="quimico_modo_acao")
                     
-                    submitted = st.form_submit_button("Adicionar Produto")
-                    if submitted:
-                        if nome:
-                            novo_produto = {
-                                "Nome": nome,
-                                "Tipo": tipo,
-                                "Fabricante": fabricante,
-                                "Concentracao": concentracao,
-                                "Classe": classe,
-                                "ModoAcao": modo_acao
-                            }
-                            
-                            # Verificar se o produto já existe
-                            if nome in dados["quimicos"]["Nome"].values:
-                                st.warning(f"Produto '{nome}' já existe!")
-                            else:
-                                # Adicionar à planilha
-                                with st.spinner("Salvando novo produto..."):
-                                    if append_to_sheet(novo_produto, "Quimicos"):
-                                        st.success("Produto adicionado com sucesso!")
-                                        # Atualizar dados locais
-                                        nova_linha = pd.DataFrame([novo_produto])
-                                        st.session_state.local_data["quimicos"] = pd.concat([st.session_state.local_data["quimicos"], nova_linha], ignore_index=True)
-                                    else:
-                                        st.error("Falha ao adicionar produto")
-                        else:
-                            st.warning("Nome do produto é obrigatório")
+                    submitted = st.form_submit_button("Adicionar Produto", on_click=submit_quimico_form)
+                
+                # Mostrar mensagens de sucesso ou erro abaixo do formulário
+                if st.session_state.quimico_form_submitted:
+                    if st.session_state.quimico_form_success:
+                        st.success("Produto adicionado com sucesso!")
+                    else:
+                        st.error(st.session_state.quimico_form_error)
             
             else:  # Visualizar produtos cadastrados
                 # Filtros para a tabela
@@ -739,44 +778,76 @@ def gerenciamento():
             opcao = st.radio("Escolha uma opção:", ["Novo produto", "Produtos cadastrados"], key="opcao_biologicos")
             
             if opcao == "Novo produto":
+                # Inicializar variáveis de estado se não existirem
+                if 'biologico_form_submitted' not in st.session_state:
+                    st.session_state.biologico_form_submitted = False
+                if 'biologico_form_success' not in st.session_state:
+                    st.session_state.biologico_form_success = False
+                if 'biologico_form_error' not in st.session_state:
+                    st.session_state.biologico_form_error = ""
+                
+                # Função para processar o envio do formulário
+                def submit_biologico_form():
+                    nome = st.session_state.biologico_nome
+                    tipo = st.session_state.tipo_biologico
+                    ingrediente_ativo = st.session_state.biologico_ingrediente
+                    formulacao = st.session_state.biologico_formulacao
+                    aplicacao = st.session_state.biologico_aplicacao
+                    validade = st.session_state.biologico_validade
+                    
+                    if nome:
+                        novo_produto = {
+                            "Nome": nome,
+                            "Tipo": tipo,
+                            "IngredienteAtivo": ingrediente_ativo,
+                            "Formulacao": formulacao,
+                            "Aplicacao": aplicacao,
+                            "Validade": validade
+                        }
+                        
+                        # Verificar se o produto já existe
+                        if nome in dados["biologicos"]["Nome"].values:
+                            st.session_state.biologico_form_submitted = True
+                            st.session_state.biologico_form_success = False
+                            st.session_state.biologico_form_error = f"Produto '{nome}' já existe!"
+                        else:
+                            # Adicionar à planilha
+                            if append_to_sheet(novo_produto, "Biologicos"):
+                                # Atualizar dados locais
+                                nova_linha = pd.DataFrame([novo_produto])
+                                st.session_state.local_data["biologicos"] = pd.concat([st.session_state.local_data["biologicos"], nova_linha], ignore_index=True)
+                                
+                                st.session_state.biologico_form_submitted = True
+                                st.session_state.biologico_form_success = True
+                                st.session_state.biologico_form_error = ""
+                            else:
+                                st.session_state.biologico_form_submitted = True
+                                st.session_state.biologico_form_success = False
+                                st.session_state.biologico_form_error = "Falha ao adicionar produto"
+                    else:
+                        st.session_state.biologico_form_submitted = True
+                        st.session_state.biologico_form_success = False
+                        st.session_state.biologico_form_error = "Nome do produto é obrigatório"
+                
                 with st.form("novo_biologico_form"):
                     col1, col2 = st.columns(2)
                     with col1:
-                        nome = st.text_input("Nome do Produto")
-                        tipo = st.selectbox("Tipo", options=["Bioestimulante", "Controle Biológico"], key="tipo_biologico")
-                        ingrediente_ativo = st.text_input("Ingrediente Ativo")
+                        st.text_input("Nome do Produto", key="biologico_nome")
+                        st.selectbox("Tipo", options=["Bioestimulante", "Controle Biológico"], key="tipo_biologico")
+                        st.text_input("Ingrediente Ativo", key="biologico_ingrediente")
                     with col2:
-                        formulacao = st.text_input("Formulação")
-                        aplicacao = st.text_input("Aplicação")
-                        validade = st.text_input("Validade")
+                        st.text_input("Formulação", key="biologico_formulacao")
+                        st.text_input("Aplicação", key="biologico_aplicacao")
+                        st.text_input("Validade", key="biologico_validade")
                     
-                    submitted = st.form_submit_button("Adicionar Produto")
-                    if submitted:
-                        if nome:
-                            novo_produto = {
-                                "Nome": nome,
-                                "Tipo": tipo,
-                                "IngredienteAtivo": ingrediente_ativo,
-                                "Formulacao": formulacao,
-                                "Aplicacao": aplicacao,
-                                "Validade": validade
-                            }
-                            
-                            # Verificar se o produto já existe
-                            if nome in dados["biologicos"]["Nome"].values:
-                                st.warning(f"Produto '{nome}' já existe!")
-                            else:
-                                # Adicionar à planilha
-                                with st.spinner("Salvando novo produto..."):
-                                    if append_to_sheet(novo_produto, "Biologicos"):
-                                        st.success("Produto adicionado com sucesso!")
-                                        # Atualizar dados locais
-                                        nova_linha = pd.DataFrame([novo_produto])
-                                        st.session_state.local_data["biologicos"] = pd.concat([st.session_state.local_data["biologicos"], nova_linha], ignore_index=True)
-                                    else:
-                                        st.error("Falha ao adicionar produto")
-                        else:
-                            st.warning("Nome do produto é obrigatório")
+                    submitted = st.form_submit_button("Adicionar Produto", on_click=submit_biologico_form)
+                
+                # Mostrar mensagens de sucesso ou erro abaixo do formulário
+                if st.session_state.biologico_form_submitted:
+                    if st.session_state.biologico_form_success:
+                        st.success("Produto adicionado com sucesso!")
+                    else:
+                        st.error(st.session_state.biologico_form_error)
             
             else:  # Visualizar produtos cadastrados
                 # Filtros para a tabela
@@ -875,57 +946,89 @@ def gerenciamento():
             opcao = st.radio("Escolha uma opção:", ["Nova compatibilidade", "Compatibilidades cadastradas"], key="opcao_compat")
             
             if opcao == "Nova compatibilidade":
+                # Inicializar variáveis de estado se não existirem
+                if 'compatibilidade_form_submitted' not in st.session_state:
+                    st.session_state.compatibilidade_form_submitted = False
+                if 'compatibilidade_form_success' not in st.session_state:
+                    st.session_state.compatibilidade_form_success = False
+                if 'compatibilidade_form_error' not in st.session_state:
+                    st.session_state.compatibilidade_form_error = ""
+                
+                # Função para processar o envio do formulário
+                def submit_compatibilidade_form():
+                    quimico = st.session_state.resultado_quimico
+                    biologico = st.session_state.resultado_biologico
+                    data_teste = st.session_state.resultado_data
+                    duracao = st.session_state.resultado_duracao
+                    tipo = st.session_state.resultado_tipo
+                    resultado = st.session_state.resultado_status
+                    
+                    if quimico and biologico:
+                        nova_compatibilidade = {
+                            "Data": data_teste.strftime("%Y-%m-%d"),
+                            "Quimico": quimico,
+                            "Biologico": biologico,
+                            "Duracao": duracao,
+                            "Tipo": tipo,
+                            "Resultado": resultado
+                        }
+                        
+                        # Verificar se a combinação já existe
+                        combinacao_existente = dados["resultados"][
+                            (dados["resultados"]["Quimico"] == quimico) & 
+                            (dados["resultados"]["Biologico"] == biologico)
+                        ]
+                        
+                        if not combinacao_existente.empty:
+                            st.session_state.compatibilidade_form_submitted = True
+                            st.session_state.compatibilidade_form_success = False
+                            st.session_state.compatibilidade_form_error = f"Combinação {quimico} e {biologico} já existe!"
+                        else:
+                            # Adicionar à planilha
+                            if append_to_sheet(nova_compatibilidade, "Resultados"):
+                                # Atualizar dados locais
+                                nova_linha = pd.DataFrame([nova_compatibilidade])
+                                st.session_state.local_data["resultados"] = pd.concat([st.session_state.local_data["resultados"], nova_linha], ignore_index=True)
+                                
+                                st.session_state.compatibilidade_form_submitted = True
+                                st.session_state.compatibilidade_form_success = True
+                                st.session_state.compatibilidade_form_error = ""
+                            else:
+                                st.session_state.compatibilidade_form_submitted = True
+                                st.session_state.compatibilidade_form_success = False
+                                st.session_state.compatibilidade_form_error = "Falha ao adicionar compatibilidade"
+                    else:
+                        st.session_state.compatibilidade_form_submitted = True
+                        st.session_state.compatibilidade_form_success = False
+                        st.session_state.compatibilidade_form_error = "Selecione os produtos químico e biológico"
+                
                 with st.form("nova_compatibilidade_form"):
                     col_a, col_b = st.columns(2)
                     with col_a:
-                        quimico = st.selectbox(
+                        st.selectbox(
                             "Produto Químico",
                             options=sorted(dados["quimicos"]["Nome"].unique().tolist()),
                             key="resultado_quimico"
                         )
-                        data_teste = st.date_input("Data do Teste")
-                        tipo = st.selectbox("Tipo de Teste", options=["Simples", "Composto"], key="resultado_tipo")
+                        st.date_input("Data do Teste", key="resultado_data")
+                        st.selectbox("Tipo de Teste", options=["Simples", "Composto"], key="resultado_tipo")
                     with col_b:
-                        biologico = st.selectbox(
+                        st.selectbox(
                             "Produto Biológico",
                             options=sorted(dados["biologicos"]["Nome"].unique().tolist()),
                             key="resultado_biologico"
                         )
-                        duracao = st.number_input("Duração (horas)", min_value=0, value=0)
-                        resultado = st.selectbox("Resultado", options=["Compatível", "Incompatível"], key="resultado_status")
+                        st.number_input("Duração (horas)", min_value=0, value=0, key="resultado_duracao")
+                        st.selectbox("Resultado", options=["Compatível", "Incompatível"], key="resultado_status")
                     
-                    submitted = st.form_submit_button("Adicionar Compatibilidade")
-                    if submitted:
-                        if quimico and biologico:
-                            nova_compatibilidade = {
-                                "Data": data_teste.strftime("%Y-%m-%d"),
-                                "Quimico": quimico,
-                                "Biologico": biologico,
-                                "Duracao": duracao,
-                                "Tipo": tipo,
-                                "Resultado": resultado
-                            }
-                            
-                            # Verificar se a combinação já existe
-                            combinacao_existente = dados["resultados"][
-                                (dados["resultados"]["Quimico"] == quimico) & 
-                                (dados["resultados"]["Biologico"] == biologico)
-                            ]
-                            
-                            if not combinacao_existente.empty:
-                                st.warning(f"Combinação {quimico} e {biologico} já existe!")
-                            else:
-                                # Adicionar à planilha
-                                with st.spinner("Salvando nova compatibilidade..."):
-                                    if append_to_sheet(nova_compatibilidade, "Resultados"):
-                                        st.success("Compatibilidade adicionada com sucesso!")
-                                        # Atualizar dados locais
-                                        nova_linha = pd.DataFrame([nova_compatibilidade])
-                                        st.session_state.local_data["resultados"] = pd.concat([st.session_state.local_data["resultados"], nova_linha], ignore_index=True)
-                                    else:
-                                        st.error("Falha ao adicionar compatibilidade")
-                        else:
-                            st.warning("Selecione os produtos químico e biológico")
+                    submitted = st.form_submit_button("Adicionar Compatibilidade", on_click=submit_compatibilidade_form)
+                
+                # Mostrar mensagens de sucesso ou erro abaixo do formulário
+                if st.session_state.compatibilidade_form_submitted:
+                    if st.session_state.compatibilidade_form_success:
+                        st.success("Compatibilidade adicionada com sucesso!")
+                    else:
+                        st.error(st.session_state.compatibilidade_form_error)
             
             else:  # Visualizar compatibilidades cadastradas
                 # Filtros para a tabela
@@ -1120,7 +1223,7 @@ def gerenciamento():
                 with st.form(key="gerenciamento_form"):
                     col1, col2 = st.columns(2)
                     with col1:
-                        st.text_input("Nome do Solicitante", key="gerenciamento_solicitante")
+                        st.text_input("Nome do solicitante", key="gerenciamento_solicitante")
                         st.text_input("Produto Químico", key="gerenciamento_quimico")
                     with col2:
                         st.date_input("Data da Solicitação", value=datetime.now(), key="gerenciamento_data")
