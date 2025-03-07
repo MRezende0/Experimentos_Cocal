@@ -375,6 +375,10 @@ def compatibilidade():
     # Inicializar variável de estado para controle do formulário
     if 'solicitar_novo_teste' not in st.session_state:
         st.session_state.solicitar_novo_teste = False
+    if 'pre_selecionado_quimico' not in st.session_state:
+        st.session_state.pre_selecionado_quimico = None
+    if 'pre_selecionado_biologico' not in st.session_state:
+        st.session_state.pre_selecionado_biologico = None
     
     col1, col2 = st.columns([4, 1])  # 4:1 ratio para alinhamento direito
 
@@ -402,6 +406,8 @@ def compatibilidade():
             if 'last_submission' in st.session_state:
                 st.session_state.last_submission = None
             st.session_state.solicitar_novo_teste = True
+            st.session_state.pre_selecionado_quimico = None
+            st.session_state.pre_selecionado_biologico = None
             # Garantir que permanecemos na página atual
             st.session_state.current_page = "Compatibilidade"
             
@@ -433,18 +439,11 @@ def compatibilidade():
     # Verificar se o botão de novo teste foi pressionado
     if 'solicitar_novo_teste' in st.session_state and st.session_state.solicitar_novo_teste:
         st.session_state.solicitar_novo_teste = False
-        mostrar_formulario_solicitacao()
+        mostrar_formulario_solicitacao(
+            quimico=st.session_state.pre_selecionado_quimico,
+            biologico=st.session_state.pre_selecionado_biologico
+        )
         return  # Importante: retornar para não mostrar o restante da interface
-    
-    # Verificar se o formulário foi enviado com sucesso
-    if 'form_submitted' in st.session_state and st.session_state.form_submitted:
-        if st.session_state.form_success:
-            st.success("Solicitação registrada com sucesso!")
-
-        else:
-            st.error("Por favor, preencha todos os campos obrigatórios: Produto Químico, Produto Biológico e Solicitante.")
-            mostrar_formulario_solicitacao()
-            return
     
     # Interface de consulta de compatibilidade
     col1, col2 = st.columns([1, 1])
@@ -490,8 +489,26 @@ def compatibilidade():
                 st.write(f"**Resultado:** {resultado_existente.iloc[0]['Resultado']}")
         
         else:
-            # Em vez de mostrar aviso, mostrar diretamente o formulário de solicitação
-            mostrar_formulario_solicitacao(quimico, biologico)
+            # Mostrar aviso de que não existe compatibilidade cadastrada
+            st.warning(f"""
+                **Compatibilidade não cadastrada!**
+                
+                Não há resultados de compatibilidade entre:
+                - Produto Químico: **{quimico}**
+                - Produto Biológico: **{biologico}**
+                
+                Utilize o botão "Solicitar Novo Teste" no canto superior direito para solicitar um teste de compatibilidade.
+            """)
+            
+            # Adicionar botão para solicitar teste diretamente
+            if st.button("Solicitar teste para esta combinação", key="btn_solicitar_esta_combinacao"):
+                st.session_state.form_submitted = False
+                st.session_state.form_success = False
+                st.session_state.last_submission = None
+                st.session_state.solicitar_novo_teste = True
+                st.session_state.pre_selecionado_quimico = quimico
+                st.session_state.pre_selecionado_biologico = biologico
+                st.rerun()
 
 # Função auxiliar para mostrar o formulário de solicitação
 def mostrar_formulario_solicitacao(quimico=None, biologico=None):
@@ -592,8 +609,15 @@ def mostrar_formulario_solicitacao(quimico=None, biologico=None):
                 with st.expander("Ver detalhes da solicitação"):
                     for key, value in st.session_state.last_submission.items():
                         st.write(f"**{key}:** {value}")
-        # else:
-        #     st.error("Por favor, preencha todos os campos obrigatórios: Produto Químico, Produto Biológico e Solicitante.")
+                        
+            # Botão para voltar à tela de compatibilidade
+            if st.button("Voltar à tela de compatibilidade", key="btn_voltar_compat"):
+                st.session_state.form_submitted = False
+                st.session_state.form_success = False
+                st.session_state.last_submission = None
+                st.rerun()
+        else:
+            st.error("Por favor, preencha todos os campos obrigatórios: Produto Químico, Produto Biológico e Solicitante.")
 
 ########################################## GERENCIAMENTO ##########################################
 
