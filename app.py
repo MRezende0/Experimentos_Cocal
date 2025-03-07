@@ -581,6 +581,8 @@ def mostrar_formulario_solicitacao(quimico=None, biologico=None):
                         else:
                             st.session_state.local_data["solicitacoes"] = nova_linha
                         
+                        # Forçar recarregamento para mostrar a mensagem de sucesso
+                        st.rerun()
                         break
                     else:
                         st.error("Falha ao registrar solicitação.")
