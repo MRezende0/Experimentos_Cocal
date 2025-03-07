@@ -473,8 +473,23 @@ def compatibilidade():
                 st.write(f"**Resultado:** {resultado_existente.iloc[0]['Resultado']}")
         
         else:
-            # Em vez de mostrar aviso, mostrar diretamente o formulário de solicitação
-            mostrar_formulario_solicitacao(quimico, biologico)
+            if 'form_submitted' in st.session_state and st.session_state.form_submitted and st.session_state.form_success:
+                st.success("Solicitação registrada com sucesso!")
+                
+                # Mostrar detalhes da última submissão
+                if 'last_submission' in st.session_state and st.session_state.last_submission:
+                    with st.expander("Ver detalhes da solicitação"):
+                        for key, value in st.session_state.last_submission.items():
+                            st.write(f"**{key}:** {value}")
+                            
+                # Botão para fazer nova solicitação
+                if st.button("Fazer nova solicitação", key="btn_nova_solicitacao_compat"):
+                    st.session_state.form_submitted = False
+                    st.session_state.form_success = False
+                    st.session_state.last_submission = None
+                    st.rerun()
+            else:
+                mostrar_formulario_solicitacao(quimico, biologico)
 
 # Função auxiliar para mostrar o formulário de solicitação
 def mostrar_formulario_solicitacao(quimico=None, biologico=None):
