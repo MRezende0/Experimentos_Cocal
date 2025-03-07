@@ -409,8 +409,6 @@ def compatibilidade():
             st.session_state.solicitar_novo_teste = True
             st.session_state.pre_selecionado_quimico = None
             st.session_state.pre_selecionado_biologico = None
-            # Garantir que permanecemos na página atual
-            st.session_state.current_page = "Compatibilidade"
             
         st.markdown("</div>", unsafe_allow_html=True)
     
@@ -492,11 +490,9 @@ def compatibilidade():
         else:
             # Mostrar aviso de que não existe compatibilidade cadastrada
             st.warning(f"""
-                **Teste não realizado! Solicite um novo teste.**
+                **Teste não realizado!**
                 
-                Não há resultados de compatibilidade entre:
-                - Produto Químico: **{quimico}**
-                - Produto Biológico: **{biologico}**
+                Solicite um novo teste.
             """)
             
     # Função auxiliar para mostrar o formulário de solicitação
@@ -515,8 +511,6 @@ def mostrar_formulario_solicitacao(quimico=None, biologico=None):
         st.session_state.form_success = False
     if 'last_submission' not in st.session_state:
         st.session_state.last_submission = None
-    if 'current_page' not in st.session_state:
-        st.session_state.current_page = "Compatibilidade"
     
     # Função para processar o envio do formulário
     def submit_form():
