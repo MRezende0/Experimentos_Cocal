@@ -371,7 +371,7 @@ def _load_and_validate_sheet(sheet_name):
 
 def compatibilidade():
     # Aumentar a proporção da segunda coluna para alinhar à direita
-    col1, col2 = st.columns([3, 1])  # 3:1 ratio para alinhamento direito
+    col1, col2 = st.columns([4, 1])  # 4:1 ratio para alinhamento direito
 
     with col1:
         st.title("🧪 Compatibilidade")
