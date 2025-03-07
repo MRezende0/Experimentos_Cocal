@@ -592,8 +592,8 @@ def mostrar_formulario_solicitacao(quimico=None, biologico=None):
                 with st.expander("Ver detalhes da solicitação"):
                     for key, value in st.session_state.last_submission.items():
                         st.write(f"**{key}:** {value}")
-        else:
-            st.error("Por favor, preencha todos os campos obrigatórios: Produto Químico, Produto Biológico e Solicitante.")
+        # else:
+        #     st.error("Por favor, preencha todos os campos obrigatórios: Produto Químico, Produto Biológico e Solicitante.")
 
 ########################################## GERENCIAMENTO ##########################################
 
