@@ -197,6 +197,7 @@ def append_to_sheet(data_dict, sheet_name):
         try:
             worksheet = get_worksheet(sheet_name)
             if worksheet is None:
+                st.error(f"Não foi possível acessar a planilha {sheet_name}")
                 return False
                 
             # Converter objetos datetime para strings
@@ -207,22 +208,41 @@ def append_to_sheet(data_dict, sheet_name):
                     
             # Get headers from worksheet
             headers = worksheet.row_values(1)
-            
+            if not headers:
+                st.error(f"Não foi possível obter os cabeçalhos da planilha {sheet_name}")
+                return False
+                
             # Create new row based on headers
             row = [data_dict_copy.get(header, "") for header in headers]
             
-            # Append row to worksheet
-            worksheet.append_row(row)
+            # Verificar se todos os campos obrigatórios estão preenchidos
+            if sheet_name == "Solicitacoes" and (not data_dict_copy.get("Quimico") or not data_dict_copy.get("Biologico") or not data_dict_copy.get("Solicitante")):
+                st.error("Campos obrigatórios não preenchidos")
+                return False
             
-            # Clear cache to force data reload
-            st.cache_data.clear()
+            # Append row to worksheet com retry em caso de falha
+            try:
+                worksheet.append_row(row)
+            except Exception as e:
+                st.warning(f"Falha na primeira tentativa de adicionar dados: {str(e)}. Tentando novamente...")
+                time.sleep(2)  # Esperar 2 segundos antes de tentar novamente
+                try:
+                    worksheet.append_row(row)
+                except Exception as e2:
+                    st.error(f"Falha na segunda tentativa: {str(e2)}")
+                    return False
+            
+            # Atualizar timestamp para controle de cache
+            if 'data_timestamp' in st.session_state:
+                st.session_state.data_timestamp = datetime.now()
+                
             return True
             
         except Exception as e:
             st.error(f"Erro ao adicionar dados: {str(e)}")
             return False
             
-    return retry_with_backoff(_append, initial_delay=2)
+    return retry_with_backoff(_append, max_retries=3, initial_delay=2)
 
 def load_sheet_data(sheet_name: str) -> pd.DataFrame:
     def _load(sheet_name=sheet_name):
@@ -388,7 +408,12 @@ def compatibilidade():
             unsafe_allow_html=True
         )
         
-        if st.button("Solicitar Novo Teste", key="btn_novo_teste"):
+        if st.button("Solicitar Novo Teste", key="btn_novo_teste", use_container_width=True):
+            # Limpar estados anteriores para garantir um novo formulário
+            if 'form_submitted' in st.session_state:
+                st.session_state.form_submitted = False
+            if 'form_success' in st.session_state:
+                st.session_state.form_success = False
             st.session_state.solicitar_novo_teste = True
             st.rerun()
             
@@ -417,7 +442,13 @@ def compatibilidade():
         """)
         return
     
-    # Adicionar botão para solicitar novo teste na tela inicial
+    # Verificar se o botão de novo teste foi pressionado
+    if 'solicitar_novo_teste' in st.session_state and st.session_state.solicitar_novo_teste:
+        st.session_state.solicitar_novo_teste = False
+        mostrar_formulario_solicitacao()
+        return  # Importante: retornar para não mostrar o restante da interface
+    
+    # Interface de consulta de compatibilidade
     col1, col2 = st.columns([1, 1])
     with col1:
         quimico = st.selectbox(
@@ -435,12 +466,7 @@ def compatibilidade():
             key="compatibilidade_biologico"
         )
     
-    # Verificar se o botão de novo teste foi pressionado
-    if 'solicitar_novo_teste' in st.session_state and st.session_state.solicitar_novo_teste:
-        st.session_state.solicitar_novo_teste = False
-        mostrar_formulario_solicitacao()
-    
-    elif quimico and biologico:
+    if quimico and biologico:
         # Procurar na planilha de Resultados usando os nomes
         resultado_existente = dados["resultados"][
             (dados["resultados"]["Quimico"] == quimico) &
@@ -471,10 +497,26 @@ def compatibilidade():
 
 # Função auxiliar para mostrar o formulário de solicitação
 def mostrar_formulario_solicitacao(quimico=None, biologico=None):
+    # Inicializar variáveis de estado se não existirem
+    if 'form_submitted' not in st.session_state:
+        st.session_state.form_submitted = False
+    if 'form_success' not in st.session_state:
+        st.session_state.form_success = False
+    
+    # Se o formulário já foi enviado com sucesso, mostrar mensagem e opção de novo teste
+    if st.session_state.form_submitted and st.session_state.form_success:
+        st.success("Solicitação registrada com sucesso!")
+        if st.button("Fazer nova solicitação", key="btn_nova_solicitacao"):
+            st.session_state.form_submitted = False
+            st.session_state.form_success = False
+            st.rerun()
+        return
+    
+    # Mostrar o formulário se não foi enviado ou se houve erro
     with st.form(key="solicitar_teste_form"):
         st.subheader("Solicitar Novo Teste")
         
-        data_solicitacao = st.date_input("Data da Solicitação")
+        data_solicitacao = st.date_input("Data da Solicitação", value=datetime.now())
         solicitante = st.text_input("Nome do solicitante")
         
         # Usar campos de texto para permitir novos produtos
@@ -488,6 +530,8 @@ def mostrar_formulario_solicitacao(quimico=None, biologico=None):
         
         # Processar o formulário quando enviado
         if submit_button:
+            st.session_state.form_submitted = True
+            
             if not quimico_input or not biologico_input or not solicitante:
                 st.error("Por favor, preencha todos os campos obrigatórios: Produto Químico, Produto Biológico e Solicitante.")
                 return
@@ -502,21 +546,32 @@ def mostrar_formulario_solicitacao(quimico=None, biologico=None):
             }
             
             with st.spinner("Registrando solicitação..."):
-                if append_to_sheet(nova_solicitacao, "Solicitacoes"):
-                    st.success("Solicitação registrada com sucesso!")
-
-                    # Atualizar dados locais de forma segura
-                    nova_linha = pd.DataFrame([nova_solicitacao])
-                    
-                    if "solicitacoes" in st.session_state.local_data:
-                        st.session_state.local_data["solicitacoes"] = pd.concat(
-                            [st.session_state.local_data["solicitacoes"], nova_linha], 
-                            ignore_index=True
-                        )
+                # Tentar salvar os dados com até 3 tentativas
+                for tentativa in range(3):
+                    if append_to_sheet(nova_solicitacao, "Solicitacoes"):
+                        st.session_state.form_success = True
+                        
+                        # Atualizar dados locais de forma segura
+                        nova_linha = pd.DataFrame([nova_solicitacao])
+                        
+                        if "solicitacoes" in st.session_state.local_data:
+                            st.session_state.local_data["solicitacoes"] = pd.concat(
+                                [st.session_state.local_data["solicitacoes"], nova_linha], 
+                                ignore_index=True
+                            )
+                        else:
+                            st.session_state.local_data["solicitacoes"] = nova_linha
+                        
+                        # Forçar recarregamento para mostrar a mensagem de sucesso
+                        st.rerun()
+                        break
                     else:
-                        st.session_state.local_data["solicitacoes"] = nova_linha
-                else:
-                    st.error("Falha ao registrar solicitação")
+                        if tentativa < 2:  # Se não for a última tentativa
+                            st.warning(f"Tentativa {tentativa+1} falhou. Tentando novamente...")
+                            time.sleep(2)  # Esperar antes de tentar novamente
+                        else:
+                            st.error("Falha ao registrar solicitação após múltiplas tentativas.")
+                            st.session_state.form_success = False
 
 ########################################## GERENCIAMENTO ##########################################
 
@@ -843,7 +898,7 @@ def gerenciamento():
                             key="resultado_biologico"
                         )
                         duracao = st.number_input("Duração (horas)", min_value=0, value=0)
-                        resultado = st.selectbox("Resultado", options=["Compatível", "Incompatível", "Não testado"], key="resultado_status")
+                        resultado = st.selectbox("Resultado", options=["Compatível", "Incompatível"], key="resultado_status")
                     
                     submitted = st.form_submit_button("Adicionar Compatibilidade")
                     if submitted:
@@ -951,7 +1006,7 @@ def gerenciamento():
                         ),
                         "Resultado": st.column_config.SelectboxColumn(
                             "Resultado",
-                            options=["Compatível", "Incompatível", "Não testado"],
+                            options=["Compatível", "Incompatível"],
                             required=True
                         )
                     },
