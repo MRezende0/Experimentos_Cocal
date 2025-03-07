@@ -497,13 +497,6 @@ def compatibilidade():
             
     # Função auxiliar para mostrar o formulário de solicitação
 def mostrar_formulario_solicitacao(quimico=None, biologico=None):
-    """
-    Exibe o formulário para solicitar um novo teste de compatibilidade.
-    
-    Args:
-        quimico (str, optional): Nome do produto químico pré-selecionado
-        biologico (str, optional): Nome do produto biológico pré-selecionado
-    """
     # Inicializar variáveis de estado se não existirem
     if 'form_submitted' not in st.session_state:
         st.session_state.form_submitted = False
