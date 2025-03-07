@@ -1000,27 +1000,17 @@ def gerenciamento():
             st.warning("Sem solicitações para exibir")
         else:
             # Opções para o usuário escolher entre registrar ou visualizar
-            opcao = st.radio("Escolha uma opção:", ["Registrar nova solicitação", "Visualizar solicitações cadastradas"], key="opcao_solicitacoes")
+            opcao = st.radio("Escolha uma opção:", ["Nova solicitação", "Solicitações cadastradas"], key="opcao_solicitacoes")
             
-            if opcao == "Registrar nova solicitação":
+            if opcao == "Nova solicitação":
                 with st.form("nova_solicitacao_form"):
                     col1, col2 = st.columns(2)
                     with col1:
                         solicitante = st.text_input("Nome do Solicitante")
-                        quimico = st.selectbox(
-                            "Produto Químico",
-                            options=sorted(dados["quimicos"]["Nome"].unique().tolist()),
-                            index=None,
-                            key="nova_solicitacao_quimico"
-                        )
+                        quimico = st.text_input("Produto Químico")
                     with col2:
                         data = st.date_input("Data da Solicitação")
-                        biologico = st.selectbox(
-                            "Produto Biológico",
-                            options=sorted(dados["biologicos"]["Nome"].unique().tolist()),
-                            index=None,
-                            key="nova_solicitacao_biologico"
-                        )
+                        biologico = st.text_input("Produto Biológico")
                     
                     observacoes = st.text_area("Observações")
                     
@@ -1028,7 +1018,7 @@ def gerenciamento():
                     if submitted:
                         if solicitante and quimico and biologico:
                             nova_solicitacao = {
-                                "Data": data.strftime("%Y-%m-%d"),
+                                "Data": data.strftime("%d-%m-%Y"),
                                 "Solicitante": solicitante,
                                 "Quimico": quimico,
                                 "Biologico": biologico,
@@ -1048,7 +1038,7 @@ def gerenciamento():
                         else:
                             st.warning("Preencha todos os campos obrigatórios")
             
-            else:  # Visualizar solicitações cadastradas
+            else:  # Solicitações cadastradas
                 # Filtros para a tabela
                 col1, col2, col3 = st.columns(3)
                 with col1:
