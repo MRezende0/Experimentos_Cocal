@@ -561,8 +561,6 @@ def mostrar_formulario_solicitacao(quimico=None, biologico=None):
             # Marcar como enviado com sucesso
             st.session_state.form_submitted = True
             st.session_state.form_success = True
-            # Garantir que permanecemos na página atual
-            st.session_state.current_page = "Compatibilidade"
         else:
             st.session_state.form_submitted = True
             st.session_state.form_success = False
@@ -861,8 +859,6 @@ def gerenciamento():
                                 st.session_state.biologico_form_submitted = True
                                 st.session_state.biologico_form_success = True
                                 st.session_state.biologico_form_error = ""
-                                # Garantir que permanecemos na aba correta
-                                st.session_state.current_page = "Gerenciamento"
                             else:
                                 st.session_state.biologico_form_submitted = True
                                 st.session_state.biologico_form_success = False
@@ -888,7 +884,12 @@ def gerenciamento():
                 # Mostrar mensagens de sucesso ou erro abaixo do formulário
                 if st.session_state.biologico_form_submitted:
                     if st.session_state.biologico_form_success:
-                        st.success("Produto adicionado com sucesso!")
+                        # Usar um container para destacar a mensagem de sucesso
+                        success_container = st.container()
+                        with success_container:
+                            st.markdown("---")
+                            st.success("### Produto biológico adicionado com sucesso! ✅")
+                            st.markdown("---")
                     else:
                         st.error(st.session_state.biologico_form_error)
             
