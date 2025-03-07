@@ -370,7 +370,18 @@ def _load_and_validate_sheet(sheet_name):
 ########################################## COMPATIBILIDADE ##########################################
 
 def compatibilidade():
-    st.title("🧪 Compatibilidade")
+
+    col1, col2 = st.columns([2, 2])
+
+    with col1:
+        st.title("🧪 Compatibilidade")
+
+    with col2:
+        st.write("")
+        st.write("")
+        if st.button("Solicitar Novo Teste", key="btn_novo_teste"):
+            st.session_state.solicitar_novo_teste = True
+            st.rerun()
     
     dados = load_all_data()
     
@@ -396,7 +407,7 @@ def compatibilidade():
         return
     
     # Adicionar botão para solicitar novo teste na tela inicial
-    col1, col2 = st.columns([2, 2])
+    col1, col2 = st.columns([1, 1])
     with col1:
         quimico = st.selectbox(
             "Produto Químico",
@@ -412,13 +423,6 @@ def compatibilidade():
             index=None,
             key="compatibilidade_biologico"
         )
-    
-    with col2:
-        st.write("")
-        st.write("")
-        if st.button("Solicitar Novo Teste", key="btn_novo_teste"):
-            st.session_state.solicitar_novo_teste = True
-            st.rerun()
     
     # Verificar se o botão de novo teste foi pressionado
     if 'solicitar_novo_teste' in st.session_state and st.session_state.solicitar_novo_teste:
