@@ -372,7 +372,10 @@ def _load_and_validate_sheet(sheet_name):
 ########################################## COMPATIBILIDADE ##########################################
 
 def compatibilidade():
-    # Aumentar a proporção da segunda coluna para alinhar à direita
+    # Inicializar variável de estado para controle do formulário
+    if 'solicitar_novo_teste' not in st.session_state:
+        st.session_state.solicitar_novo_teste = False
+    
     col1, col2 = st.columns([4, 1])  # 4:1 ratio para alinhamento direito
 
     with col1:
@@ -396,7 +399,11 @@ def compatibilidade():
                 st.session_state.form_submitted = False
             if 'form_success' in st.session_state:
                 st.session_state.form_success = False
+            if 'last_submission' in st.session_state:
+                st.session_state.last_submission = None
             st.session_state.solicitar_novo_teste = True
+            # Garantir que permanecemos na página atual
+            st.session_state.current_page = "Compatibilidade"
             
         st.markdown("</div>", unsafe_allow_html=True)
     
@@ -428,6 +435,28 @@ def compatibilidade():
         st.session_state.solicitar_novo_teste = False
         mostrar_formulario_solicitacao()
         return  # Importante: retornar para não mostrar o restante da interface
+    
+    # Verificar se o formulário foi enviado com sucesso
+    if 'form_submitted' in st.session_state and st.session_state.form_submitted:
+        if st.session_state.form_success:
+            st.success("Solicitação registrada com sucesso!")
+            
+            # Mostrar detalhes da última submissão
+            if 'last_submission' in st.session_state and st.session_state.last_submission:
+                with st.expander("Ver detalhes da solicitação"):
+                    for key, value in st.session_state.last_submission.items():
+                        st.write(f"**{key}:** {value}")
+                        
+            # Botão para fazer nova solicitação
+            if st.button("Fazer nova solicitação", key="btn_nova_solicitacao_compat"):
+                st.session_state.form_submitted = False
+                st.session_state.form_success = False
+                st.session_state.last_submission = None
+                st.rerun()
+        else:
+            st.error("Por favor, preencha todos os campos obrigatórios: Produto Químico, Produto Biológico e Solicitante.")
+            mostrar_formulario_solicitacao()
+            return
     
     # Interface de consulta de compatibilidade
     col1, col2 = st.columns([1, 1])
@@ -473,23 +502,8 @@ def compatibilidade():
                 st.write(f"**Resultado:** {resultado_existente.iloc[0]['Resultado']}")
         
         else:
-            if 'form_submitted' in st.session_state and st.session_state.form_submitted and st.session_state.form_success:
-                st.success("Solicitação registrada com sucesso!")
-                
-                # Mostrar detalhes da última submissão
-                if 'last_submission' in st.session_state and st.session_state.last_submission:
-                    with st.expander("Ver detalhes da solicitação"):
-                        for key, value in st.session_state.last_submission.items():
-                            st.write(f"**{key}:** {value}")
-                            
-                # Botão para fazer nova solicitação
-                if st.button("Fazer nova solicitação", key="btn_nova_solicitacao_compat"):
-                    st.session_state.form_submitted = False
-                    st.session_state.form_success = False
-                    st.session_state.last_submission = None
-                    st.rerun()
-            else:
-                mostrar_formulario_solicitacao(quimico, biologico)
+            # Em vez de mostrar aviso, mostrar diretamente o formulário de solicitação
+            mostrar_formulario_solicitacao(quimico, biologico)
 
 # Função auxiliar para mostrar o formulário de solicitação
 def mostrar_formulario_solicitacao(quimico=None, biologico=None):
@@ -507,6 +521,8 @@ def mostrar_formulario_solicitacao(quimico=None, biologico=None):
         st.session_state.form_success = False
     if 'last_submission' not in st.session_state:
         st.session_state.last_submission = None
+    if 'current_page' not in st.session_state:
+        st.session_state.current_page = "Compatibilidade"
     
     # Função para processar o envio do formulário
     def submit_form():
@@ -551,6 +567,8 @@ def mostrar_formulario_solicitacao(quimico=None, biologico=None):
             # Marcar como enviado com sucesso
             st.session_state.form_submitted = True
             st.session_state.form_success = True
+            # Garantir que permanecemos na página atual
+            st.session_state.current_page = "Compatibilidade"
         else:
             st.session_state.form_submitted = True
             st.session_state.form_success = False
@@ -588,7 +606,7 @@ def mostrar_formulario_solicitacao(quimico=None, biologico=None):
                         st.write(f"**{key}:** {value}")
         else:
             st.error("Por favor, preencha todos os campos obrigatórios: Produto Químico, Produto Biológico e Solicitante.")
-    
+
 ########################################## GERENCIAMENTO ##########################################
 
 def gerenciamento():
@@ -662,6 +680,8 @@ def gerenciamento():
                                 st.session_state.quimico_form_submitted = True
                                 st.session_state.quimico_form_success = True
                                 st.session_state.quimico_form_error = ""
+                                # Garantir que permanecemos na página atual
+                                st.session_state.current_page = "Gerenciamento"
                             else:
                                 st.session_state.quimico_form_submitted = True
                                 st.session_state.quimico_form_success = False
@@ -835,6 +855,8 @@ def gerenciamento():
                                 st.session_state.biologico_form_submitted = True
                                 st.session_state.biologico_form_success = True
                                 st.session_state.biologico_form_error = ""
+                                # Garantir que permanecemos na aba correta
+                                st.session_state.current_page = "Gerenciamento"
                             else:
                                 st.session_state.biologico_form_submitted = True
                                 st.session_state.biologico_form_success = False
@@ -1008,6 +1030,8 @@ def gerenciamento():
                                 st.session_state.compatibilidade_form_submitted = True
                                 st.session_state.compatibilidade_form_success = True
                                 st.session_state.compatibilidade_form_error = ""
+                                # Garantir que permanecemos na página atual
+                                st.session_state.current_page = "Gerenciamento"
                             else:
                                 st.session_state.compatibilidade_form_submitted = True
                                 st.session_state.compatibilidade_form_success = False
@@ -1226,7 +1250,8 @@ def gerenciamento():
                             st.session_state.gerenciamento_last_submission = nova_solicitacao
                             # Marcar como enviado com sucesso
                             st.session_state.gerenciamento_form_submitted = True
-                            return True
+                            # Garantir que permanecemos na página atual
+                            st.session_state.current_page = "Gerenciamento"
                         else:
                             st.error("Falha ao adicionar solicitação")
                             return False
@@ -1377,13 +1402,23 @@ def main():
             "resultados": pd.DataFrame(),
             "solicitacoes": pd.DataFrame()
         }
+    
+    # Inicializar a página atual se não existir
+    if 'current_page' not in st.session_state:
+        st.session_state.current_page = "Compatibilidade"
 
     st.sidebar.image("imagens/logo-cocal.png")
     st.sidebar.title("Menu")
+    
+    # Usar o estado atual para definir o valor padrão do radio
     menu_option = st.sidebar.radio(
         "Selecione a funcionalidade:",
-        ("Compatibilidade", "Gerenciamento")
+        ("Compatibilidade", "Gerenciamento"),
+        index=0 if st.session_state.current_page == "Compatibilidade" else 1
     )
+    
+    # Atualizar o estado da página atual
+    st.session_state.current_page = menu_option
 
     st.sidebar.markdown("---")
 
