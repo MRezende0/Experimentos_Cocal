@@ -193,49 +193,31 @@ def retry_with_backoff(func, max_retries=5, initial_delay=1):
     return None
 
 def append_to_sheet(data_dict, sheet_name):
+    """
+    Adiciona uma nova linha de dados à planilha especificada.
+    
+    Args:
+        data_dict (dict): Dicionário com os dados a serem adicionados
+        sheet_name (str): Nome da planilha onde adicionar os dados
+        
+    Returns:
+        bool: True se a operação foi bem-sucedida, False caso contrário
+    """
     def _append(data_dict=data_dict, sheet_name=sheet_name):
         try:
-            worksheet = get_worksheet(sheet_name)
-            if worksheet is None:
-                st.error(f"Não foi possível acessar a planilha {sheet_name}")
-                return False
-                
-            # Converter objetos datetime para strings
-            data_dict_copy = data_dict.copy()
-            for key in data_dict_copy:
-                if isinstance(data_dict_copy[key], (datetime, pd.Timestamp)):
-                    data_dict_copy[key] = data_dict_copy[key].strftime("%Y-%m-%d")
-                    
-            # Get headers from worksheet
-            headers = worksheet.row_values(1)
-            if not headers:
-                st.error(f"Não foi possível obter os cabeçalhos da planilha {sheet_name}")
-                return False
-                
-            # Create new row based on headers
-            row = [data_dict_copy.get(header, "") for header in headers]
-            
-            # Verificar se todos os campos obrigatórios estão preenchidos
-            if sheet_name == "Solicitacoes" and (not data_dict_copy.get("Quimico") or not data_dict_copy.get("Biologico") or not data_dict_copy.get("Solicitante")):
-                st.error("Campos obrigatórios não preenchidos")
+            # Obter a planilha
+            sheet = get_worksheet(sheet_name)
+            if not sheet:
+                st.error(f"Planilha '{sheet_name}' não encontrada.")
                 return False
             
-            # Append row to worksheet com retry em caso de falha
-            try:
-                worksheet.append_row(row)
-            except Exception as e:
-                st.warning(f"Falha na primeira tentativa de adicionar dados: {str(e)}. Tentando novamente...")
-                time.sleep(2)  # Esperar 2 segundos antes de tentar novamente
-                try:
-                    worksheet.append_row(row)
-                except Exception as e2:
-                    st.error(f"Falha na segunda tentativa: {str(e2)}")
-                    return False
+            # Verificar se todos os campos obrigatórios estão presentes
+            if not all(key in data_dict for key in ["Data", "Solicitante"]):
+                st.error("Dados incompletos. Certifique-se de preencher todos os campos obrigatórios.")
+                return False
             
-            # Atualizar timestamp para controle de cache
-            if 'data_timestamp' in st.session_state:
-                st.session_state.data_timestamp = datetime.now()
-                
+            # Adicionar os dados à planilha
+            sheet.append_row(list(data_dict.values()))
             return True
             
         except Exception as e:
@@ -497,46 +479,35 @@ def compatibilidade():
 # Função auxiliar para mostrar o formulário de solicitação
 def mostrar_formulario_solicitacao(quimico=None, biologico=None):
     # Inicializar variáveis de estado se não existirem
-    if 'form_status' not in st.session_state:
-        st.session_state.form_status = "input"  # Possíveis valores: input, success
+    if 'form_submitted' not in st.session_state:
+        st.session_state.form_submitted = False
     
     # Se o formulário foi enviado com sucesso, mostrar mensagem e opção de novo teste
-    if st.session_state.form_status == "success":
+    if st.session_state.form_submitted and 'last_submission' in st.session_state:
         st.success("Solicitação registrada com sucesso!")
         
         # Mostrar detalhes da solicitação
-        if 'last_submission' in st.session_state:
-            st.info("**Detalhes da solicitação:**")
-            st.write(f"**Data:** {st.session_state.last_submission.get('Data', '')}")
-            st.write(f"**Solicitante:** {st.session_state.last_submission.get('Solicitante', '')}")
-            st.write(f"**Produto Químico:** {st.session_state.last_submission.get('Quimico', '')}")
-            st.write(f"**Produto Biológico:** {st.session_state.last_submission.get('Biologico', '')}")
+        st.info("**Detalhes da solicitação:**")
+        st.write(f"**Data:** {st.session_state.last_submission.get('Data', '')}")
+        st.write(f"**Solicitante:** {st.session_state.last_submission.get('Solicitante', '')}")
+        st.write(f"**Produto Químico:** {st.session_state.last_submission.get('Quimico', '')}")
+        st.write(f"**Produto Biológico:** {st.session_state.last_submission.get('Biologico', '')}")
         
         if st.button("Fazer nova solicitação", key="btn_nova_solicitacao"):
-            st.session_state.form_status = "input"
+            st.session_state.form_submitted = False
             if 'last_submission' in st.session_state:
                 del st.session_state.last_submission
         return
     
-    # Mostrar o formulário para entrada de dados
-    st.subheader("Solicitar Novo Teste")
-    
-    # Valores iniciais para os campos
-    default_quimico = quimico if quimico else ""
-    default_biologico = biologico if biologico else ""
-    
-    # Criar formulário fora do st.form para evitar problemas de estado
-    data_solicitacao = st.date_input("Data da Solicitação", value=datetime.now())
-    solicitante = st.text_input("Nome do solicitante")
-    
-    # Usar campos de texto para permitir novos produtos
-    quimico_input = st.text_input("Nome do Produto Químico", value=default_quimico)
-    biologico_input = st.text_input("Nome do Produto Biológico", value=default_biologico)
-    
-    observacoes = st.text_area("Observações")
-    
-    # Botão de submit
-    if st.button("Solicitar Teste", key="btn_solicitar_teste"):
+    # Função para processar o envio do formulário
+    def submit_form():
+        # Obter valores do formulário
+        data = st.session_state.data_solicitacao
+        solicitante = st.session_state.solicitante
+        quimico_input = st.session_state.quimico_input
+        biologico_input = st.session_state.biologico_input
+        observacoes = st.session_state.observacoes
+        
         # Validar campos obrigatórios
         if not quimico_input or not biologico_input or not solicitante:
             st.error("Por favor, preencha todos os campos obrigatórios: Produto Químico, Produto Biológico e Solicitante.")
@@ -544,7 +515,7 @@ def mostrar_formulario_solicitacao(quimico=None, biologico=None):
         
         # Preparar dados da solicitação
         nova_solicitacao = {
-            "Data": data_solicitacao.strftime("%Y-%m-%d"),
+            "Data": data.strftime("%Y-%m-%d"),
             "Solicitante": solicitante,
             "Quimico": quimico_input,
             "Biologico": biologico_input,
@@ -568,10 +539,33 @@ def mostrar_formulario_solicitacao(quimico=None, biologico=None):
                 
                 # Salvar a última submissão para exibir detalhes
                 st.session_state.last_submission = nova_solicitacao
-                # Atualizar status do formulário
-                st.session_state.form_status = "success"
+                # Marcar como enviado com sucesso
+                st.session_state.form_submitted = True
+                return True
             else:
                 st.error("Falha ao registrar solicitação.")
+                return False
+    
+    # Mostrar o formulário para entrada de dados
+    st.subheader("Solicitar Novo Teste")
+    
+    # Valores iniciais para os campos
+    default_quimico = quimico if quimico else ""
+    default_biologico = biologico if biologico else ""
+    
+    # Usar st.form para evitar recarregamentos
+    with st.form(key="solicitar_teste_form"):
+        st.date_input("Data da Solicitação", value=datetime.now(), key="data_solicitacao")
+        st.text_input("Nome do solicitante", key="solicitante")
+        
+        # Usar campos de texto para permitir novos produtos
+        st.text_input("Nome do Produto Químico", value=default_quimico, key="quimico_input")
+        st.text_input("Nome do Produto Biológico", value=default_biologico, key="biologico_input")
+        
+        st.text_area("Observações", key="observacoes")
+        
+        # Botão de submit
+        submitted = st.form_submit_button("Solicitar Teste", on_click=submit_form)
 
 ########################################## GERENCIAMENTO ##########################################
 
@@ -1059,43 +1053,35 @@ def gerenciamento():
             
             if opcao == "Nova solicitação":
                 # Inicializar variáveis de estado se não existirem
-                if 'gerenciamento_form_status' not in st.session_state:
-                    st.session_state.gerenciamento_form_status = "input"  # Possíveis valores: input, success
+                if 'gerenciamento_form_submitted' not in st.session_state:
+                    st.session_state.gerenciamento_form_submitted = False
                 
                 # Se o formulário foi enviado com sucesso, mostrar mensagem e detalhes
-                if st.session_state.gerenciamento_form_status == "success":
+                if st.session_state.gerenciamento_form_submitted and 'gerenciamento_last_submission' in st.session_state:
                     st.success("Solicitação adicionada com sucesso!")
                     
                     # Mostrar detalhes da solicitação
-                    if 'gerenciamento_last_submission' in st.session_state:
-                        st.info("**Detalhes da solicitação:**")
-                        st.write(f"**Data:** {st.session_state.gerenciamento_last_submission.get('Data', '')}")
-                        st.write(f"**Solicitante:** {st.session_state.gerenciamento_last_submission.get('Solicitante', '')}")
-                        st.write(f"**Produto Químico:** {st.session_state.gerenciamento_last_submission.get('Quimico', '')}")
-                        st.write(f"**Produto Biológico:** {st.session_state.gerenciamento_last_submission.get('Biologico', '')}")
+                    st.info("**Detalhes da solicitação:**")
+                    st.write(f"**Data:** {st.session_state.gerenciamento_last_submission.get('Data', '')}")
+                    st.write(f"**Solicitante:** {st.session_state.gerenciamento_last_submission.get('Solicitante', '')}")
+                    st.write(f"**Produto Químico:** {st.session_state.gerenciamento_last_submission.get('Quimico', '')}")
+                    st.write(f"**Produto Biológico:** {st.session_state.gerenciamento_last_submission.get('Biologico', '')}")
                     
                     if st.button("Fazer nova solicitação", key="btn_nova_solicitacao_gerenciamento"):
-                        st.session_state.gerenciamento_form_status = "input"
+                        st.session_state.gerenciamento_form_submitted = False
                         if 'gerenciamento_last_submission' in st.session_state:
                             del st.session_state.gerenciamento_last_submission
                     return
                 
-                # Mostrar o formulário para entrada de dados
-                st.subheader("Nova Solicitação de Teste")
-                
-                # Layout em colunas para melhor organização
-                col1, col2 = st.columns(2)
-                with col1:
-                    solicitante = st.text_input("Nome do Solicitante")
-                    quimico = st.text_input("Produto Químico")
-                with col2:
-                    data = st.date_input("Data da Solicitação", value=datetime.now())
-                    biologico = st.text_input("Produto Biológico")
-                
-                observacoes = st.text_area("Observações")
-                
-                # Botão de submit
-                if st.button("Adicionar Solicitação", key="btn_adicionar_solicitacao"):
+                # Função para processar o envio do formulário
+                def submit_gerenciamento_form():
+                    # Obter valores do formulário
+                    data = st.session_state.gerenciamento_data
+                    solicitante = st.session_state.gerenciamento_solicitante
+                    quimico = st.session_state.gerenciamento_quimico
+                    biologico = st.session_state.gerenciamento_biologico
+                    observacoes = st.session_state.gerenciamento_observacoes
+                    
                     # Validar campos obrigatórios
                     if not solicitante or not quimico or not biologico:
                         st.warning("Preencha todos os campos obrigatórios")
@@ -1120,10 +1106,30 @@ def gerenciamento():
                             
                             # Salvar a última submissão para exibir detalhes
                             st.session_state.gerenciamento_last_submission = nova_solicitacao
-                            # Atualizar status do formulário
-                            st.session_state.gerenciamento_form_status = "success"
+                            # Marcar como enviado com sucesso
+                            st.session_state.gerenciamento_form_submitted = True
+                            return True
                         else:
                             st.error("Falha ao adicionar solicitação")
+                            return False
+                
+                # Mostrar o formulário para entrada de dados
+                st.subheader("Nova Solicitação de Teste")
+                
+                # Usar st.form para evitar recarregamentos
+                with st.form(key="gerenciamento_form"):
+                    col1, col2 = st.columns(2)
+                    with col1:
+                        st.text_input("Nome do Solicitante", key="gerenciamento_solicitante")
+                        st.text_input("Produto Químico", key="gerenciamento_quimico")
+                    with col2:
+                        st.date_input("Data da Solicitação", value=datetime.now(), key="gerenciamento_data")
+                        st.text_input("Produto Biológico", key="gerenciamento_biologico")
+                    
+                    st.text_area("Observações", key="gerenciamento_observacoes")
+                    
+                    # Botão de submit
+                    submitted = st.form_submit_button("Adicionar Solicitação", on_click=submit_gerenciamento_form)
             
             else:  # Solicitações cadastradas
                 # Filtros para a tabela
