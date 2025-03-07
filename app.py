@@ -413,11 +413,12 @@ def compatibilidade():
             key="compatibilidade_biologico"
         )
     
-    st.write("")
-    st.write("")
-    if st.button("Solicitar Novo Teste", key="btn_novo_teste"):
-        st.session_state.solicitar_novo_teste = True
-        st.rerun()
+    with col2:
+        st.write("")
+        st.write("")
+        if st.button("Solicitar Novo Teste", key="btn_novo_teste"):
+            st.session_state.solicitar_novo_teste = True
+            st.rerun()
     
     # Verificar se o botão de novo teste foi pressionado
     if 'solicitar_novo_teste' in st.session_state and st.session_state.solicitar_novo_teste:
