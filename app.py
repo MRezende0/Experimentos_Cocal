@@ -370,18 +370,29 @@ def _load_and_validate_sheet(sheet_name):
 ########################################## COMPATIBILIDADE ##########################################
 
 def compatibilidade():
-
-    col1, col2 = st.columns([2, 2])
+    # Aumentar a proporção da segunda coluna para alinhar à direita
+    col1, col2 = st.columns([3, 1])  # 3:1 ratio para alinhamento direito
 
     with col1:
         st.title("🧪 Compatibilidade")
 
     with col2:
-        st.write("")
-        st.write("")
+        # Container com alinhamento à direita
+        st.markdown(
+            """
+            <div style='display: flex;
+                        justify-content: flex-end;
+                        align-items: center;
+                        height: 100%;'>
+            """,
+            unsafe_allow_html=True
+        )
+        
         if st.button("Solicitar Novo Teste", key="btn_novo_teste"):
             st.session_state.solicitar_novo_teste = True
             st.rerun()
+            
+        st.markdown("</div>", unsafe_allow_html=True)
     
     dados = load_all_data()
     
