@@ -33,7 +33,7 @@ def local_css():
     st.markdown("""
         <style>
             [data-testid="stSidebar"] {
-                background-color: #f8f9fa;
+                background-color: #ffff;
                 padding: 20px;
             }
             h1, h2, h3 {
