@@ -760,14 +760,11 @@ def gerenciamento():
                     df_filtrado,
                     num_rows="dynamic",
                     key=f"quimicos_editor_{filtro_nome}_{filtro_tipo}",
-                    # hide_index=True,
-                    # on_change=lambda: st.session_state.edited_data.update({"quimicos": True}),
-                    # disabled=[],  # Remover restrições para permitir edição de todas as colunas
                     column_config={
                         "Nome": st.column_config.TextColumn("Nome do Produto", required=True),
                         "Tipo": st.column_config.SelectboxColumn("Tipo", options=["Herbicida", "Fungicida", "Inseticida"]),
                         "Fabricante": "Fabricante",
-                        "Concentracao": st.column_config.TextColumn("Concentração"),
+                        "Concentracao": st.column_config.TextColumn("Concentração", required=True),
                         "Classe": "Classe",
                         "ModoAcao": "Modo de Ação"
                     },
@@ -935,20 +932,16 @@ def gerenciamento():
                     df_filtrado,
                     num_rows="dynamic",
                     key=f"biologicos_editor_{filtro_nome}_{filtro_tipo}",
-                    hide_index=True,
-                    on_change=lambda: st.session_state.edited_data.update({"biologicos": True}),
-                    disabled=[],  # Remover restrições para permitir edição de todas as colunas
                     column_config={
                         "Nome": st.column_config.TextColumn("Produto Biológico", required=True),
                         "Tipo": st.column_config.SelectboxColumn("Tipo", options=["Bioestimulante", "Controle Biológico"]),
-                        "IngredienteAtivo": st.column_config.TextColumn("Ingrediente Ativo"),
-                        "Formulacao": st.column_config.TextColumn("Formulação"),
-                        "Aplicacao": st.column_config.TextColumn("Aplicação"),
-                        "Validade": st.column_config.TextColumn("Validade")
+                        "IngredienteAtivo": st.column_config.TextColumn("Ingrediente Ativo", required=True),
+                        "Formulação": st.column_config.TextColumn("Formulação", required=True),
+                        "Aplicação": st.column_config.TextColumn("Aplicação", required=True),
+                        "Validade": st.column_config.TextColumn("Validade", required=True)
                     },
                     use_container_width=True,
-                    height=400,
-                    allow_delete_rows=True
+                    height=400
                 )
                 
                 # Botão para salvar alterações
@@ -1128,8 +1121,6 @@ def gerenciamento():
                     df_filtrado,
                     num_rows="dynamic",
                     key=f"resultados_editor_{filtro_quimico}_{filtro_biologico}",
-                    hide_index=True,
-                    on_change=lambda: st.session_state.edited_data.update({"resultados": True}),
                     column_config={
                         "Data": st.column_config.TextColumn(
                             "Data do Teste",
@@ -1162,8 +1153,7 @@ def gerenciamento():
                         )
                     },
                     use_container_width=True,
-                    height=400,
-                    allow_delete_rows=True
+                    height=400
                 )
                 
                 # Botão para salvar alterações
@@ -1350,28 +1340,27 @@ def gerenciamento():
                     df_filtrado,
                     num_rows="dynamic",
                     key=f"solicitacoes_editor_{filtro_status}_{filtro_quimico}_{filtro_biologico}",
-                    hide_index=True,
-                    on_change=lambda: st.session_state.edited_data.update({"solicitacoes": True}),
                     column_config={
-                        "Data": st.column_config.TextColumn("Data da Solicitação"),
-                        "Solicitante": st.column_config.TextColumn("Solicitante"),
+                        "Data": st.column_config.TextColumn("Data da Solicitação", required=True),
+                        "Solicitante": st.column_config.TextColumn("Solicitante", required=True),
                         "Quimico": st.column_config.SelectboxColumn(
                             "Produto Químico",
-                            options=sorted(dados["quimicos"]["Nome"].unique().tolist())
+                            options=sorted(dados["quimicos"]["Nome"].unique().tolist()),
+                            required=True
                         ),
                         "Biologico": st.column_config.SelectboxColumn(
                             "Produto Biológico",
-                            options=sorted(dados["biologicos"]["Nome"].unique().tolist())
+                            options=sorted(dados["biologicos"]["Nome"].unique().tolist()),
+                            required=True
                         ),
-                        "Observacoes": st.column_config.TextColumn("Observações"),
+                        "Observacoes": st.column_config.TextColumn("Observações", required=True),
                         "Status": st.column_config.SelectboxColumn(
                             "Status",
                             options=["Pendente", "Em Análise", "Concluído", "Cancelado"]
                         )
                     },
                     use_container_width=True,
-                    height=400,
-                    allow_delete_rows=True
+                    height=400
                 )
                 
                 # Botão para salvar alterações
