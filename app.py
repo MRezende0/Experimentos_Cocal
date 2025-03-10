@@ -770,7 +770,10 @@ def gerenciamento():
                         "ModoAcao": "Modo de Ação",
                     },
                     use_container_width=True,
-                    height=400
+                    height=400,
+                    on_change=lambda: st.session_state.edited_data.update({"quimicos": True}),
+                    disabled=[],
+                    editing_mode="row"
                 )
                 
                 # Botão para salvar alterações
@@ -938,12 +941,15 @@ def gerenciamento():
                         "Nome": st.column_config.TextColumn("Produto Biológico", required=True),
                         "Tipo": st.column_config.SelectboxColumn("Tipo", options=["Bioestimulante", "Controle Biológico"]),
                         "IngredienteAtivo": st.column_config.TextColumn("Ingrediente Ativo", required=True),
-                        "Formulação": st.column_config.TextColumn("Formulação", required=True),
-                        "Aplicação": st.column_config.TextColumn("Aplicação", required=True),
+                        "Formulacao": st.column_config.TextColumn("Formulação", required=True),
+                        "Aplicacao": st.column_config.TextColumn("Aplicação", required=True),
                         "Validade": st.column_config.TextColumn("Validade", required=True)
                     },
                     use_container_width=True,
-                    height=400
+                    height=400,
+                    on_change=lambda: st.session_state.edited_data.update({"biologicos": True}),
+                    disabled=[],
+                    editing_mode="row"
                 )
                 
                 # Botão para salvar alterações
@@ -1121,42 +1127,22 @@ def gerenciamento():
                 # Tabela editável
                 edited_df = st.data_editor(
                     df_filtrado,
-                    hide_index=True,
                     num_rows="dynamic",
+                    hide_index=True,
                     key=f"resultados_editor_{filtro_quimico}_{filtro_biologico}",
                     column_config={
-                        "Data": st.column_config.TextColumn(
-                            "Data do Teste",
-                            required=True
-                        ),
-                        "Quimico": st.column_config.SelectboxColumn(
-                            "Produto Químico",
-                            options=sorted(dados["quimicos"]["Nome"].unique().tolist()),
-                            required=True
-                        ),
-                        "Biologico": st.column_config.SelectboxColumn(
-                            "Produto Biológico",
-                            options=sorted(dados["biologicos"]["Nome"].unique().tolist()),
-                            required=True
-                        ),
-                        "Duracao": st.column_config.NumberColumn(
-                            "Duração (horas)",
-                            min_value=0,
-                            default=0
-                        ),
-                        "Tipo": st.column_config.SelectboxColumn(
-                            "Tipo de Teste",
-                            options=["Simples", "Composto"],
-                            required=True
-                        ),
-                        "Resultado": st.column_config.SelectboxColumn(
-                            "Resultado",
-                            options=["Compatível", "Incompatível"],
-                            required=True
-                        )
+                        "Data": st.column_config.TextColumn("Data do Teste", required=True),
+                        "Quimico": st.column_config.SelectboxColumn("Produto Químico", options=sorted(dados["quimicos"]["Nome"].unique().tolist()), required=True),
+                        "Biologico": st.column_config.SelectboxColumn("Produto Biológico", options=sorted(dados["biologicos"]["Nome"].unique().tolist()), required=True),
+                        "Duracao": st.column_config.NumberColumn("Duração (horas)", min_value=0, default=0),
+                        "Tipo": st.column_config.SelectboxColumn("Tipo de Teste", options=["Simples", "Composto"], required=True),
+                        "Resultado": st.column_config.SelectboxColumn("Resultado", options=["Compatível", "Incompatível"], required=True)
                     },
                     use_container_width=True,
-                    height=400
+                    height=400,
+                    on_change=lambda: st.session_state.edited_data.update({"resultados": True}),
+                    disabled=[],
+                    editing_mode="row"
                 )
                 
                 # Botão para salvar alterações
@@ -1341,30 +1327,22 @@ def gerenciamento():
                 
                 edited_df = st.data_editor(
                     df_filtrado,
-                    hide_index=True,
                     num_rows="dynamic",
+                    hide_index=True,
                     key=f"solicitacoes_editor_{filtro_status}_{filtro_quimico}_{filtro_biologico}",
                     column_config={
                         "Data": st.column_config.TextColumn("Data da Solicitação", required=True),
                         "Solicitante": st.column_config.TextColumn("Solicitante", required=True),
-                        "Quimico": st.column_config.SelectboxColumn(
-                            "Produto Químico",
-                            options=sorted(dados["quimicos"]["Nome"].unique().tolist()),
-                            required=True
-                        ),
-                        "Biologico": st.column_config.SelectboxColumn(
-                            "Produto Biológico",
-                            options=sorted(dados["biologicos"]["Nome"].unique().tolist()),
-                            required=True
-                        ),
+                        "Quimico": st.column_config.SelectboxColumn("Produto Químico", options=sorted(dados["quimicos"]["Nome"].unique().tolist()), required=True),
+                        "Biologico": st.column_config.SelectboxColumn("Produto Biológico", options=sorted(dados["biologicos"]["Nome"].unique().tolist()), required=True),
                         "Observacoes": st.column_config.TextColumn("Observações", required=True),
-                        "Status": st.column_config.SelectboxColumn(
-                            "Status",
-                            options=["Pendente", "Em Análise", "Concluído", "Cancelado"]
-                        )
+                        "Status": st.column_config.SelectboxColumn("Status", options=["Pendente", "Em Análise", "Concluído", "Cancelado"])
                     },
                     use_container_width=True,
-                    height=400
+                    height=400,
+                    on_change=lambda: st.session_state.edited_data.update({"solicitacoes": True}),
+                    disabled=[],
+                    editing_mode="row"
                 )
                 
                 # Botão para salvar alterações
