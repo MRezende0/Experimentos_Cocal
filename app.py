@@ -771,9 +771,7 @@ def gerenciamento():
                     },
                     use_container_width=True,
                     height=400,
-                    on_change=lambda: st.session_state.edited_data.update({"quimicos": True}),
-                    disabled=[],
-                    editing_mode="row"
+                    on_change=lambda: st.session_state.edited_data.update({"quimicos": True})
                 )
                 
                 # Botão para salvar alterações
@@ -947,9 +945,7 @@ def gerenciamento():
                     },
                     use_container_width=True,
                     height=400,
-                    on_change=lambda: st.session_state.edited_data.update({"biologicos": True}),
-                    disabled=[],
-                    editing_mode="row"
+                    on_change=lambda: st.session_state.edited_data.update({"biologicos": True})
                 )
                 
                 # Botão para salvar alterações
@@ -1127,22 +1123,43 @@ def gerenciamento():
                 # Tabela editável
                 edited_df = st.data_editor(
                     df_filtrado,
-                    num_rows="dynamic",
                     hide_index=True,
+                    num_rows="dynamic",
                     key=f"resultados_editor_{filtro_quimico}_{filtro_biologico}",
                     column_config={
-                        "Data": st.column_config.TextColumn("Data do Teste", required=True),
-                        "Quimico": st.column_config.SelectboxColumn("Produto Químico", options=sorted(dados["quimicos"]["Nome"].unique().tolist()), required=True),
-                        "Biologico": st.column_config.SelectboxColumn("Produto Biológico", options=sorted(dados["biologicos"]["Nome"].unique().tolist()), required=True),
-                        "Duracao": st.column_config.NumberColumn("Duração (horas)", min_value=0, default=0),
-                        "Tipo": st.column_config.SelectboxColumn("Tipo de Teste", options=["Simples", "Composto"], required=True),
-                        "Resultado": st.column_config.SelectboxColumn("Resultado", options=["Compatível", "Incompatível"], required=True)
+                        "Data": st.column_config.TextColumn(
+                            "Data do Teste",
+                            required=True
+                        ),
+                        "Quimico": st.column_config.SelectboxColumn(
+                            "Produto Químico",
+                            options=sorted(dados["quimicos"]["Nome"].unique().tolist()),
+                            required=True
+                        ),
+                        "Biologico": st.column_config.SelectboxColumn(
+                            "Produto Biológico",
+                            options=sorted(dados["biologicos"]["Nome"].unique().tolist()),
+                            required=True
+                        ),
+                        "Duracao": st.column_config.NumberColumn(
+                            "Duração (horas)",
+                            min_value=0,
+                            default=0
+                        ),
+                        "Tipo": st.column_config.SelectboxColumn(
+                            "Tipo de Teste",
+                            options=["Simples", "Composto"],
+                            required=True
+                        ),
+                        "Resultado": st.column_config.SelectboxColumn(
+                            "Resultado",
+                            options=["Compatível", "Incompatível"],
+                            required=True
+                        )
                     },
                     use_container_width=True,
                     height=400,
-                    on_change=lambda: st.session_state.edited_data.update({"resultados": True}),
-                    disabled=[],
-                    editing_mode="row"
+                    on_change=lambda: st.session_state.edited_data.update({"resultados": True})
                 )
                 
                 # Botão para salvar alterações
@@ -1327,22 +1344,31 @@ def gerenciamento():
                 
                 edited_df = st.data_editor(
                     df_filtrado,
-                    num_rows="dynamic",
                     hide_index=True,
+                    num_rows="dynamic",
                     key=f"solicitacoes_editor_{filtro_status}_{filtro_quimico}_{filtro_biologico}",
                     column_config={
                         "Data": st.column_config.TextColumn("Data da Solicitação", required=True),
                         "Solicitante": st.column_config.TextColumn("Solicitante", required=True),
-                        "Quimico": st.column_config.SelectboxColumn("Produto Químico", options=sorted(dados["quimicos"]["Nome"].unique().tolist()), required=True),
-                        "Biologico": st.column_config.SelectboxColumn("Produto Biológico", options=sorted(dados["biologicos"]["Nome"].unique().tolist()), required=True),
+                        "Quimico": st.column_config.SelectboxColumn(
+                            "Produto Químico",
+                            options=sorted(dados["quimicos"]["Nome"].unique().tolist()),
+                            required=True
+                        ),
+                        "Biologico": st.column_config.SelectboxColumn(
+                            "Produto Biológico",
+                            options=sorted(dados["biologicos"]["Nome"].unique().tolist()),
+                            required=True
+                        ),
                         "Observacoes": st.column_config.TextColumn("Observações", required=True),
-                        "Status": st.column_config.SelectboxColumn("Status", options=["Pendente", "Em Análise", "Concluído", "Cancelado"])
+                        "Status": st.column_config.SelectboxColumn(
+                            "Status",
+                            options=["Pendente", "Em Análise", "Concluído", "Cancelado"]
+                        )
                     },
                     use_container_width=True,
                     height=400,
-                    on_change=lambda: st.session_state.edited_data.update({"solicitacoes": True}),
-                    disabled=[],
-                    editing_mode="row"
+                    on_change=lambda: st.session_state.edited_data.update({"solicitacoes": True})
                 )
                 
                 # Botão para salvar alterações
