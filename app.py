@@ -466,6 +466,23 @@ def compatibilidade():
             key="compatibilidade_biologico"
         )
     
+    # Exibir mensagem de sucesso se acabou de enviar uma solicitação
+    if st.session_state.just_submitted and st.session_state.last_submission:
+        success_container = st.container()
+        with success_container:
+            st.success("Solicitação de novo teste registrada com sucesso!")
+            
+        # Mostrar detalhes da última submissão
+        with st.expander("Ver detalhes da solicitação"):
+            for key, value in st.session_state.last_submission.items():
+                st.write(f"**{key}:** {value}")
+        
+        # Botão para limpar a mensagem
+        if st.button("Fechar", key="btn_fechar_mensagem_sucesso"):
+            st.session_state.just_submitted = False
+            st.session_state.last_submission = None
+            st.experimental_rerun()
+    
     if quimico and biologico:
         # Procurar na planilha de Resultados usando os nomes
         resultado_existente = dados["resultados"][
@@ -538,9 +555,21 @@ def mostrar_formulario_solicitacao(quimico=None, biologico=None):
         
         # Tentar salvar no Google Sheets
         if append_to_sheet(nova_solicitacao, "Solicitacoes"):
+            # Atualizar dados locais de forma segura
+            nova_linha = pd.DataFrame([nova_solicitacao])
+            
+            if "solicitacoes" in st.session_state.local_data:
+                st.session_state.local_data["solicitacoes"] = pd.concat(
+                    [st.session_state.local_data["solicitacoes"], nova_linha], 
+                    ignore_index=True
+                )
+            else:
+                st.session_state.local_data["solicitacoes"] = nova_linha
+                
             st.session_state.last_submission = nova_solicitacao
             st.session_state.just_submitted = True  # Ativa flag
-            return
+            st.session_state.form_submitted = False  # Limpa o estado do formulário
+            st.experimental_rerun()  # Volta para a tela de compatibilidade
         else:
             st.session_state.form_submitted = True
             st.session_state.form_success = False
@@ -566,23 +595,8 @@ def mostrar_formulario_solicitacao(quimico=None, biologico=None):
         # Botão de submit
         submitted = st.form_submit_button("Solicitar Teste", on_click=submit_form)
     
-    # Exibir mensagem de sucesso se acabou de enviar uma solicitação
-    if st.session_state.just_submitted and st.session_state.last_submission:
-        success_container = st.container()
-        with success_container:
-            st.success("Solicitação de novo teste registrada com sucesso!")
-        
-        # Mostrar detalhes da última submissão
-        with st.expander("Ver detalhes da solicitação"):
-            for key, value in st.session_state.last_submission.items():
-                st.write(f"**{key}:** {value}")
-        
-        # Limpar o estado após exibir a mensagem
-        if st.button("Fechar", key="btn_fechar_mensagem_sucesso"):
-            st.session_state.just_submitted = False
-            st.session_state.last_submission = None
-            st.experimental_rerun()
-    else:
+    # Mostrar mensagem de erro apenas quando o formulário foi enviado e está incompleto
+    if st.session_state.form_submitted:
         st.error("Por favor, preencha todos os campos obrigatórios: Produto Químico, Produto Biológico e Solicitante.")
 
 ########################################## GERENCIAMENTO ##########################################
