@@ -385,25 +385,6 @@ def compatibilidade():
     if 'last_submission' not in st.session_state:
         st.session_state.last_submission = None
     
-    # # Exibir mensagem de sucesso se acabou de enviar uma solicitação
-    # if st.session_state.just_submitted and st.session_state.last_submission:
-    #     success_container = st.container()
-    #     with success_container:
-    #         st.success("Solicitação de novo teste registrada com sucesso!")
-        
-    #     # Mostrar detalhes da última submissão
-    #     with st.expander("Ver detalhes da solicitação"):
-    #         for key, value in st.session_state.last_submission.items():
-    #             st.write(f"**{key}:** {value}")
-        
-    #     # Limpar o estado após exibir a mensagem
-    #     if st.button("Fechar", key="btn_fechar_mensagem_sucesso"):
-    #         st.session_state.just_submitted = False
-    #         st.session_state.last_submission = None
-    #         st.experimental_rerun()
-    # else:
-    #     st.error("Por favor, preencha todos os campos obrigatórios: Produto Químico, Produto Biológico e Solicitante.")
-    
     col1, col2 = st.columns([4, 1])  # 4:1 ratio para alinhamento direito
 
     with col1:
@@ -585,29 +566,24 @@ def mostrar_formulario_solicitacao(quimico=None, biologico=None):
         # Botão de submit
         submitted = st.form_submit_button("Solicitar Teste", on_click=submit_form)
     
-    # Mostrar mensagens de sucesso ou erro abaixo do formulário
-    if st.session_state.form_submitted:
-        if st.session_state.form_success:
-            # Usar um container para destacar a mensagem de sucesso
-            success_container = st.container()
-            with success_container:
-                st.success("Solicitação de novo teste registrada com sucesso!")
-            
-            # Mostrar detalhes da última submissão
-            if st.session_state.last_submission:
-                with st.expander("Ver detalhes da solicitação"):
-                    for key, value in st.session_state.last_submission.items():
-                        st.write(f"**{key}:** {value}")
-                        
-            # Botão para voltar à tela de compatibilidade
-            if st.button("Voltar à tela de compatibilidade", key="btn_voltar_compat"):
-                st.session_state.form_submitted = False
-                st.session_state.form_success = False
-                st.session_state.last_submission = None
-                st.session_state.just_submitted = False
-                st.experimental_rerun()
-        else:
-            st.error("Por favor, preencha todos os campos obrigatórios: Produto Químico, Produto Biológico e Solicitante.")
+    # Exibir mensagem de sucesso se acabou de enviar uma solicitação
+    if st.session_state.just_submitted and st.session_state.last_submission:
+        success_container = st.container()
+        with success_container:
+            st.success("Solicitação de novo teste registrada com sucesso!")
+        
+        # Mostrar detalhes da última submissão
+        with st.expander("Ver detalhes da solicitação"):
+            for key, value in st.session_state.last_submission.items():
+                st.write(f"**{key}:** {value}")
+        
+        # Limpar o estado após exibir a mensagem
+        if st.button("Fechar", key="btn_fechar_mensagem_sucesso"):
+            st.session_state.just_submitted = False
+            st.session_state.last_submission = None
+            st.experimental_rerun()
+    else:
+        st.error("Por favor, preencha todos os campos obrigatórios: Produto Químico, Produto Biológico e Solicitante.")
 
 ########################################## GERENCIAMENTO ##########################################
 
