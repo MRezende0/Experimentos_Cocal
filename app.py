@@ -86,6 +86,23 @@ def local_css():
             [data-testid="stDataEditor"] [data-testid="dataframe-add-rows"] {
                 margin-top: 8px !important;
             }
+            /* Garantir que os ícones de edição e exclusão sejam visíveis */
+            [data-testid="stDataEditor"] [data-testid="dataframe-row-actions"] {
+                visibility: visible !important;
+                opacity: 1 !important;
+                display: flex !important;
+            }
+            /* Garantir que o botão de adicionar linhas seja visível */
+            [data-testid="stDataEditor"] [data-testid="dataframe-add-rows"] {
+                visibility: visible !important;
+                opacity: 1 !important;
+                display: flex !important;
+            }
+            /* Melhorar visibilidade dos botões de ação nas tabelas */
+            [data-testid="stDataEditor"] button {
+                opacity: 1 !important;
+                visibility: visible !important;
+            }
             /* Otimizações de performance */
             .stApp {
                 background-color: #ffff;
@@ -755,6 +772,10 @@ def gerenciamento():
                 def marcar_como_editado(tabela):
                     st.session_state.edited_data[tabela] = True
                 
+                # Função para lidar com exclusão de linhas
+                def handle_deletion_quimicos():
+                    st.session_state.edited_data["quimicos"] = True
+                
                 # Tabela editável
                 edited_df = st.data_editor(
                     df_filtrado,
@@ -771,7 +792,9 @@ def gerenciamento():
                     },
                     use_container_width=True,
                     height=400,
-                    on_change=lambda: st.session_state.edited_data.update({"quimicos": True})
+                    on_change=lambda: st.session_state.edited_data.update({"quimicos": True}),
+                    disabled=False,
+                    deletion_callback=handle_deletion_quimicos
                 )
                 
                 # Botão para salvar alterações
@@ -929,6 +952,10 @@ def gerenciamento():
                     # Adicionar uma linha vazia para facilitar a adição de novos dados
                     df_filtrado = df_vazio
                 
+                # Função para lidar com exclusão de linhas
+                def handle_deletion_biologicos():
+                    st.session_state.edited_data["biologicos"] = True
+                
                 # Tabela editável
                 edited_df = st.data_editor(
                     df_filtrado,
@@ -945,7 +972,9 @@ def gerenciamento():
                     },
                     use_container_width=True,
                     height=400,
-                    on_change=lambda: st.session_state.edited_data.update({"biologicos": True})
+                    on_change=lambda: st.session_state.edited_data.update({"biologicos": True}),
+                    disabled=False,
+                    deletion_callback=handle_deletion_biologicos
                 )
                 
                 # Botão para salvar alterações
@@ -1120,6 +1149,10 @@ def gerenciamento():
                     # Converter para string para evitar problemas de compatibilidade
                     df_filtrado['Data'] = df_filtrado['Data'].astype(str)
                 
+                # Função para lidar com exclusão de linhas
+                def handle_deletion_resultados():
+                    st.session_state.edited_data["resultados"] = True
+                
                 # Tabela editável
                 edited_df = st.data_editor(
                     df_filtrado,
@@ -1159,7 +1192,9 @@ def gerenciamento():
                     },
                     use_container_width=True,
                     height=400,
-                    on_change=lambda: st.session_state.edited_data.update({"resultados": True})
+                    on_change=lambda: st.session_state.edited_data.update({"resultados": True}),
+                    disabled=False,
+                    deletion_callback=handle_deletion_resultados
                 )
                 
                 # Botão para salvar alterações
@@ -1338,6 +1373,10 @@ def gerenciamento():
                     # Converter para string para evitar problemas de compatibilidade
                     df_filtrado['Data'] = df_filtrado['Data'].astype(str)
                 
+                # Função para lidar com exclusão de linhas
+                def handle_deletion_solicitacoes():
+                    st.session_state.edited_data["solicitacoes"] = True
+                
                 # Tabela editável com ordenação por Data
                 if not df_filtrado.empty:
                     df_filtrado = df_filtrado.sort_values(by="Data", ascending=False).reset_index(drop=True)
@@ -1368,7 +1407,9 @@ def gerenciamento():
                     },
                     use_container_width=True,
                     height=400,
-                    on_change=lambda: st.session_state.edited_data.update({"solicitacoes": True})
+                    on_change=lambda: st.session_state.edited_data.update({"solicitacoes": True}),
+                    disabled=False,
+                    deletion_callback=handle_deletion_solicitacoes
                 )
                 
                 # Botão para salvar alterações
