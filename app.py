@@ -384,6 +384,20 @@ def compatibilidade():
         st.session_state.just_submitted = False
     if 'last_submission' not in st.session_state:
         st.session_state.last_submission = None
+    if 'success_message_time' not in st.session_state:
+        st.session_state.success_message_time = None
+    
+    # Verificar se a mensagem de sucesso deve ser fechada automaticamente após 5 segundos
+    if st.session_state.just_submitted and st.session_state.success_message_time:
+        tempo_atual = time.time()
+        tempo_decorrido = tempo_atual - st.session_state.success_message_time
+        
+        # Se passaram mais de 5 segundos, fechar a mensagem
+        if tempo_decorrido > 5:
+            st.session_state.just_submitted = False
+            st.session_state.last_submission = None
+            st.session_state.success_message_time = None
+            st.experimental_rerun()
     
     col1, col2 = st.columns([4, 1])  # 4:1 ratio para alinhamento direito
 
@@ -472,15 +486,26 @@ def compatibilidade():
         with success_container:
             st.success("Solicitação de novo teste registrada com sucesso!")
             
+            # Mostrar contador regressivo
+            tempo_restante = 5
+            if st.session_state.success_message_time:
+                tempo_atual = time.time()
+                tempo_decorrido = tempo_atual - st.session_state.success_message_time
+                tempo_restante = max(0, 5 - int(tempo_decorrido))
+            
+            if tempo_restante > 0:
+                st.caption(f"Esta mensagem fechará automaticamente em {tempo_restante} segundos...")
+            
         # Mostrar detalhes da última submissão
         with st.expander("Ver detalhes da solicitação"):
             for key, value in st.session_state.last_submission.items():
                 st.write(f"**{key}:** {value}")
         
-        # Botão para limpar a mensagem
-        if st.button("Fechar", key="btn_fechar_mensagem_sucesso"):
+        # Botão para fechar manualmente
+        if st.button("Fechar agora", key="btn_fechar_mensagem_sucesso"):
             st.session_state.just_submitted = False
             st.session_state.last_submission = None
+            st.session_state.success_message_time = None
             st.experimental_rerun()
     
     if quimico and biologico:
@@ -541,38 +566,43 @@ def mostrar_formulario_solicitacao(quimico=None, biologico=None):
         if not quimico_input or not biologico_input or not solicitante:
             st.session_state.form_submitted = True
             st.session_state.form_success = False
-            return
-        
-        # Preparar dados da solicitação
-        nova_solicitacao = {
-            "Data": data.strftime("%Y-%m-%d"),
-            "Solicitante": solicitante,
-            "Quimico": quimico_input,
-            "Biologico": biologico_input,
-            "Observacoes": observacoes,
-            "Status": "Pendente"
-        }
-        
-        # Tentar salvar no Google Sheets
-        if append_to_sheet(nova_solicitacao, "Solicitacoes"):
-            # Atualizar dados locais de forma segura
-            nova_linha = pd.DataFrame([nova_solicitacao])
-            
-            if "solicitacoes" in st.session_state.local_data:
-                st.session_state.local_data["solicitacoes"] = pd.concat(
-                    [st.session_state.local_data["solicitacoes"], nova_linha], 
-                    ignore_index=True
-                )
-            else:
-                st.session_state.local_data["solicitacoes"] = nova_linha
-                
-            st.session_state.last_submission = nova_solicitacao
-            st.session_state.just_submitted = True  # Ativa flag
-            st.session_state.form_submitted = False  # Limpa o estado do formulário
-            st.experimental_rerun()  # Volta para a tela de compatibilidade
+            # Não retornamos aqui para manter o formulário aberto
         else:
-            st.session_state.form_submitted = True
-            st.session_state.form_success = False
+            # Preparar dados da solicitação
+            nova_solicitacao = {
+                "Data": data.strftime("%Y-%m-%d"),
+                "Solicitante": solicitante,
+                "Quimico": quimico_input,
+                "Biologico": biologico_input,
+                "Observacoes": observacoes,
+                "Status": "Pendente"
+            }
+            
+            # Tentar salvar no Google Sheets
+            if append_to_sheet(nova_solicitacao, "Solicitacoes"):
+                # Atualizar dados locais de forma segura
+                nova_linha = pd.DataFrame([nova_solicitacao])
+                
+                if "solicitacoes" in st.session_state.local_data:
+                    st.session_state.local_data["solicitacoes"] = pd.concat(
+                        [st.session_state.local_data["solicitacoes"], nova_linha], 
+                        ignore_index=True
+                    )
+                else:
+                    st.session_state.local_data["solicitacoes"] = nova_linha
+                    
+                st.session_state.last_submission = nova_solicitacao
+                st.session_state.just_submitted = True  # Ativa flag
+                st.session_state.form_submitted = False  # Limpa o estado do formulário
+                
+                # Registrar o tempo atual para controlar o fechamento automático da mensagem
+                st.session_state.success_message_time = time.time()
+                
+                # Voltar para a tela de compatibilidade
+                st.experimental_rerun()
+            else:
+                st.session_state.form_submitted = True
+                st.session_state.form_success = False
     
     # Mostrar o formulário para entrada de dados
     st.subheader("Solicitar Novo Teste")
