@@ -774,7 +774,7 @@ def gerenciamento():
                         )
                     },
                     use_container_width=True,
-                    height=400,
+                    height=400
                 )
                 
                 # Botão para salvar alterações
@@ -787,6 +787,11 @@ def gerenciamento():
                                 if not isinstance(edited_df, pd.DataFrame):
                                     st.error("Erro: Os dados editados não são um DataFrame válido")
                                     st.stop()
+                                
+                                # Remover linhas com DELETE
+                                if "DELETE" in edited_df.columns:
+                                    edited_df = edited_df[~edited_df["DELETE"]]
+                                    edited_df = edited_df.drop(columns=["DELETE"])
                                 
                                 # Garantir que todas as colunas necessárias estejam presentes
                                 for col in COLUNAS_ESPERADAS["Quimicos"]:
