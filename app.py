@@ -389,9 +389,7 @@ def compatibilidade():
     if st.session_state.just_submitted and st.session_state.last_submission:
         success_container = st.container()
         with success_container:
-            st.markdown("---")
-            st.success("### Solicitação de teste registrada com sucesso! ✅")
-            st.markdown("---")
+            st.success("Solicitação de novo teste registrada com sucesso!")
         
         # Mostrar detalhes da última submissão
         with st.expander("Ver detalhes da solicitação"):
@@ -557,28 +555,21 @@ def mostrar_formulario_solicitacao(quimico=None, biologico=None):
         
         # Tentar salvar no Google Sheets
         if append_to_sheet(nova_solicitacao, "Solicitacoes"):
-            # Atualizar dados locais de forma segura
-            nova_linha = pd.DataFrame([nova_solicitacao])
-            
-            if "solicitacoes" in st.session_state.local_data:
-                st.session_state.local_data["solicitacoes"] = pd.concat(
-                    [st.session_state.local_data["solicitacoes"], nova_linha], 
-                    ignore_index=True
-                )
-            else:
-                st.session_state.local_data["solicitacoes"] = nova_linha
-            
-            # Salvar a última submissão para exibir detalhes
             st.session_state.last_submission = nova_solicitacao
-            # Marcar como enviado com sucesso
-            st.session_state.form_submitted = True
-            st.session_state.form_success = True
-            st.session_state.just_submitted = True
-            # Voltar para a tela de compatibilidade
-            st.experimental_rerun()
+            st.session_state.just_submitted = True  # Ativa flag
+            return
         else:
             st.session_state.form_submitted = True
             st.session_state.form_success = False
+
+    # Renderização condicional
+    if st.session_state.just_submitted:
+        with st.container():
+            st.success("Solicitação de novo teste registrada com sucesso!")
+            # Botão para limpar estado
+            if st.button("Voltar à compatibilidade"):
+                st.session_state.just_submitted = False
+        return  # Interrompe a execução do formulário
     
     # Mostrar o formulário para entrada de dados
     st.subheader("Solicitar Novo Teste")
@@ -607,9 +598,7 @@ def mostrar_formulario_solicitacao(quimico=None, biologico=None):
             # Usar um container para destacar a mensagem de sucesso
             success_container = st.container()
             with success_container:
-                st.markdown("---")
-                st.success("### Solicitação registrada com sucesso! ✅")
-                st.markdown("---")
+                st.success("Solicitação de novo teste registrada com sucesso!")
             
             # Mostrar detalhes da última submissão
             if st.session_state.last_submission:
@@ -622,7 +611,7 @@ def mostrar_formulario_solicitacao(quimico=None, biologico=None):
                 st.session_state.form_submitted = False
                 st.session_state.form_success = False
                 st.session_state.last_submission = None
-                st.session_state.just_submitted = True
+                st.session_state.just_submitted = False
                 st.experimental_rerun()
         else:
             st.error("Por favor, preencha todos os campos obrigatórios: Produto Químico, Produto Biológico e Solicitante.")
