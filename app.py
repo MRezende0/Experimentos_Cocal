@@ -713,12 +713,7 @@ def gerenciamento():
                         # Usar um container para destacar a mensagem de sucesso
                         success_container = st.container()
                         with success_container:
-                            st.markdown("---")
-                            st.success("### Produto adicionado com sucesso! ✅")
-                            st.markdown("---")
-                        
-                        # Botão para limpar o formulário e adicionar outro produto
-                        if st.button("Adicionar outro produto", key="btn_add_outro_quimico"):
+                            st.success(f"Produto {st.session_state.quimico_nome} adicionado com sucesso!")
                             st.session_state.quimico_form_submitted = False
                             st.session_state.quimico_form_success = False
                             st.session_state.quimico_just_submitted = False
