@@ -561,6 +561,15 @@ def mostrar_formulario_solicitacao(quimico=None, biologico=None):
         else:
             st.session_state.form_submitted = True
             st.session_state.form_success = False
+
+    # Renderização condicional
+    if st.session_state.just_submitted:
+        with st.container():
+            st.success("Solicitação de novo teste registrada com sucesso!")
+            # Botão para limpar estado
+            if st.button("Voltar à compatibilidade"):
+                st.session_state.just_submitted = False
+        return  # Interrompe a execução do formulário
     
     # Mostrar o formulário para entrada de dados
     st.subheader("Solicitar Novo Teste")
