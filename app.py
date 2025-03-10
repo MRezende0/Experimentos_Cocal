@@ -892,9 +892,10 @@ def gerenciamento():
                         # Usar um container para destacar a mensagem de sucesso
                         success_container = st.container()
                         with success_container:
-                            st.markdown("---")
-                            st.success("### Produto biológico adicionado com sucesso! ✅")
-                            st.markdown("---")
+                            st.success(f"Produto {st.session_state.biologico_nome} adicionado com sucesso!")
+                            st.session_state.biologico_form_submitted = False
+                            st.session_state.biologico_form_success = False
+                            st.session_state.biologico_just_submitted = False
                     else:
                         st.error(st.session_state.biologico_form_error)
             
@@ -1077,7 +1078,10 @@ def gerenciamento():
                 # Mostrar mensagens de sucesso ou erro abaixo do formulário
                 if st.session_state.compatibilidade_form_submitted:
                     if st.session_state.compatibilidade_form_success:
-                        st.success("Compatibilidade adicionada com sucesso!")
+                        st.success(f"Compatibilidade entre {st.session_state.quimico_nome} e {st.session_state.biologico_nome} adicionada com sucesso!")
+                        st.session_state.compatibilidade_form_submitted = False
+                        st.session_state.compatibilidade_form_success = False
+                        st.session_state.compatibilidade_just_submitted = False
                     else:
                         st.error(st.session_state.compatibilidade_form_error)
             
@@ -1212,7 +1216,7 @@ def gerenciamento():
                 
                 # Se o formulário foi enviado com sucesso, mostrar mensagem e detalhes
                 if st.session_state.gerenciamento_form_submitted and 'gerenciamento_last_submission' in st.session_state:
-                    st.success("Solicitação adicionada com sucesso!")
+                    st.success("Solicitação de novo teste registrada com sucesso!")
                     
                     # Mostrar detalhes da solicitação
                     st.info("**Detalhes da solicitação:**")
