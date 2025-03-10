@@ -397,7 +397,6 @@ def compatibilidade():
             st.session_state.just_submitted = False
             st.session_state.last_submission = None
             st.session_state.success_message_time = None
-            st.experimental_rerun()
     
     col1, col2 = st.columns([4, 1])  # 4:1 ratio para alinhamento direito
 
@@ -454,8 +453,7 @@ def compatibilidade():
         return
     
     # Verificar se o botão de novo teste foi pressionado
-    if 'solicitar_novo_teste' in st.session_state and st.session_state.solicitar_novo_teste:
-        st.session_state.solicitar_novo_teste = False
+    if st.session_state.get('solicitar_novo_teste', False):
         mostrar_formulario_solicitacao(
             quimico=st.session_state.pre_selecionado_quimico,
             biologico=st.session_state.pre_selecionado_biologico
@@ -506,7 +504,6 @@ def compatibilidade():
             st.session_state.just_submitted = False
             st.session_state.last_submission = None
             st.session_state.success_message_time = None
-            st.experimental_rerun()
     
     if quimico and biologico:
         # Procurar na planilha de Resultados usando os nomes
@@ -566,7 +563,9 @@ def mostrar_formulario_solicitacao(quimico=None, biologico=None):
         if not quimico_input or not biologico_input or not solicitante:
             st.session_state.form_submitted = True
             st.session_state.form_success = False
-            # Não retornamos aqui para manter o formulário aberto
+            st.session_state.solicitar_novo_teste = True
+            return
+
         else:
             # Preparar dados da solicitação
             nova_solicitacao = {
@@ -591,18 +590,14 @@ def mostrar_formulario_solicitacao(quimico=None, biologico=None):
                 else:
                     st.session_state.local_data["solicitacoes"] = nova_linha
                     
-                st.session_state.last_submission = nova_solicitacao
+                st.session_state.solicitar_novo_teste = False
                 st.session_state.just_submitted = True  # Ativa flag
-                st.session_state.form_submitted = False  # Limpa o estado do formulário
                 
                 # Registrar o tempo atual para controlar o fechamento automático da mensagem
                 st.session_state.success_message_time = time.time()
                 
-                # Voltar para a tela de compatibilidade
-                st.experimental_rerun()
             else:
-                st.session_state.form_submitted = True
-                st.session_state.form_success = False
+                st.session_state.solicitar_novo_teste = True
     
     # Mostrar o formulário para entrada de dados
     st.subheader("Solicitar Novo Teste")
@@ -744,7 +739,6 @@ def gerenciamento():
                             st.session_state.quimico_form_submitted = False
                             st.session_state.quimico_form_success = False
                             st.session_state.quimico_just_submitted = False
-                            st.experimental_rerun()
                     else:
                         st.error(st.session_state.quimico_form_error)
             
