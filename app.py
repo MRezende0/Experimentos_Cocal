@@ -767,11 +767,6 @@ def gerenciamento():
                         "Concentracao": st.column_config.TextColumn("Concentração", required=True),
                         "Classe": "Classe",
                         "ModoAcao": "Modo de Ação",
-                        "DELETE": st.column_config.CheckboxColumn(
-                            "Excluir",
-                            help="Selecione para excluir a linha",
-                            default=False
-                        )
                     },
                     use_container_width=True,
                     height=400
@@ -787,11 +782,6 @@ def gerenciamento():
                                 if not isinstance(edited_df, pd.DataFrame):
                                     st.error("Erro: Os dados editados não são um DataFrame válido")
                                     st.stop()
-                                
-                                # Remover linhas com DELETE
-                                if "DELETE" in edited_df.columns:
-                                    edited_df = edited_df[~edited_df["DELETE"]]
-                                    edited_df = edited_df.drop(columns=["DELETE"])
                                 
                                 # Garantir que todas as colunas necessárias estejam presentes
                                 for col in COLUNAS_ESPERADAS["Quimicos"]:
