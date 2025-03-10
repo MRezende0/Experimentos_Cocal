@@ -380,6 +380,29 @@ def compatibilidade():
         st.session_state.pre_selecionado_quimico = None
     if 'pre_selecionado_biologico' not in st.session_state:
         st.session_state.pre_selecionado_biologico = None
+    if 'just_submitted' not in st.session_state:
+        st.session_state.just_submitted = False
+    if 'last_submission' not in st.session_state:
+        st.session_state.last_submission = None
+    
+    # Exibir mensagem de sucesso se acabou de enviar uma solicitação
+    if st.session_state.just_submitted and st.session_state.last_submission:
+        success_container = st.container()
+        with success_container:
+            st.markdown("---")
+            st.success("### Solicitação de teste registrada com sucesso! ✅")
+            st.markdown("---")
+        
+        # Mostrar detalhes da última submissão
+        with st.expander("Ver detalhes da solicitação"):
+            for key, value in st.session_state.last_submission.items():
+                st.write(f"**{key}:** {value}")
+        
+        # Limpar o estado após exibir a mensagem
+        if st.button("Fechar", key="btn_fechar_mensagem_sucesso"):
+            st.session_state.just_submitted = False
+            st.session_state.last_submission = None
+            st.experimental_rerun()
     
     col1, col2 = st.columns([4, 1])  # 4:1 ratio para alinhamento direito
 
@@ -504,6 +527,8 @@ def mostrar_formulario_solicitacao(quimico=None, biologico=None):
         st.session_state.form_success = False
     if 'last_submission' not in st.session_state:
         st.session_state.last_submission = None
+    if 'just_submitted' not in st.session_state:
+        st.session_state.just_submitted = False
     
     # Função para processar o envio do formulário
     def submit_form():
@@ -548,6 +573,9 @@ def mostrar_formulario_solicitacao(quimico=None, biologico=None):
             # Marcar como enviado com sucesso
             st.session_state.form_submitted = True
             st.session_state.form_success = True
+            st.session_state.just_submitted = True
+            # Voltar para a tela de compatibilidade
+            st.experimental_rerun()
         else:
             st.session_state.form_submitted = True
             st.session_state.form_success = False
@@ -594,7 +622,8 @@ def mostrar_formulario_solicitacao(quimico=None, biologico=None):
                 st.session_state.form_submitted = False
                 st.session_state.form_success = False
                 st.session_state.last_submission = None
-                st.rerun()
+                st.session_state.just_submitted = True
+                st.experimental_rerun()
         else:
             st.error("Por favor, preencha todos os campos obrigatórios: Produto Químico, Produto Biológico e Solicitante.")
 
@@ -636,6 +665,8 @@ def gerenciamento():
                     st.session_state.quimico_form_success = False
                 if 'quimico_form_error' not in st.session_state:
                     st.session_state.quimico_form_error = ""
+                if 'quimico_just_submitted' not in st.session_state:
+                    st.session_state.quimico_just_submitted = False
                 
                 # Função para processar o envio do formulário
                 def submit_quimico_form():
@@ -671,6 +702,7 @@ def gerenciamento():
                                 st.session_state.quimico_form_submitted = True
                                 st.session_state.quimico_form_success = True
                                 st.session_state.quimico_form_error = ""
+                                st.session_state.quimico_just_submitted = True
                                 # Garantir que permanecemos na página atual
                                 st.session_state.current_page = "Gerenciamento"
                             else:
@@ -698,7 +730,19 @@ def gerenciamento():
                 # Mostrar mensagens de sucesso ou erro abaixo do formulário
                 if st.session_state.quimico_form_submitted:
                     if st.session_state.quimico_form_success:
-                        st.success("Produto adicionado com sucesso!")
+                        # Usar um container para destacar a mensagem de sucesso
+                        success_container = st.container()
+                        with success_container:
+                            st.markdown("---")
+                            st.success("### Produto adicionado com sucesso! ✅")
+                            st.markdown("---")
+                        
+                        # Botão para limpar o formulário e adicionar outro produto
+                        if st.button("Adicionar outro produto", key="btn_add_outro_quimico"):
+                            st.session_state.quimico_form_submitted = False
+                            st.session_state.quimico_form_success = False
+                            st.session_state.quimico_just_submitted = False
+                            st.experimental_rerun()
                     else:
                         st.error(st.session_state.quimico_form_error)
             
