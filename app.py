@@ -775,7 +775,8 @@ def gerenciamento():
                         "ModoAcao": "Modo de Ação"
                     },
                     use_container_width=True,
-                    height=400
+                    height=400,
+                    deletion_callback=lambda: st.session_state.edited_data.update({"quimicos": True})
                 )
                 
                 # Botão para salvar alterações
@@ -949,7 +950,8 @@ def gerenciamento():
                         "Validade": "Validade"
                     },
                     use_container_width=True,
-                    height=400
+                    height=400,
+                    deletion_callback=lambda: st.session_state.edited_data.update({"biologicos": True})
                 )
                 
                 # Botão para salvar alterações
@@ -1163,7 +1165,8 @@ def gerenciamento():
                         )
                     },
                     use_container_width=True,
-                    height=400
+                    height=400,
+                    deletion_callback=lambda: st.session_state.edited_data.update({"resultados": True})
                 )
                 
                 # Botão para salvar alterações
@@ -1370,7 +1373,8 @@ def gerenciamento():
                         )
                     },
                     use_container_width=True,
-                    height=400
+                    height=400,
+                    deletion_callback=lambda: st.session_state.edited_data.update({"solicitacoes": True})
                 )
                 
                 # Botão para salvar alterações
