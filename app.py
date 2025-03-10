@@ -103,6 +103,23 @@ def local_css():
                 opacity: 1 !important;
                 visibility: visible !important;
             }
+            /* Forçar exibição de ícones específicos */
+            button[data-testid="BaseButton"] {
+                opacity: 1 !important;
+                visibility: visible !important;
+            }
+            /* Garantir que os ícones de edição apareçam */
+            .stDataEditor [data-testid="dataEditor-addRows"],
+            .stDataEditor [data-testid="dataEditor-deleteRows"],
+            .stDataEditor [data-testid="dataEditor-saveButton"] {
+                display: inline-flex !important;
+                visibility: visible !important;
+                opacity: 1 !important;
+            }
+            /* Ajustar altura mínima das células para evitar problemas de layout */
+            .stDataEditor td {
+                min-height: 38px !important;
+            }
             /* Otimizações de performance */
             .stApp {
                 background-color: #ffff;
@@ -772,16 +789,12 @@ def gerenciamento():
                 def marcar_como_editado(tabela):
                     st.session_state.edited_data[tabela] = True
                 
-                # Função para lidar com exclusão de linhas
-                def handle_deletion_quimicos():
-                    st.session_state.edited_data["quimicos"] = True
-                
                 # Tabela editável
                 edited_df = st.data_editor(
                     df_filtrado,
                     num_rows="dynamic",
                     hide_index=True,
-                    key=f"quimicos_editor_{filtro_nome}_{filtro_tipo}",
+                    key=f"quimicos_editor_{filtro_nome}_{filtro_tipo}_{int(time.time())}",
                     column_config={
                         "Nome": st.column_config.TextColumn("Nome do Produto", required=True),
                         "Tipo": st.column_config.SelectboxColumn("Tipo", options=["Herbicida", "Fungicida", "Inseticida"]),
@@ -794,7 +807,10 @@ def gerenciamento():
                     height=400,
                     on_change=lambda: st.session_state.edited_data.update({"quimicos": True}),
                     disabled=False,
-                    deletion_callback=handle_deletion_quimicos
+                    editor_options={
+                        "displayAddRows": True,
+                        "displayDeleteButton": True
+                    }
                 )
                 
                 # Botão para salvar alterações
@@ -952,16 +968,12 @@ def gerenciamento():
                     # Adicionar uma linha vazia para facilitar a adição de novos dados
                     df_filtrado = df_vazio
                 
-                # Função para lidar com exclusão de linhas
-                def handle_deletion_biologicos():
-                    st.session_state.edited_data["biologicos"] = True
-                
                 # Tabela editável
                 edited_df = st.data_editor(
                     df_filtrado,
                     num_rows="dynamic",
                     hide_index=True,
-                    key=f"biologicos_editor_{filtro_nome}_{filtro_tipo}",
+                    key=f"biologicos_editor_{filtro_nome}_{filtro_tipo}_{int(time.time())}",
                     column_config={
                         "Nome": st.column_config.TextColumn("Produto Biológico", required=True),
                         "Tipo": st.column_config.SelectboxColumn("Tipo", options=["Bioestimulante", "Controle Biológico"]),
@@ -974,7 +986,10 @@ def gerenciamento():
                     height=400,
                     on_change=lambda: st.session_state.edited_data.update({"biologicos": True}),
                     disabled=False,
-                    deletion_callback=handle_deletion_biologicos
+                    editor_options={
+                        "displayAddRows": True,
+                        "displayDeleteButton": True
+                    }
                 )
                 
                 # Botão para salvar alterações
@@ -1149,16 +1164,12 @@ def gerenciamento():
                     # Converter para string para evitar problemas de compatibilidade
                     df_filtrado['Data'] = df_filtrado['Data'].astype(str)
                 
-                # Função para lidar com exclusão de linhas
-                def handle_deletion_resultados():
-                    st.session_state.edited_data["resultados"] = True
-                
                 # Tabela editável
                 edited_df = st.data_editor(
                     df_filtrado,
                     hide_index=True,
                     num_rows="dynamic",
-                    key=f"resultados_editor_{filtro_quimico}_{filtro_biologico}",
+                    key=f"resultados_editor_{filtro_quimico}_{filtro_biologico}_{int(time.time())}",
                     column_config={
                         "Data": st.column_config.TextColumn(
                             "Data do Teste",
@@ -1194,7 +1205,10 @@ def gerenciamento():
                     height=400,
                     on_change=lambda: st.session_state.edited_data.update({"resultados": True}),
                     disabled=False,
-                    deletion_callback=handle_deletion_resultados
+                    editor_options={
+                        "displayAddRows": True,
+                        "displayDeleteButton": True
+                    }
                 )
                 
                 # Botão para salvar alterações
@@ -1373,10 +1387,6 @@ def gerenciamento():
                     # Converter para string para evitar problemas de compatibilidade
                     df_filtrado['Data'] = df_filtrado['Data'].astype(str)
                 
-                # Função para lidar com exclusão de linhas
-                def handle_deletion_solicitacoes():
-                    st.session_state.edited_data["solicitacoes"] = True
-                
                 # Tabela editável com ordenação por Data
                 if not df_filtrado.empty:
                     df_filtrado = df_filtrado.sort_values(by="Data", ascending=False).reset_index(drop=True)
@@ -1385,7 +1395,7 @@ def gerenciamento():
                     df_filtrado,
                     hide_index=True,
                     num_rows="dynamic",
-                    key=f"solicitacoes_editor_{filtro_status}_{filtro_quimico}_{filtro_biologico}",
+                    key=f"solicitacoes_editor_{filtro_status}_{filtro_quimico}_{filtro_biologico}_{int(time.time())}",
                     column_config={
                         "Data": st.column_config.TextColumn("Data da Solicitação", required=True),
                         "Solicitante": st.column_config.TextColumn("Solicitante", required=True),
@@ -1409,7 +1419,10 @@ def gerenciamento():
                     height=400,
                     on_change=lambda: st.session_state.edited_data.update({"solicitacoes": True}),
                     disabled=False,
-                    deletion_callback=handle_deletion_solicitacoes
+                    editor_options={
+                        "displayAddRows": True,
+                        "displayDeleteButton": True
+                    }
                 )
                 
                 # Botão para salvar alterações
