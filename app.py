@@ -766,7 +766,12 @@ def gerenciamento():
                         "Fabricante": "Fabricante",
                         "Concentracao": st.column_config.TextColumn("Concentração", required=True),
                         "Classe": "Classe",
-                        "ModoAcao": "Modo de Ação"
+                        "ModoAcao": "Modo de Ação",
+                        "DELETE": st.column_config.CheckboxColumn(
+                            "Excluir",
+                            help="Selecione para excluir a linha",
+                            default=False
+                        )
                     },
                     use_container_width=True,
                     height=400,
@@ -938,7 +943,12 @@ def gerenciamento():
                         "IngredienteAtivo": st.column_config.TextColumn("Ingrediente Ativo", required=True),
                         "Formulação": st.column_config.TextColumn("Formulação", required=True),
                         "Aplicação": st.column_config.TextColumn("Aplicação", required=True),
-                        "Validade": st.column_config.TextColumn("Validade", required=True)
+                        "Validade": st.column_config.TextColumn("Validade", required=True),
+                        "DELETE": st.column_config.CheckboxColumn(
+                            "Excluir",
+                            help="Selecione para excluir a linha",
+                            default=False
+                        )
                     },
                     use_container_width=True,
                     height=400
