@@ -759,6 +759,7 @@ def gerenciamento():
                 edited_df = st.data_editor(
                     df_filtrado,
                     num_rows="dynamic",
+                    hide_index=True,
                     key=f"quimicos_editor_{filtro_nome}_{filtro_tipo}",
                     column_config={
                         "Nome": st.column_config.TextColumn("Nome do Produto", required=True),
@@ -931,6 +932,7 @@ def gerenciamento():
                 edited_df = st.data_editor(
                     df_filtrado,
                     num_rows="dynamic",
+                    hide_index=True,
                     key=f"biologicos_editor_{filtro_nome}_{filtro_tipo}",
                     column_config={
                         "Nome": st.column_config.TextColumn("Produto Biológico", required=True),
@@ -938,12 +940,7 @@ def gerenciamento():
                         "IngredienteAtivo": st.column_config.TextColumn("Ingrediente Ativo", required=True),
                         "Formulação": st.column_config.TextColumn("Formulação", required=True),
                         "Aplicação": st.column_config.TextColumn("Aplicação", required=True),
-                        "Validade": st.column_config.TextColumn("Validade", required=True),
-                        "DELETE": st.column_config.CheckboxColumn(
-                            "Excluir",
-                            help="Selecione para excluir a linha",
-                            default=False
-                        )
+                        "Validade": st.column_config.TextColumn("Validade", required=True)
                     },
                     use_container_width=True,
                     height=400
@@ -1124,6 +1121,7 @@ def gerenciamento():
                 # Tabela editável
                 edited_df = st.data_editor(
                     df_filtrado,
+                    hide_index=True,
                     num_rows="dynamic",
                     key=f"resultados_editor_{filtro_quimico}_{filtro_biologico}",
                     column_config={
@@ -1343,6 +1341,7 @@ def gerenciamento():
                 
                 edited_df = st.data_editor(
                     df_filtrado,
+                    hide_index=True,
                     num_rows="dynamic",
                     key=f"solicitacoes_editor_{filtro_status}_{filtro_quimico}_{filtro_biologico}",
                     column_config={
