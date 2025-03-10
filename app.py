@@ -391,7 +391,7 @@ def compatibilidade():
 
     # Exibir mensagem de sucesso
     if st.session_state.form_submitted_successfully:
-        st.success("✅ Solicitação enviada com sucesso!")
+        st.success("Solicitação de novo teste enviada com sucesso!")
         st.session_state.form_submitted_successfully = False  # Reseta o estado
 
     col1, col2 = st.columns([4, 1])  # 4:1 ratio para alinhamento direito
@@ -556,7 +556,12 @@ def mostrar_formulario_solicitacao(quimico=None, biologico=None):
         observacoes = st.session_state.observacoes
         
         if not all([solicitante, quimico_input, biologico_input]):
-            st.error("Por favor, preencha todos os campos obrigatórios!")
+            st.error("""
+            Por favor, preencha todos os campos obrigatórios:
+            - Nome do solicitante
+            - Nome do produto químico
+            - Nome do produto biológico
+            """)
             return
 
         # Preparar dados da solicitação
