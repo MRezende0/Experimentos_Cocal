@@ -386,18 +386,14 @@ def compatibilidade():
         st.session_state.last_submission = None
     if 'success_message_time' not in st.session_state:
         st.session_state.success_message_time = None
-    
-    # Verificar se a mensagem de sucesso deve ser fechada automaticamente após 5 segundos
-    if st.session_state.just_submitted and st.session_state.success_message_time:
-        tempo_atual = time.time()
-        tempo_decorrido = tempo_atual - st.session_state.success_message_time
-        
-        # Se passaram mais de 5 segundos, fechar a mensagem
-        if tempo_decorrido > 5:
-            st.session_state.just_submitted = False
-            st.session_state.last_submission = None
-            st.session_state.success_message_time = None
-    
+    if 'form_submitted_successfully' not in st.session_state:
+        st.session_state.form_submitted_successfully = False
+
+    # Exibir mensagem de sucesso
+    if st.session_state.form_submitted_successfully:
+        st.success("✅ Solicitação enviada com sucesso!")
+        st.session_state.form_submitted_successfully = False  # Reseta o estado
+
     col1, col2 = st.columns([4, 1])  # 4:1 ratio para alinhamento direito
 
     with col1:
@@ -559,45 +555,26 @@ def mostrar_formulario_solicitacao(quimico=None, biologico=None):
         biologico_input = st.session_state.biologico_input
         observacoes = st.session_state.observacoes
         
-        # Validar campos obrigatórios
-        if not quimico_input or not biologico_input or not solicitante:
-            st.session_state.form_submitted = True
-            st.session_state.form_success = False
-            st.session_state.solicitar_novo_teste = True
+        if not all([solicitante, quimico_input, biologico_input]):
+            st.error("Por favor, preencha todos os campos obrigatórios!")
             return
 
+        # Preparar dados da solicitação
+        nova_solicitacao = {
+            "Data": data.strftime("%Y-%m-%d"),
+            "Solicitante": solicitante,
+            "Quimico": quimico_input,
+            "Biologico": biologico_input,
+            "Observacoes": observacoes,
+            "Status": "Pendente"
+        }
+
+        if append_to_sheet(nova_solicitacao, "Solicitacoes"):
+            st.session_state.form_submitted_successfully = True
+            st.session_state.solicitar_novo_teste = False
+            st.session_state.last_submission = nova_solicitacao
         else:
-            # Preparar dados da solicitação
-            nova_solicitacao = {
-                "Data": data.strftime("%Y-%m-%d"),
-                "Solicitante": solicitante,
-                "Quimico": quimico_input,
-                "Biologico": biologico_input,
-                "Observacoes": observacoes,
-                "Status": "Pendente"
-            }
-            
-            # Tentar salvar no Google Sheets
-            if append_to_sheet(nova_solicitacao, "Solicitacoes"):
-                # Atualizar dados locais de forma segura
-                nova_linha = pd.DataFrame([nova_solicitacao])
-                
-                if "solicitacoes" in st.session_state.local_data:
-                    st.session_state.local_data["solicitacoes"] = pd.concat(
-                        [st.session_state.local_data["solicitacoes"], nova_linha], 
-                        ignore_index=True
-                    )
-                else:
-                    st.session_state.local_data["solicitacoes"] = nova_linha
-                    
-                st.session_state.solicitar_novo_teste = False
-                st.session_state.just_submitted = True  # Ativa flag
-                
-                # Registrar o tempo atual para controlar o fechamento automático da mensagem
-                st.session_state.success_message_time = time.time()
-                
-            else:
-                st.session_state.solicitar_novo_teste = True
+            st.error("Erro ao enviar solicitação. Tente novamente.")
     
     # Mostrar o formulário para entrada de dados
     st.subheader("Solicitar Novo Teste")
@@ -617,12 +594,13 @@ def mostrar_formulario_solicitacao(quimico=None, biologico=None):
         
         st.text_area("Observações", key="observacoes")
         
-        # Botão de submit
-        submitted = st.form_submit_button("Solicitar Teste", on_click=submit_form)
-    
-    # Mostrar mensagem de erro apenas quando o formulário foi enviado e está incompleto
-    if st.session_state.form_submitted:
-        st.error("Por favor, preencha todos os campos obrigatórios: Produto Químico, Produto Biológico e Solicitante.")
+        col1, col2 = st.columns([1, 1])
+        with col1:
+            if st.form_submit_button("Enviar Solicitação", on_click=submit_form):
+                st.session_state.form_submitted = True
+        with col2:
+            if st.form_submit_button("Cancelar"):
+                st.session_state.solicitar_novo_teste = False
 
 ########################################## GERENCIAMENTO ##########################################
 
