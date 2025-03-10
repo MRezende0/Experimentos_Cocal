@@ -385,22 +385,22 @@ def compatibilidade():
     if 'last_submission' not in st.session_state:
         st.session_state.last_submission = None
     
-    # Exibir mensagem de sucesso se acabou de enviar uma solicitação
-    if st.session_state.just_submitted and st.session_state.last_submission:
-        success_container = st.container()
-        with success_container:
-            st.success("Solicitação de novo teste registrada com sucesso!")
+    # # Exibir mensagem de sucesso se acabou de enviar uma solicitação
+    # if st.session_state.just_submitted and st.session_state.last_submission:
+    #     success_container = st.container()
+    #     with success_container:
+    #         st.success("Solicitação de novo teste registrada com sucesso!")
         
-        # Mostrar detalhes da última submissão
-        with st.expander("Ver detalhes da solicitação"):
-            for key, value in st.session_state.last_submission.items():
-                st.write(f"**{key}:** {value}")
+    #     # Mostrar detalhes da última submissão
+    #     with st.expander("Ver detalhes da solicitação"):
+    #         for key, value in st.session_state.last_submission.items():
+    #             st.write(f"**{key}:** {value}")
         
-        # Limpar o estado após exibir a mensagem
-        if st.button("Fechar", key="btn_fechar_mensagem_sucesso"):
-            st.session_state.just_submitted = False
-            st.session_state.last_submission = None
-            st.experimental_rerun()
+    #     # Limpar o estado após exibir a mensagem
+    #     if st.button("Fechar", key="btn_fechar_mensagem_sucesso"):
+    #         st.session_state.just_submitted = False
+    #         st.session_state.last_submission = None
+    #         st.experimental_rerun()
     
     col1, col2 = st.columns([4, 1])  # 4:1 ratio para alinhamento direito
 
@@ -561,15 +561,6 @@ def mostrar_formulario_solicitacao(quimico=None, biologico=None):
         else:
             st.session_state.form_submitted = True
             st.session_state.form_success = False
-
-    # Renderização condicional
-    if st.session_state.just_submitted:
-        with st.container():
-            st.success("Solicitação de novo teste registrada com sucesso!")
-            # Botão para limpar estado
-            if st.button("Voltar à compatibilidade"):
-                st.session_state.just_submitted = False
-        return  # Interrompe a execução do formulário
     
     # Mostrar o formulário para entrada de dados
     st.subheader("Solicitar Novo Teste")
