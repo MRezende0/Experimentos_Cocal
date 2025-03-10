@@ -389,11 +389,6 @@ def compatibilidade():
     if 'form_submitted_successfully' not in st.session_state:
         st.session_state.form_submitted_successfully = False
 
-    # Exibir mensagem de sucesso
-    if st.session_state.form_submitted_successfully:
-        st.success("Solicitação de novo teste enviada com sucesso!")
-        st.session_state.form_submitted_successfully = False  # Reseta o estado
-
     col1, col2 = st.columns([4, 1])  # 4:1 ratio para alinhamento direito
 
     with col1:
@@ -474,48 +469,45 @@ def compatibilidade():
             key="compatibilidade_biologico"
         )
     
-    # Exibir mensagem de sucesso se acabou de enviar uma solicitação
-    if st.session_state.just_submitted and st.session_state.last_submission:
-        success_container = st.container()
-        with success_container:
-            st.success("Solicitação de novo teste registrada com sucesso!")
-            
-            # Mostrar contador regressivo
-            tempo_restante = 5
-            if st.session_state.success_message_time:
-                tempo_atual = time.time()
-                tempo_decorrido = tempo_atual - st.session_state.success_message_time
-                tempo_restante = max(0, 5 - int(tempo_decorrido))
-            
-            if tempo_restante > 0:
-                st.caption(f"Esta mensagem fechará automaticamente em {tempo_restante} segundos...")
-            
-        # Mostrar detalhes da última submissão
-        with st.expander("Ver detalhes da solicitação"):
-            for key, value in st.session_state.last_submission.items():
-                st.write(f"**{key}:** {value}")
-        
-        # Botão para fechar manualmente
-        if st.button("Fechar agora", key="btn_fechar_mensagem_sucesso"):
-            st.session_state.just_submitted = False
-            st.session_state.last_submission = None
-            st.session_state.success_message_time = None
-    
     if quimico and biologico:
         # Procurar na planilha de Resultados usando os nomes
         resultado_existente = dados["resultados"][
-            (dados["resultados"]["Quimico"] == quimico) &
+            (dados["resultados"]["Quimico"] == quimico) & 
             (dados["resultados"]["Biologico"] == biologico)
         ]
         
         if not resultado_existente.empty:
-            resultado = resultado_existente.iloc[0]['Resultado']
-            classe = "compativel" if resultado == "Compatível" else "incompativel"
-            st.markdown(f"""
-                <div class="resultado {classe}">
-                    {resultado}
-                </div>
-            """, unsafe_allow_html=True)
+            # Mostrar resultado de compatibilidade
+            compativel = resultado_existente.iloc[0]["Resultado"] == "Compatível"
+            
+            if compativel:
+                st.markdown("""
+                    <div style="
+                        background-color: #d4edda;
+                        color: #155724;
+                        padding: 15px;
+                        border-radius: 5px;
+                        margin-top: 20px;
+                        border-left: 5px solid #28a745;
+                    ">
+                        <h3 style="margin-top: 0;">✅ Compatível</h3>
+                        <p>Os produtos selecionados são compatíveis e podem ser usados juntos.</p>
+                    </div>
+                """, unsafe_allow_html=True)
+            else:
+                st.markdown("""
+                    <div style="
+                        background-color: #f8d7da;
+                        color: #721c24;
+                        padding: 15px;
+                        border-radius: 5px;
+                        margin-top: 20px;
+                        border-left: 5px solid #dc3545;
+                    ">
+                        <h3 style="margin-top: 0;">❌ Incompatível</h3>
+                        <p>Os produtos selecionados NÃO são compatíveis e NÃO devem ser usados juntos.</p>
+                    </div>
+                """, unsafe_allow_html=True)
             
             # Mostrar detalhes do teste
             with st.expander("Ver detalhes do teste"):
@@ -533,7 +525,12 @@ def compatibilidade():
                 
                 Solicite um novo teste.
             """)
-            
+    
+    # Exibir mensagem de sucesso se acabou de enviar uma solicitação
+    if st.session_state.form_submitted_successfully:
+        st.success("Solicitação de novo teste enviada com sucesso!")
+        st.session_state.form_submitted_successfully = False  # Reseta o estado
+
     # Função auxiliar para mostrar o formulário de solicitação
 def mostrar_formulario_solicitacao(quimico=None, biologico=None):
     # Inicializar variáveis de estado se não existirem
@@ -765,17 +762,18 @@ def gerenciamento():
                     key=f"quimicos_editor_{filtro_nome}_{filtro_tipo}",
                     hide_index=True,
                     on_change=lambda: st.session_state.edited_data.update({"quimicos": True}),
-                    disabled=["Nome"] if not df_filtrado.empty else [],
+                    disabled=[],  # Remover restrições para permitir edição de todas as colunas
                     column_config={
                         "Nome": st.column_config.TextColumn("Nome do Produto", required=True),
-                        "Tipo": st.column_config.SelectboxColumn(options=["Herbicida", "Fungicida", "Inseticida"]),
+                        "Tipo": st.column_config.SelectboxColumn("Tipo", options=["Herbicida", "Fungicida", "Inseticida"]),
                         "Fabricante": "Fabricante",
-                        "Concentracao": "Concentração",
+                        "Concentracao": st.column_config.TextColumn("Concentração"),
                         "Classe": "Classe",
                         "ModoAcao": "Modo de Ação"
                     },
                     use_container_width=True,
-                    height=400
+                    height=400,
+                    allow_delete_rows=True
                 )
                 
                 # Botão para salvar alterações
@@ -940,16 +938,18 @@ def gerenciamento():
                     key=f"biologicos_editor_{filtro_nome}_{filtro_tipo}",
                     hide_index=True,
                     on_change=lambda: st.session_state.edited_data.update({"biologicos": True}),
+                    disabled=[],  # Remover restrições para permitir edição de todas as colunas
                     column_config={
-                        "Nome": "Produto Biológico",
-                        "Tipo": st.column_config.SelectboxColumn(options=["Bioestimulante", "Controle Biológico"]),
-                        "IngredienteAtivo": "Ingrediente Ativo",
-                        "Formulacao": "Formulação",
-                        "Aplicacao": "Aplicação",
-                        "Validade": "Validade"
+                        "Nome": st.column_config.TextColumn("Produto Biológico", required=True),
+                        "Tipo": st.column_config.SelectboxColumn("Tipo", options=["Bioestimulante", "Controle Biológico"]),
+                        "IngredienteAtivo": st.column_config.TextColumn("Ingrediente Ativo"),
+                        "Formulacao": st.column_config.TextColumn("Formulação"),
+                        "Aplicacao": st.column_config.TextColumn("Aplicação"),
+                        "Validade": st.column_config.TextColumn("Validade")
                     },
                     use_container_width=True,
-                    height=400
+                    height=400,
+                    allow_delete_rows=True
                 )
                 
                 # Botão para salvar alterações
@@ -1163,7 +1163,8 @@ def gerenciamento():
                         )
                     },
                     use_container_width=True,
-                    height=400
+                    height=400,
+                    allow_delete_rows=True
                 )
                 
                 # Botão para salvar alterações
@@ -1354,7 +1355,7 @@ def gerenciamento():
                     on_change=lambda: st.session_state.edited_data.update({"solicitacoes": True}),
                     column_config={
                         "Data": st.column_config.TextColumn("Data da Solicitação"),
-                        "Solicitante": "Solicitante",
+                        "Solicitante": st.column_config.TextColumn("Solicitante"),
                         "Quimico": st.column_config.SelectboxColumn(
                             "Produto Químico",
                             options=sorted(dados["quimicos"]["Nome"].unique().tolist())
@@ -1363,14 +1364,15 @@ def gerenciamento():
                             "Produto Biológico",
                             options=sorted(dados["biologicos"]["Nome"].unique().tolist())
                         ),
-                        "Observacoes": "Observações",
+                        "Observacoes": st.column_config.TextColumn("Observações"),
                         "Status": st.column_config.SelectboxColumn(
                             "Status",
                             options=["Pendente", "Em Análise", "Concluído", "Cancelado"]
                         )
                     },
                     use_container_width=True,
-                    height=400
+                    height=400,
+                    allow_delete_rows=True
                 )
                 
                 # Botão para salvar alterações
