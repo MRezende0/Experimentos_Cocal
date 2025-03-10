@@ -760,9 +760,9 @@ def gerenciamento():
                     df_filtrado,
                     num_rows="dynamic",
                     key=f"quimicos_editor_{filtro_nome}_{filtro_tipo}",
-                    hide_index=True,
-                    on_change=lambda: st.session_state.edited_data.update({"quimicos": True}),
-                    disabled=[],  # Remover restrições para permitir edição de todas as colunas
+                    # hide_index=True,
+                    # on_change=lambda: st.session_state.edited_data.update({"quimicos": True}),
+                    # disabled=[],  # Remover restrições para permitir edição de todas as colunas
                     column_config={
                         "Nome": st.column_config.TextColumn("Nome do Produto", required=True),
                         "Tipo": st.column_config.SelectboxColumn("Tipo", options=["Herbicida", "Fungicida", "Inseticida"]),
@@ -773,7 +773,6 @@ def gerenciamento():
                     },
                     use_container_width=True,
                     height=400,
-                    allow_delete_rows=True
                 )
                 
                 # Botão para salvar alterações
