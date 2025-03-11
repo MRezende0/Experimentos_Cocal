@@ -406,6 +406,11 @@ def compatibilidade():
             st.session_state.pre_selecionado_biologico = None
             
         st.markdown("</div>", unsafe_allow_html=True)
+
+    # Mostrar formulário se solicitado
+    if st.session_state.solicitar_novo_teste:
+        mostrar_formulario_solicitacao()
+        return  # Sai da função aqui para não mostrar o resto
     
     dados = load_all_data()
     
