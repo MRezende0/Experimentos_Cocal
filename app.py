@@ -766,8 +766,9 @@ def gerenciamento():
                                 # Atualizar dados e planilha
                                 st.session_state.local_data["quimicos"] = df_final
                                 if update_sheet(df_final, "Quimicos"):
+                                    st.session_state.edited_data["quimicos"] = False
                                     st.success("Dados salvos com sucesso!")
-                                    st.experimental_rerun()
+                                    st.rerun()
                                     
                             except Exception as e:
                                 st.error(f"Erro: {str(e)}")
