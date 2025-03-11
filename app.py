@@ -755,37 +755,33 @@ def gerenciamento():
                                 
                                 # NOVA IMPLEMENTAÇÃO: Substituição direta dos dados
                                 # Se estamos filtrando, precisamos preservar os dados que não estão no filtro
-                                if filtro_nome or (filtro_tipo and filtro_tipo != "Todos"):
-                                    # Obter todos os dados atuais
+                                if filtro_nome or filtro_tipo != "Todos":
+                                    # Obter todos os dados originais
                                     df_completo = st.session_state.local_data["quimicos"].copy()
                                     
-                                    # Criar uma máscara para identificar os registros que estão no filtro atual
-                                    mask = pd.Series(False, index=df_completo.index)
-                                    if filtro_nome:
-                                        mask = mask | df_completo["Nome"].str.contains(filtro_nome, case=False, na=False)
-                                    if filtro_tipo and filtro_tipo != "Todos":
-                                        mask = mask | (df_completo["Tipo"] == filtro_tipo)
+                                    # Criar máscara para os registros que correspondem ao filtro
+                                    mask = df_completo["Nome"].isin(edited_df["Nome"]) & (df_completo["Tipo"] == filtro_tipo)
                                     
-                                    # Remover os registros que estavam no filtro (serão substituídos pelos editados)
-                                    df_sem_filtrados = df_completo[~mask].reset_index(drop=True)
+                                    # Remover registros filtrados do original
+                                    df_restante = df_completo[~mask]
                                     
-                                    # Concatenar com os dados editados
-                                    df_final = pd.concat([df_sem_filtrados, edited_df], ignore_index=True)
-                                    
-                                    # Atualizar o estado da sessão
-                                    st.session_state.local_data["quimicos"] = df_final
+                                    # Concatenar com dados editados
+                                    df_final = pd.concat([df_restante, edited_df], ignore_index=True)
                                 else:
-                                    # Se não há filtro, simplesmente substituir todos os dados
-                                    st.session_state.local_data["quimicos"] = edited_df
+                                    df_final = edited_df
+
+                                # Atualizar dados locais e planilha
+                                st.session_state.local_data["quimicos"] = df_final
                                 
-                                # Enviar para o Google Sheets
-                                if update_sheet(st.session_state.local_data["quimicos"], "Quimicos"):
+                                if update_sheet(df_final, "Quimicos"):
                                     st.session_state.edited_data["quimicos"] = False
                                     st.success("Dados salvos com sucesso!")
-                                    # Recarregar a página para mostrar os dados atualizados
+                                    # Forçar atualização completa
+                                    st.cache_data.clear()
                                     st.experimental_rerun()
+
                             except Exception as e:
-                                st.error(f"Erro ao salvar alterações: {str(e)}")
+                                st.error(f"Erro ao salvar: {str(e)}")
     
     with tab2:
         st.subheader("Produtos Biológicos")
@@ -954,31 +950,18 @@ def gerenciamento():
                                 
                                 # NOVA IMPLEMENTAÇÃO: Substituição direta dos dados
                                 # Se estamos filtrando, precisamos preservar os dados que não estão no filtro
-                                if filtro_nome or (filtro_tipo and filtro_tipo != "Todos"):
-                                    # Obter todos os dados atuais
+                                if filtro_nome or filtro_tipo != "Todos":
                                     df_completo = st.session_state.local_data["biologicos"].copy()
-                                    
-                                    # Criar uma máscara para identificar os registros que estão no filtro atual
-                                    mask = pd.Series(False, index=df_completo.index)
-                                    if filtro_nome:
-                                        mask = mask | df_completo["Nome"].str.contains(filtro_nome, case=False, na=False)
-                                    if filtro_tipo and filtro_tipo != "Todos":
-                                        mask = mask | (df_completo["Tipo"] == filtro_tipo)
-                                    
-                                    # Remover os registros que estavam no filtro (serão substituídos pelos editados)
-                                    df_sem_filtrados = df_completo[~mask].reset_index(drop=True)
-                                    
-                                    # Concatenar com os dados editados
-                                    df_final = pd.concat([df_sem_filtrados, edited_df], ignore_index=True)
-                                    
-                                    # Atualizar o estado da sessão
-                                    st.session_state.local_data["biologicos"] = df_final
+                                    mask = df_completo["Nome"].isin(edited_df["Nome"]) & (df_completo["Tipo"] == filtro_tipo)
+                                    df_restante = df_completo[~mask]
+                                    df_final = pd.concat([df_restante, edited_df], ignore_index=True)
                                 else:
-                                    # Se não há filtro, simplesmente substituir todos os dados
-                                    st.session_state.local_data["biologicos"] = edited_df
+                                    df_final = edited_df
                                 
-                                # Enviar para o Google Sheets
-                                if update_sheet(st.session_state.local_data["biologicos"], "Biologicos"):
+                                # Atualizar dados locais e planilha
+                                st.session_state.local_data["biologicos"] = df_final
+                                
+                                if update_sheet(df_final, "Biologicos"):
                                     st.session_state.edited_data["biologicos"] = False
                                     st.success("Dados salvos com sucesso!")
                                     # Recarregar a página para mostrar os dados atualizados
@@ -1427,27 +1410,17 @@ def gerenciamento():
                                 
                                 # Atualizar dados na sessão - IMPORTANTE: atualiza antes de enviar para o Google Sheets
                                 # Aqui está a correção principal: atualizar todos os dados, não apenas os filtrados
-                                if filtro_status or filtro_quimico or filtro_biologico:
-                                    # Obter os dados completos atuais
+                                if filtro_status != "Todos" or filtro_quimico != "Todos" or filtro_biologico != "Todos":
                                     df_completo = st.session_state.local_data["solicitacoes"].copy()
-                                    
-                                    # Criar uma máscara para identificar os registros que estavam sendo exibidos na tabela filtrada
-                                    mask_filtro = pd.Series(False, index=df_completo.index)
-                                    if filtro_status and filtro_status != "Todos":
-                                        mask_filtro = mask_filtro | (df_completo["Status"] == filtro_status)
-                                    if filtro_quimico and filtro_quimico != "Todos":
-                                        mask_filtro = mask_filtro | (df_completo["Quimico"] == filtro_quimico)
-                                    if filtro_biologico and filtro_biologico != "Todos":
-                                        mask_filtro = mask_filtro | (df_completo["Biologico"] == filtro_biologico)
-                                    
-                                    # Remover os registros que estavam sendo exibidos (serão substituídos pelos editados)
-                                    df_sem_filtrados = df_completo[~mask_filtro].reset_index(drop=True)
-                                    
-                                    # Concatenar com os dados editados (que podem ter menos registros devido a exclusões)
-                                    st.session_state.local_data["solicitacoes"] = pd.concat([df_sem_filtrados, edited_df], ignore_index=True)
+                                    mask = (
+                                        (df_completo["Status"] == filtro_status) |
+                                        (df_completo["Quimico"] == filtro_quimico) |
+                                        (df_completo["Biologico"] == filtro_biologico)
+                                    )
+                                    df_restante = df_completo[~mask]
+                                    df_final = pd.concat([df_restante, edited_df], ignore_index=True)
                                 else:
-                                    # Se não há filtro, simplesmente substituir todos os dados
-                                    st.session_state.local_data["solicitacoes"] = edited_df
+                                    df_final = edited_df
                                 
                                 # Depois enviar para o Google Sheets
                                 if update_sheet(st.session_state.local_data["solicitacoes"], "Solicitacoes"):
