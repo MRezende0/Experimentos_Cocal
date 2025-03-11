@@ -406,11 +406,6 @@ def compatibilidade():
             st.session_state.pre_selecionado_biologico = None
             
         st.markdown("</div>", unsafe_allow_html=True)
-
-    # Mostrar formulário se solicitado
-    if st.session_state.solicitar_novo_teste:
-        mostrar_formulario_solicitacao()
-        return  # Sai da função aqui para não mostrar o resto
     
     dados = load_all_data()
     
@@ -553,8 +548,8 @@ def mostrar_formulario_solicitacao(quimico=None, biologico=None):
         }
 
         if append_to_sheet(nova_solicitacao, "Solicitacoes"):
-            st.session_state.solicitar_novo_teste = False
             st.session_state.form_submitted_successfully = True
+            st.session_state.solicitar_novo_teste = False
             st.session_state.last_submission = nova_solicitacao
             st.session_state.form_success_message = f"Solicitação para teste de compatibilidade entre {quimico_input} e {biologico_input} enviada com sucesso!"
         else:
