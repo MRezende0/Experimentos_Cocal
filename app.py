@@ -13,86 +13,6 @@ from oauth2client.service_account import ServiceAccountCredentials
 from google.oauth2 import service_account
 import streamlit.components.v1 as components
 
-# Componente personalizado para garantir a visibilidade dos botões de ação nas tabelas
-def fix_table_buttons():
-    components.html(
-        """
-        <script>
-        // Função para garantir que os botões de ação nas tabelas estejam visíveis
-        function fixTableButtons() {
-            // Aguardar o carregamento completo da página
-            setTimeout(function() {
-                // Selecionar todos os botões dentro das tabelas editáveis
-                const buttons = document.querySelectorAll('[data-testid="stDataEditor"] button');
-                const rowActions = document.querySelectorAll('[data-testid="dataframe-row-actions"]');
-                const addRowsButtons = document.querySelectorAll('[data-testid="dataframe-add-rows"]');
-                
-                // Aplicar estilos para garantir visibilidade
-                buttons.forEach(button => {
-                    button.style.visibility = 'visible';
-                    button.style.opacity = '1';
-                    button.style.display = 'inline-flex';
-                    button.style.pointerEvents = 'auto';
-                    button.style.zIndex = '999';
-                });
-                
-                rowActions.forEach(action => {
-                    action.style.visibility = 'visible';
-                    action.style.opacity = '1';
-                    action.style.display = 'flex';
-                    action.style.pointerEvents = 'auto';
-                    action.style.zIndex = '999';
-                });
-                
-                addRowsButtons.forEach(button => {
-                    button.style.visibility = 'visible';
-                    button.style.opacity = '1';
-                    button.style.display = 'flex';
-                    button.style.pointerEvents = 'auto';
-                    button.style.zIndex = '999';
-                });
-                
-                // Verificar se há SVGs (ícones) que precisam ser visíveis
-                const svgs = document.querySelectorAll('[data-testid="stDataEditor"] svg');
-                svgs.forEach(svg => {
-                    svg.style.visibility = 'visible';
-                    svg.style.opacity = '1';
-                    svg.style.display = 'inline-block';
-                    svg.style.pointerEvents = 'auto';
-                    svg.style.zIndex = '999';
-                });
-                
-                // Garantir que os contêineres não cortem os botões
-                const containers = document.querySelectorAll('[data-testid="stDataEditor"]');
-                containers.forEach(container => {
-                    container.style.overflow = 'visible';
-                    container.style.position = 'relative';
-                    container.style.zIndex = '1';
-                });
-                
-                // Executar novamente após algum tempo para garantir que funcione após atualizações dinâmicas
-                setTimeout(fixTableButtons, 2000);
-            }, 1000);
-        }
-        
-        // Iniciar a função quando a página carregar
-        document.addEventListener('DOMContentLoaded', fixTableButtons);
-        // Também executar quando o script for carregado
-        fixTableButtons();
-        </script>
-        """,
-        height=0,
-        width=0
-    )
-
-if 'local_data' not in st.session_state:
-    st.session_state.local_data = {
-        "quimicos": pd.DataFrame(),
-        "biologicos": pd.DataFrame(),
-        "resultados": pd.DataFrame(),
-        "solicitacoes": pd.DataFrame()
-    }
-
 # Configurações iniciais
 st.set_page_config(
     page_title="Experimentos",
@@ -100,19 +20,11 @@ st.set_page_config(
     layout="wide"
 )
 
-# Desabilitar animações
-st.markdown("""
-    <style>
-    div.stButton > button:first-child {
-        transition: none;
-    }
-    </style>
-""", unsafe_allow_html=True)
-
-# Estilos CSS personalizados
+# CSS minimalista apenas para estilização básica, sem interferir nos botões
 def local_css():
     st.markdown("""
         <style>
+            /* Estilos básicos para a interface */
             [data-testid="stSidebar"] {
                 background-color: #f8f9fa;
                 padding: 20px;
@@ -148,111 +60,19 @@ def local_css():
                 background-color: #fffce8;
                 color: #916c04;
             }
-            /* Estabilizar tabelas */
-            [data-testid="stDataFrame"], [data-testid="stTable"] {
-                width: 100% !important;
-                min-height: 600px;
-                height: auto !important;
-                max-height: none !important;
-                transform: none !important;
-                transition: none !important;
-            }
-            /* Correção para tabelas editáveis */
-            [data-testid="stDataEditor"] {
-                width: 100% !important;
-                min-height: 600px;
-                height: auto !important;
-                max-height: none !important;
-                transform: none !important;
-                transition: none !important;
-                overflow: visible !important;
-            }
-            /* Reduzir espaço entre tabelas e botões */
-            .stButton {
-                margin-top: 0px;
-            }
-            /* Corrigir problemas de renderização em tabelas editáveis */
-            [data-testid="stDataEditor"] [data-testid="column"] {
-                overflow: visible !important;
-            }
-            [data-testid="stDataEditor"] [data-testid="dataframe-cell-input"] {
-                min-height: 32px !important;
-            }
-            /* Garantir que os botões de ação nas tabelas sejam visíveis */
-            [data-testid="stDataEditor"] button,
-            [data-testid="stDataEditor"] svg,
-            [data-testid="stDataEditor"] [data-testid="baseButton-secondary"],
-            [data-testid="stDataEditor"] [data-testid="baseButton-primary"] {
-                opacity: 1 !important;
-                visibility: visible !important;
-                display: inline-flex !important;
-                pointer-events: auto !important;
-                z-index: 100 !important;
-            }
-            /* Garantir que os ícones de edição e exclusão sejam visíveis */
-            [data-testid="stDataEditor"] [data-testid="dataframe-row-actions"],
-            [data-testid="stDataEditor"] [data-testid="dataframe-actions"] {
-                visibility: visible !important;
-                opacity: 1 !important;
-                display: flex !important;
-                pointer-events: auto !important;
-                z-index: 100 !important;
-            }
-            /* Garantir que o botão de adicionar linhas seja visível */
-            [data-testid="stDataEditor"] [data-testid="dataframe-add-rows"] {
-                visibility: visible !important;
-                opacity: 1 !important;
-                display: flex !important;
-                pointer-events: auto !important;
-                z-index: 100 !important;
-            }
-            /* Ajustar altura mínima das células para evitar problemas de layout */
-            [data-testid="stDataEditor"] td {
-                min-height: 38px !important;
-            }
-            /* Otimizações de performance */
-            .stApp {
-                background-color: #ffff;
-            }
-            /* Reduzir animações para melhorar performance */
-            * {
-                transition-duration: 0s !important;
-                animation-duration: 0s !important;
-            }
-            /* Melhorar performance de tabelas grandes */
-            .stDataFrame {
-                max-height: 600px;
-                overflow-y: auto;
-            }
-            /* Corrigir problema de sobreposição que pode esconder botões */
-            .stDataEditor {
-                position: relative !important;
-                z-index: 1 !important;
-            }
-            /* Garantir que os botões de ação não sejam cortados */
-            .stDataEditor [data-testid="dataEditor-container"] {
-                overflow: visible !important;
-            }
-            /* Forçar visibilidade dos botões de edição e exclusão */
-            .stDataEditor [data-testid="dataEditor-addRows"],
-            .stDataEditor [data-testid="dataEditor-deleteRows"],
-            .stDataEditor [data-testid="dataEditor-saveButton"],
-            .stDataEditor [data-testid="dataEditor-editCell"] {
-                display: inline-flex !important;
-                visibility: visible !important;
-                opacity: 1 !important;
-                pointer-events: auto !important;
-                z-index: 999 !important;
-            }
-            /* Garantir que os botões não sejam escondidos por outros elementos */
-            .stDataEditor [data-testid="dataEditor-container"] button {
-                position: relative !important;
-                z-index: 999 !important;
-            }
         </style>
     """, unsafe_allow_html=True)
 
 local_css()
+
+# Inicialização dos dados locais
+if 'local_data' not in st.session_state:
+    st.session_state.local_data = {
+        "quimicos": pd.DataFrame(),
+        "biologicos": pd.DataFrame(),
+        "resultados": pd.DataFrame(),
+        "solicitacoes": pd.DataFrame()
+    }
 
 ########################################## CONEXÃO GOOGLE SHEETS ##########################################
 
@@ -291,8 +111,8 @@ def get_google_sheets_client():
         st.error(f"Erro na conexão: {str(e)}")
         return None
 
-def get_worksheet(sheet_name: str):
-    def _get_worksheet():
+def get_sheet(sheet_name: str):
+    def _get_sheet():
         try:
             client = get_google_sheets_client()
             if client is None:
@@ -300,13 +120,13 @@ def get_worksheet(sheet_name: str):
                 return None
                 
             spreadsheet = client.open_by_key(SHEET_ID)
-            worksheet = spreadsheet.worksheet(sheet_name)
-            return worksheet
+            sheet = spreadsheet.worksheet(sheet_name)
+            return sheet
         except Exception as e:
             st.error(f"Erro ao acessar planilha {sheet_name}: {str(e)}")
             return None
             
-    return retry_with_backoff(_get_worksheet, max_retries=5, initial_delay=2)
+    return retry_with_backoff(_get_sheet, max_retries=5, initial_delay=2)
 
 def retry_with_backoff(func, max_retries=5, initial_delay=1):
     """
@@ -355,7 +175,7 @@ def append_to_sheet(data_dict, sheet_name):
     def _append(data_dict=data_dict, sheet_name=sheet_name):
         try:
             # Obter a planilha
-            sheet = get_worksheet(sheet_name)
+            sheet = get_sheet(sheet_name)
             if not sheet:
                 st.error(f"Planilha '{sheet_name}' não encontrada.")
                 return False
@@ -372,13 +192,11 @@ def append_to_sheet(data_dict, sheet_name):
         except Exception as e:
             st.error(f"Erro ao adicionar dados: {str(e)}")
             return False
-            
-    return retry_with_backoff(_append, max_retries=3, initial_delay=2)
 
 def load_sheet_data(sheet_name: str) -> pd.DataFrame:
     def _load(sheet_name=sheet_name):
         try:
-            worksheet = get_worksheet(sheet_name)
+            worksheet = get_sheet(sheet_name)
             if worksheet is None:
                 st.warning(f"Planilha {sheet_name} não encontrada")
                 return pd.DataFrame()
@@ -421,7 +239,7 @@ def update_sheet(df: pd.DataFrame, sheet_name: str) -> bool:
     Atualiza uma planilha no Google Sheets e também atualiza o cache local
     """
     try:
-        worksheet = get_worksheet(sheet_name)
+        worksheet = get_sheet(sheet_name)
         if worksheet is None:
             st.error(f"Não foi possível acessar a planilha {sheet_name}")
             return False
@@ -672,11 +490,301 @@ def mostrar_formulario_solicitacao(quimico=None, biologico=None):
         st.session_state.form_submitted = False
     if 'form_success' not in st.session_state:
         st.session_state.form_success = False
-    if 'last_submission' not in st.session_state:
-        st.session_state.last_submission = None
     if 'just_submitted' not in st.session_state:
         st.session_state.just_submitted = False
+    if 'last_submission' not in st.session_state:
+        st.session_state.last_submission = None
+    if 'success_message_time' not in st.session_state:
+        st.session_state.success_message_time = None
+    if 'form_submitted_successfully' not in st.session_state:
+        st.session_state.form_submitted_successfully = False
+
+    col1, col2 = st.columns([4, 1])  # 4:1 ratio para alinhamento direito
+
+    with col1:
+        st.title("🧪 Compatibilidade")
+
+    with col2:
+        # Container com alinhamento à direita
+        st.markdown(
+            """
+            <div style='display: flex;
+                        justify-content: flex-end;
+                        align-items: center;
+                        height: 100%;'>
+            """,
+            unsafe_allow_html=True
+        )
+        
+        if st.button("Solicitar Novo Teste", key="btn_novo_teste", use_container_width=True):
+            # Limpar estados anteriores para garantir um novo formulário
+            if 'form_submitted' in st.session_state:
+                st.session_state.form_submitted = False
+            if 'form_success' in st.session_state:
+                st.session_state.form_success = False
+            if 'last_submission' in st.session_state:
+                st.session_state.last_submission = None
+            st.session_state.solicitar_novo_teste = True
+            st.session_state.pre_selecionado_quimico = None
+            st.session_state.pre_selecionado_biologico = None
+            
+        st.markdown("</div>", unsafe_allow_html=True)
     
+    dados = load_all_data()
+    
+    # Verificação detalhada dos dados
+    if dados["quimicos"].empty:
+        st.warning("""
+            **Nenhum produto químico cadastrado!**
+            Por favor:
+            1. Verifique a planilha 'Quimicos' no Google Sheets
+            2. Confira se há dados na planilha
+            3. Verifique as permissões de acesso
+        """)
+        return
+
+    if dados["biologicos"].empty:
+        st.warning("""
+            **Nenhum produto biológico cadastrado!**
+            Por favor:
+            1. Verifique a planilha 'Biologicos' no Google Sheets
+            2. Confira se há dados na planilha
+            3. Verifique as permissões de acesso
+        """)
+        return
+    
+    # Verificar se o botão de novo teste foi pressionado
+    if st.session_state.get('solicitar_novo_teste', False):
+        mostrar_formulario_solicitacao(
+            quimico=st.session_state.pre_selecionado_quimico,
+            biologico=st.session_state.pre_selecionado_biologico
+        )
+        return  # Importante: retornar para não mostrar o restante da interface
+    
+    # Interface de consulta de compatibilidade
+    col1, col2 = st.columns([1, 1])
+    with col1:
+        quimico = st.selectbox(
+            "Produto Químico",
+            options=sorted(dados["quimicos"]['Nome'].unique()) if not dados["quimicos"].empty and 'Nome' in dados["quimicos"].columns else [],
+            index=None,
+            key="compatibilidade_quimico"
+        )
+    
+    with col2:
+        biologico = st.selectbox(
+            "Produto Biológico",
+            options=sorted(dados["biologicos"]['Nome'].unique()) if not dados["biologicos"].empty and 'Nome' in dados["biologicos"].columns else [],
+            index=None,
+            key="compatibilidade_biologico"
+        )
+    
+    if quimico and biologico:
+        # Procurar na planilha de Resultados usando os nomes
+        resultado_existente = dados["resultados"][
+            (dados["resultados"]["Quimico"] == quimico) & 
+            (dados["resultados"]["Biologico"] == biologico)
+        ]
+        
+        if not resultado_existente.empty:
+            # Mostrar resultado de compatibilidade
+            compativel = resultado_existente.iloc[0]["Resultado"] == "Compatível"
+            
+            if compativel:
+                st.markdown("""
+                    <div class="resultado compativel">
+                    Compatível
+                </div>
+                """, unsafe_allow_html=True)
+            else:
+                st.markdown("""
+                    <div class="resultado incompativel">
+                    Incompatível
+                </div>
+                """, unsafe_allow_html=True)
+            
+            # Mostrar detalhes do teste
+            with st.expander("Ver detalhes do teste"):
+                st.write(f"**Data:** {resultado_existente.iloc[0]['Data']}")
+                st.write(f"**Quimico:** {resultado_existente.iloc[0]['Quimico']}")
+                st.write(f"**Biologico:** {resultado_existente.iloc[0]['Biologico']}")
+                st.write(f"**Tipo:** {resultado_existente.iloc[0]['Tipo']}")
+                st.write(f"**Duração:** {resultado_existente.iloc[0]['Duracao']} horas")
+                st.write(f"**Resultado:** {resultado_existente.iloc[0]['Resultado']}")
+        
+        else:
+            # Mostrar aviso de que não existe compatibilidade cadastrada
+            st.markdown("""
+                    <div class="resultado naotestado">
+                    Teste não realizado!
+                    Solicite um novo teste.
+                </div>
+                """, unsafe_allow_html=True)
+    
+    # Exibir mensagem de sucesso se acabou de enviar uma solicitação
+    if st.session_state.form_submitted_successfully:
+        st.success("Solicitação de novo teste enviada com sucesso!")
+        st.session_state.form_submitted_successfully = False  # Reseta o estado
+
+    # Função auxiliar para mostrar o formulário de solicitação
+def mostrar_formulario_solicitacao(quimico=None, biologico=None):
+    # Inicializar variáveis de estado se não existirem
+    if 'form_submitted' not in st.session_state:
+        st.session_state.form_submitted = False
+    if 'form_success' not in st.session_state:
+        st.session_state.form_success = False
+    if 'just_submitted' not in st.session_state:
+        st.session_state.just_submitted = False
+    if 'last_submission' not in st.session_state:
+        st.session_state.last_submission = None
+    if 'success_message_time' not in st.session_state:
+        st.session_state.success_message_time = None
+    if 'form_submitted_successfully' not in st.session_state:
+        st.session_state.form_submitted_successfully = False
+
+    col1, col2 = st.columns([4, 1])  # 4:1 ratio para alinhamento direito
+
+    with col1:
+        st.title("🧪 Compatibilidade")
+
+    with col2:
+        # Container com alinhamento à direita
+        st.markdown(
+            """
+            <div style='display: flex;
+                        justify-content: flex-end;
+                        align-items: center;
+                        height: 100%;'>
+            """,
+            unsafe_allow_html=True
+        )
+        
+        if st.button("Solicitar Novo Teste", key="btn_novo_teste", use_container_width=True):
+            # Limpar estados anteriores para garantir um novo formulário
+            if 'form_submitted' in st.session_state:
+                st.session_state.form_submitted = False
+            if 'form_success' in st.session_state:
+                st.session_state.form_success = False
+            if 'last_submission' in st.session_state:
+                st.session_state.last_submission = None
+            st.session_state.solicitar_novo_teste = True
+            st.session_state.pre_selecionado_quimico = None
+            st.session_state.pre_selecionado_biologico = None
+            
+        st.markdown("</div>", unsafe_allow_html=True)
+    
+    dados = load_all_data()
+    
+    # Verificação detalhada dos dados
+    if dados["quimicos"].empty:
+        st.warning("""
+            **Nenhum produto químico cadastrado!**
+            Por favor:
+            1. Verifique a planilha 'Quimicos' no Google Sheets
+            2. Confira se há dados na planilha
+            3. Verifique as permissões de acesso
+        """)
+        return
+
+    if dados["biologicos"].empty:
+        st.warning("""
+            **Nenhum produto biológico cadastrado!**
+            Por favor:
+            1. Verifique a planilha 'Biologicos' no Google Sheets
+            2. Confira se há dados na planilha
+            3. Verifique as permissões de acesso
+        """)
+        return
+    
+    # Verificar se o botão de novo teste foi pressionado
+    if st.session_state.get('solicitar_novo_teste', False):
+        mostrar_formulario_solicitacao(
+            quimico=st.session_state.pre_selecionado_quimico,
+            biologico=st.session_state.pre_selecionado_biologico
+        )
+        return  # Importante: retornar para não mostrar o restante da interface
+    
+    # Interface de consulta de compatibilidade
+    col1, col2 = st.columns([1, 1])
+    with col1:
+        quimico = st.selectbox(
+            "Produto Químico",
+            options=sorted(dados["quimicos"]['Nome'].unique()) if not dados["quimicos"].empty and 'Nome' in dados["quimicos"].columns else [],
+            index=None,
+            key="compatibilidade_quimico"
+        )
+    
+    with col2:
+        biologico = st.selectbox(
+            "Produto Biológico",
+            options=sorted(dados["biologicos"]['Nome'].unique()) if not dados["biologicos"].empty and 'Nome' in dados["biologicos"].columns else [],
+            index=None,
+            key="compatibilidade_biologico"
+        )
+    
+    if quimico and biologico:
+        # Procurar na planilha de Resultados usando os nomes
+        resultado_existente = dados["resultados"][
+            (dados["resultados"]["Quimico"] == quimico) & 
+            (dados["resultados"]["Biologico"] == biologico)
+        ]
+        
+        if not resultado_existente.empty:
+            # Mostrar resultado de compatibilidade
+            compativel = resultado_existente.iloc[0]["Resultado"] == "Compatível"
+            
+            if compativel:
+                st.markdown("""
+                    <div class="resultado compativel">
+                    Compatível
+                </div>
+                """, unsafe_allow_html=True)
+            else:
+                st.markdown("""
+                    <div class="resultado incompativel">
+                    Incompatível
+                </div>
+                """, unsafe_allow_html=True)
+            
+            # Mostrar detalhes do teste
+            with st.expander("Ver detalhes do teste"):
+                st.write(f"**Data:** {resultado_existente.iloc[0]['Data']}")
+                st.write(f"**Quimico:** {resultado_existente.iloc[0]['Quimico']}")
+                st.write(f"**Biologico:** {resultado_existente.iloc[0]['Biologico']}")
+                st.write(f"**Tipo:** {resultado_existente.iloc[0]['Tipo']}")
+                st.write(f"**Duração:** {resultado_existente.iloc[0]['Duracao']} horas")
+                st.write(f"**Resultado:** {resultado_existente.iloc[0]['Resultado']}")
+        
+        else:
+            # Mostrar aviso de que não existe compatibilidade cadastrada
+            st.markdown("""
+                    <div class="resultado naotestado">
+                    Teste não realizado!
+                    Solicite um novo teste.
+                </div>
+                """, unsafe_allow_html=True)
+    
+    # Exibir mensagem de sucesso se acabou de enviar uma solicitação
+    if st.session_state.form_submitted_successfully:
+        st.success("Solicitação de novo teste enviada com sucesso!")
+        st.session_state.form_submitted_successfully = False  # Reseta o estado
+
+    # Função auxiliar para mostrar o formulário de solicitação
+def mostrar_formulario_solicitacao(quimico=None, biologico=None):
+    # Inicializar variáveis de estado se não existirem
+    if 'form_submitted' not in st.session_state:
+        st.session_state.form_submitted = False
+    if 'form_success' not in st.session_state:
+        st.session_state.form_success = False
+    if 'just_submitted' not in st.session_state:
+        st.session_state.just_submitted = False
+    if 'last_submission' not in st.session_state:
+        st.session_state.last_submission = None
+    if 'success_message_time' not in st.session_state:
+        st.session_state.success_message_time = None
+    if 'form_submitted_successfully' not in st.session_state:
+        st.session_state.form_submitted_successfully = False
+
     # Função para processar o envio do formulário
     def submit_form():
         # Obter valores do formulário
@@ -1548,8 +1656,9 @@ def gerenciamento():
                             except Exception as e:
                                 st.error(f"Erro ao salvar alterações: {str(e)}")
 
-    # Aplicar correção para garantir que os botões nas tabelas sejam visíveis
-    fix_table_buttons()
+    # Removendo o componente JavaScript para evitar conflitos
+    def fix_table_buttons():
+        pass
 
 ########################################## SIDEBAR ##########################################
 
