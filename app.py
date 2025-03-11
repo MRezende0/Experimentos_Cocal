@@ -360,9 +360,9 @@ def _load_and_validate_sheet(sheet_name):
 ########################################## COMPATIBILIDADE ##########################################
 
 def compatibilidade():
-    # Inicializar variável de estado para controle do formulário
-    if 'solicitar_novo_teste' not in st.session_state:
-        st.session_state.solicitar_novo_teste = False
+    # Garantir que o formulário não seja exibido ao abrir a página
+    st.session_state.solicitar_novo_teste = False
+    
     if 'pre_selecionado_quimico' not in st.session_state:
         st.session_state.pre_selecionado_quimico = None
     if 'pre_selecionado_biologico' not in st.session_state:
@@ -497,11 +497,6 @@ def compatibilidade():
                 </div>
                 """, unsafe_allow_html=True)
     
-    # Exibir mensagem de sucesso se acabou de enviar uma solicitação
-    if st.session_state.form_submitted_successfully:
-        st.success("Solicitação de novo teste enviada com sucesso!")
-        st.session_state.form_submitted_successfully = False  # Reseta o estado
-
     # Função auxiliar para mostrar o formulário de solicitação
 def mostrar_formulario_solicitacao(quimico=None, biologico=None):
     # Inicializar variáveis de estado se não existirem
@@ -676,8 +671,7 @@ def gerenciamento():
                                 st.session_state.quimico_form_success = True
                                 st.session_state.quimico_form_error = ""
                                 st.session_state.quimico_just_submitted = True
-                                # Garantir que permanecemos na página atual
-                                st.session_state.current_page = "Gerenciamento"
+                                st.session_state.gerenciamento_aba_ativa = 0  # Manter na aba de químicos
                             else:
                                 st.session_state.quimico_form_submitted = True
                                 st.session_state.quimico_form_success = False
@@ -874,6 +868,7 @@ def gerenciamento():
                                 st.session_state.biologico_form_submitted = True
                                 st.session_state.biologico_form_success = True
                                 st.session_state.biologico_form_error = ""
+                                st.session_state.gerenciamento_aba_ativa = 1  # Manter na aba de biológicos
                             else:
                                 st.session_state.biologico_form_submitted = True
                                 st.session_state.biologico_form_success = False
@@ -1065,8 +1060,7 @@ def gerenciamento():
                                 st.session_state.compatibilidade_form_submitted = True
                                 st.session_state.compatibilidade_form_success = True
                                 st.session_state.compatibilidade_form_error = ""
-                                # Garantir que permanecemos na página atual
-                                st.session_state.current_page = "Gerenciamento"
+                                st.session_state.gerenciamento_aba_ativa = 2  # Manter na aba de resultados
                             else:
                                 st.session_state.compatibilidade_form_submitted = True
                                 st.session_state.compatibilidade_form_success = False
@@ -1309,8 +1303,7 @@ def gerenciamento():
                             st.session_state.gerenciamento_last_submission = nova_solicitacao
                             # Marcar como enviado com sucesso
                             st.session_state.gerenciamento_form_submitted = True
-                            # Garantir que permanecemos na página atual
-                            st.session_state.current_page = "Gerenciamento"
+                            st.session_state.gerenciamento_aba_ativa = 3  # Manter na aba de solicitacoes
                         else:
                             st.error("Falha ao adicionar solicitação")
                             return False
