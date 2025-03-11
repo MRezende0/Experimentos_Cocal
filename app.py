@@ -898,8 +898,7 @@ def gerenciamento():
                     height=400,
                     on_change=lambda: st.session_state.edited_data.update({"quimicos": True}),
                     disabled=False,
-                    column_order=COLUNAS_ESPERADAS["Quimicos"],
-                    key_column="Nome"
+                    column_order=COLUNAS_ESPERADAS["Quimicos"]
                 )
                 
                 # Botão para salvar alterações
@@ -1075,8 +1074,7 @@ def gerenciamento():
                     height=400,
                     on_change=lambda: st.session_state.edited_data.update({"biologicos": True}),
                     disabled=False,
-                    column_order=COLUNAS_ESPERADAS["Biologicos"],
-                    key_column="Nome"
+                    column_order=COLUNAS_ESPERADAS["Biologicos"]
                 )
                 
                 # Botão para salvar alterações
@@ -1292,8 +1290,7 @@ def gerenciamento():
                     height=400,
                     on_change=lambda: st.session_state.edited_data.update({"resultados": True}),
                     disabled=False,
-                    column_order=COLUNAS_ESPERADAS["Resultados"],
-                    key_column=None
+                    column_order=COLUNAS_ESPERADAS["Resultados"]
                 )
                 
                 # Botão para salvar alterações
@@ -1504,8 +1501,7 @@ def gerenciamento():
                     height=400,
                     on_change=lambda: st.session_state.edited_data.update({"solicitacoes": True}),
                     disabled=False,
-                    column_order=COLUNAS_ESPERADAS["Solicitacoes"],
-                    key_column=None
+                    column_order=COLUNAS_ESPERADAS["Solicitacoes"]
                 )
                 
                 # Botão para salvar alterações
