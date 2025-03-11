@@ -610,7 +610,7 @@ def mostrar_formulario_solicitacao(quimico=None, biologico=None):
     
     # Usar st.form para evitar recarregamentos
     with st.form(key="solicitar_teste_form"):
-        st.date_input("Data da Solicitação", value=datetime.now(), key="data_solicitacao")
+        st.date_input("Data da Solicitação", value=datetime.now(), key="data_solicitacao", format="DD/MM/YYYY")
         st.text_input("Nome do solicitante", key="solicitante")
         
         # Usar campos de texto para permitir novos produtos
@@ -795,11 +795,7 @@ def gerenciamento():
                     use_container_width=True,
                     height=400,
                     on_change=lambda: st.session_state.edited_data.update({"quimicos": True}),
-                    disabled=False,
-                    editor_options={
-                        "displayAddRows": True,
-                        "displayDeleteButton": True
-                    }
+                    disabled=False
                 )
                 
                 # Botão para salvar alterações
@@ -974,11 +970,7 @@ def gerenciamento():
                     use_container_width=True,
                     height=400,
                     on_change=lambda: st.session_state.edited_data.update({"biologicos": True}),
-                    disabled=False,
-                    editor_options={
-                        "displayAddRows": True,
-                        "displayDeleteButton": True
-                    }
+                    disabled=False
                 )
                 
                 # Botão para salvar alterações
@@ -1091,7 +1083,7 @@ def gerenciamento():
                             options=sorted(dados["quimicos"]["Nome"].unique().tolist()),
                             key="resultado_quimico"
                         )
-                        st.date_input("Data do Teste", key="resultado_data")
+                        st.date_input("Data do Teste", key="resultado_data", format="DD/MM/YYYY")
                         st.selectbox("Tipo de Teste", options=["Simples", "Composto"], key="resultado_tipo")
                     with col_b:
                         st.selectbox(
@@ -1193,11 +1185,7 @@ def gerenciamento():
                     use_container_width=True,
                     height=400,
                     on_change=lambda: st.session_state.edited_data.update({"resultados": True}),
-                    disabled=False,
-                    editor_options={
-                        "displayAddRows": True,
-                        "displayDeleteButton": True
-                    }
+                    disabled=False
                 )
                 
                 # Botão para salvar alterações
@@ -1316,7 +1304,7 @@ def gerenciamento():
                         st.text_input("Nome do solicitante", key="gerenciamento_solicitante")
                         st.text_input("Produto Químico", key="gerenciamento_quimico")
                     with col2:
-                        st.date_input("Data da Solicitação", value=datetime.now(), key="gerenciamento_data")
+                        st.date_input("Data da Solicitação", value=datetime.now(), key="gerenciamento_data", format="DD/MM/YYYY")
                         st.text_input("Produto Biológico", key="gerenciamento_biologico")
                     
                     st.text_area("Observações", key="gerenciamento_observacoes")
@@ -1407,11 +1395,7 @@ def gerenciamento():
                     use_container_width=True,
                     height=400,
                     on_change=lambda: st.session_state.edited_data.update({"solicitacoes": True}),
-                    disabled=False,
-                    editor_options={
-                        "displayAddRows": True,
-                        "displayDeleteButton": True
-                    }
+                    disabled=False
                 )
                 
                 # Botão para salvar alterações
