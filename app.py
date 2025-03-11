@@ -642,149 +642,6 @@ def mostrar_formulario_solicitacao(quimico=None, biologico=None):
     if 'form_submitted_successfully' not in st.session_state:
         st.session_state.form_submitted_successfully = False
 
-    col1, col2 = st.columns([4, 1])  # 4:1 ratio para alinhamento direito
-
-    with col1:
-        st.title("🧪 Compatibilidade")
-
-    with col2:
-        # Container com alinhamento à direita
-        st.markdown(
-            """
-            <div style='display: flex;
-                        justify-content: flex-end;
-                        align-items: center;
-                        height: 100%;'>
-            """,
-            unsafe_allow_html=True
-        )
-        
-        if st.button("Solicitar Novo Teste", key="btn_novo_teste", use_container_width=True):
-            # Limpar estados anteriores para garantir um novo formulário
-            if 'form_submitted' in st.session_state:
-                st.session_state.form_submitted = False
-            if 'form_success' in st.session_state:
-                st.session_state.form_success = False
-            if 'last_submission' in st.session_state:
-                st.session_state.last_submission = None
-            st.session_state.solicitar_novo_teste = True
-            st.session_state.pre_selecionado_quimico = None
-            st.session_state.pre_selecionado_biologico = None
-            
-        st.markdown("</div>", unsafe_allow_html=True)
-    
-    dados = load_all_data()
-    
-    # Verificação detalhada dos dados
-    if dados["quimicos"].empty:
-        st.warning("""
-            **Nenhum produto químico cadastrado!**
-            Por favor:
-            1. Verifique a planilha 'Quimicos' no Google Sheets
-            2. Confira se há dados na planilha
-            3. Verifique as permissões de acesso
-        """)
-        return
-
-    if dados["biologicos"].empty:
-        st.warning("""
-            **Nenhum produto biológico cadastrado!**
-            Por favor:
-            1. Verifique a planilha 'Biologicos' no Google Sheets
-            2. Confira se há dados na planilha
-            3. Verifique as permissões de acesso
-        """)
-        return
-    
-    # Verificar se o botão de novo teste foi pressionado
-    if st.session_state.get('solicitar_novo_teste', False):
-        mostrar_formulario_solicitacao(
-            quimico=st.session_state.pre_selecionado_quimico,
-            biologico=st.session_state.pre_selecionado_biologico
-        )
-        return  # Importante: retornar para não mostrar o restante da interface
-    
-    # Interface de consulta de compatibilidade
-    col1, col2 = st.columns([1, 1])
-    with col1:
-        quimico = st.selectbox(
-            "Produto Químico",
-            options=sorted(dados["quimicos"]['Nome'].unique()) if not dados["quimicos"].empty and 'Nome' in dados["quimicos"].columns else [],
-            index=None,
-            key="compatibilidade_quimico"
-        )
-    
-    with col2:
-        biologico = st.selectbox(
-            "Produto Biológico",
-            options=sorted(dados["biologicos"]['Nome'].unique()) if not dados["biologicos"].empty and 'Nome' in dados["biologicos"].columns else [],
-            index=None,
-            key="compatibilidade_biologico"
-        )
-    
-    if quimico and biologico:
-        # Procurar na planilha de Resultados usando os nomes
-        resultado_existente = dados["resultados"][
-            (dados["resultados"]["Quimico"] == quimico) & 
-            (dados["resultados"]["Biologico"] == biologico)
-        ]
-        
-        if not resultado_existente.empty:
-            # Mostrar resultado de compatibilidade
-            compativel = resultado_existente.iloc[0]["Resultado"] == "Compatível"
-            
-            if compativel:
-                st.markdown("""
-                    <div class="resultado compativel">
-                    Compatível
-                </div>
-                """, unsafe_allow_html=True)
-            else:
-                st.markdown("""
-                    <div class="resultado incompativel">
-                    Incompatível
-                </div>
-                """, unsafe_allow_html=True)
-            
-            # Mostrar detalhes do teste
-            with st.expander("Ver detalhes do teste"):
-                st.write(f"**Data:** {resultado_existente.iloc[0]['Data']}")
-                st.write(f"**Quimico:** {resultado_existente.iloc[0]['Quimico']}")
-                st.write(f"**Biologico:** {resultado_existente.iloc[0]['Biologico']}")
-                st.write(f"**Tipo:** {resultado_existente.iloc[0]['Tipo']}")
-                st.write(f"**Duração:** {resultado_existente.iloc[0]['Duracao']} horas")
-                st.write(f"**Resultado:** {resultado_existente.iloc[0]['Resultado']}")
-        
-        else:
-            # Mostrar aviso de que não existe compatibilidade cadastrada
-            st.markdown("""
-                    <div class="resultado naotestado">
-                    Teste não realizado!
-                    Solicite um novo teste.
-                </div>
-                """, unsafe_allow_html=True)
-    
-    # Exibir mensagem de sucesso se acabou de enviar uma solicitação
-    if st.session_state.form_submitted_successfully:
-        st.success("Solicitação de novo teste enviada com sucesso!")
-        st.session_state.form_submitted_successfully = False  # Reseta o estado
-
-    # Função auxiliar para mostrar o formulário de solicitação
-def mostrar_formulario_solicitacao(quimico=None, biologico=None):
-    # Inicializar variáveis de estado se não existirem
-    if 'form_submitted' not in st.session_state:
-        st.session_state.form_submitted = False
-    if 'form_success' not in st.session_state:
-        st.session_state.form_success = False
-    if 'just_submitted' not in st.session_state:
-        st.session_state.just_submitted = False
-    if 'last_submission' not in st.session_state:
-        st.session_state.last_submission = None
-    if 'success_message_time' not in st.session_state:
-        st.session_state.success_message_time = None
-    if 'form_submitted_successfully' not in st.session_state:
-        st.session_state.form_submitted_successfully = False
-
     # Função para processar o envio do formulário
     def submit_form():
         # Obter valores do formulário
@@ -993,10 +850,6 @@ def gerenciamento():
                     # Adicionar uma linha vazia para facilitar a adição de novos dados
                     df_filtrado = df_vazio
                 
-                # Definir função para marcar dados como editados
-                def marcar_como_editado(tabela):
-                    st.session_state.edited_data[tabela] = True
-                
                 # Tabela editável
                 edited_df = st.data_editor(
                     df_filtrado,
@@ -1043,13 +896,31 @@ def gerenciamento():
                                     st.warning("Não há dados para salvar")
                                     st.stop()
                                 
-                                # Atualizar dados na sessão
-                                st.session_state.local_data["quimicos"] = edited_df
+                                # Atualizar dados na sessão - IMPORTANTE: atualiza antes de enviar para o Google Sheets
+                                # Aqui está a correção principal: atualizar todos os dados, não apenas os filtrados
+                                if filtro_nome or filtro_tipo:
+                                    # Criar uma máscara para os dados que NÃO correspondem ao filtro atual
+                                    mask = pd.Series(True, index=st.session_state.local_data["quimicos"].index)
+                                    if filtro_nome:
+                                        mask = mask & ~st.session_state.local_data["quimicos"]["Nome"].str.contains(filtro_nome, case=False, na=False)
+                                    if filtro_tipo and filtro_tipo != "Todos":
+                                        mask = mask & (st.session_state.local_data["quimicos"]["Tipo"] != filtro_tipo)
+                                    
+                                    # Manter apenas os dados que não correspondem ao filtro
+                                    dados_restantes = st.session_state.local_data["quimicos"][mask]
+                                    
+                                    # Concatenar com os dados editados
+                                    st.session_state.local_data["quimicos"] = pd.concat([dados_restantes, edited_df], ignore_index=True)
+                                else:
+                                    # Se não houver filtro, substituir todos os dados
+                                    st.session_state.local_data["quimicos"] = edited_df
                                 
                                 # Depois enviar para o Google Sheets
-                                if update_sheet(edited_df, "Quimicos"):
+                                if update_sheet(st.session_state.local_data["quimicos"], "Quimicos"):
                                     st.session_state.edited_data["quimicos"] = False
                                     st.success("Dados salvos com sucesso!")
+                                    # Recarregar a página para mostrar os dados atualizados
+                                    st.experimental_rerun()
                             except Exception as e:
                                 st.error(f"Erro ao salvar alterações: {str(e)}")
     
@@ -1135,7 +1006,6 @@ def gerenciamento():
                             st.success(f"Produto {st.session_state.biologico_nome} adicionado com sucesso!")
                             st.session_state.biologico_form_submitted = False
                             st.session_state.biologico_form_success = False
-                            st.session_state.biologico_just_submitted = False
                     else:
                         st.error(st.session_state.biologico_form_error)
             
@@ -1219,11 +1089,27 @@ def gerenciamento():
                                     st.warning("Não há dados para salvar")
                                     st.stop()
                                 
-                                # Atualizar dados na sessão
-                                st.session_state.local_data["biologicos"] = edited_df
+                                # Atualizar dados na sessão - IMPORTANTE: atualiza antes de enviar para o Google Sheets
+                                # Aqui está a correção principal: atualizar todos os dados, não apenas os filtrados
+                                if filtro_nome or filtro_tipo:
+                                    # Criar uma máscara para os dados que NÃO correspondem ao filtro atual
+                                    mask = pd.Series(True, index=st.session_state.local_data["biologicos"].index)
+                                    if filtro_nome:
+                                        mask = mask & ~st.session_state.local_data["biologicos"]["Nome"].str.contains(filtro_nome, case=False, na=False)
+                                    if filtro_tipo and filtro_tipo != "Todos":
+                                        mask = mask & (st.session_state.local_data["biologicos"]["Tipo"] != filtro_tipo)
+                                    
+                                    # Manter apenas os dados que não correspondem ao filtro
+                                    dados_restantes = st.session_state.local_data["biologicos"][mask]
+                                    
+                                    # Concatenar com os dados editados
+                                    st.session_state.local_data["biologicos"] = pd.concat([dados_restantes, edited_df], ignore_index=True)
+                                else:
+                                    # Se não houver filtro, substituir todos os dados
+                                    st.session_state.local_data["biologicos"] = edited_df
                                 
                                 # Depois enviar para o Google Sheets
-                                if update_sheet(edited_df, "Biologicos"):
+                                if update_sheet(st.session_state.local_data["biologicos"], "Biologicos"):
                                     st.session_state.edited_data["biologicos"] = False
                                     st.success("Dados salvos com sucesso!")
                             except Exception as e:
@@ -1438,8 +1324,27 @@ def gerenciamento():
                                 # Atualizar dados na sessão
                                 st.session_state.local_data["resultados"] = edited_df
                                 
+                                # Atualizar dados na sessão - IMPORTANTE: atualiza antes de enviar para o Google Sheets
+                                # Aqui está a correção principal: atualizar todos os dados, não apenas os filtrados
+                                if filtro_quimico or filtro_biologico:
+                                    # Criar uma máscara para os dados que NÃO correspondem ao filtro atual
+                                    mask = pd.Series(True, index=st.session_state.local_data["resultados"].index)
+                                    if filtro_quimico and filtro_quimico != "Todos":
+                                        mask = mask & (st.session_state.local_data["resultados"]["Quimico"] != filtro_quimico)
+                                    if filtro_biologico and filtro_biologico != "Todos":
+                                        mask = mask & (st.session_state.local_data["resultados"]["Biologico"] != filtro_biologico)
+                                    
+                                    # Manter apenas os dados que não correspondem ao filtro
+                                    dados_restantes = st.session_state.local_data["resultados"][mask]
+                                    
+                                    # Concatenar com os dados editados
+                                    st.session_state.local_data["resultados"] = pd.concat([dados_restantes, edited_df], ignore_index=True)
+                                else:
+                                    # Se não houver filtro, substituir todos os dados
+                                    st.session_state.local_data["resultados"] = edited_df
+                                
                                 # Depois enviar para o Google Sheets
-                                if update_sheet(edited_df, "Resultados"):
+                                if update_sheet(st.session_state.local_data["resultados"], "Resultados"):
                                     st.session_state.edited_data["resultados"] = False
                                     st.success("Dados salvos com sucesso!")
                             except Exception as e:
@@ -1649,10 +1554,32 @@ def gerenciamento():
                                 # Atualizar dados na sessão
                                 st.session_state.local_data["solicitacoes"] = edited_df
                                 
+                                # Atualizar dados na sessão - IMPORTANTE: atualiza antes de enviar para o Google Sheets
+                                # Aqui está a correção principal: atualizar todos os dados, não apenas os filtrados
+                                if filtro_status or filtro_quimico or filtro_biologico:
+                                    # Criar uma máscara para os dados que NÃO correspondem ao filtro atual
+                                    mask = pd.Series(True, index=st.session_state.local_data["solicitacoes"].index)
+                                    if filtro_status and filtro_status != "Todos":
+                                        mask = mask & (st.session_state.local_data["solicitacoes"]["Status"] != filtro_status)
+                                    if filtro_quimico and filtro_quimico != "Todos":
+                                        mask = mask & (st.session_state.local_data["solicitacoes"]["Quimico"] != filtro_quimico)
+                                    if filtro_biologico and filtro_biologico != "Todos":
+                                        mask = mask & (st.session_state.local_data["solicitacoes"]["Biologico"] != filtro_biologico)
+                                    
+                                    # Manter apenas os dados que não correspondem ao filtro
+                                    dados_restantes = st.session_state.local_data["solicitacoes"][mask]
+                                    
+                                    # Concatenar com os dados editados
+                                    st.session_state.local_data["solicitacoes"] = pd.concat([dados_restantes, edited_df], ignore_index=True)
+                                else:
+                                    # Se não houver filtro, substituir todos os dados
+                                    st.session_state.local_data["solicitacoes"] = edited_df
+                                
                                 # Depois enviar para o Google Sheets
-                                if update_sheet(edited_df, "Solicitacoes"):
+                                if update_sheet(st.session_state.local_data["solicitacoes"], "Solicitacoes"):
                                     st.session_state.edited_data["solicitacoes"] = False
                                     st.success("Dados salvos com sucesso!")
+                                    st.experimental_rerun()
                             except Exception as e:
                                 st.error(f"Erro ao salvar alterações: {str(e)}")
 
