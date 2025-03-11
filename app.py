@@ -896,21 +896,13 @@ def gerenciamento():
                                     st.warning("Não há dados para salvar")
                                     st.stop()
                                 
-                                # Atualizar dados na sessão - IMPORTANTE: atualiza antes de enviar para o Google Sheets
-                                # Aqui está a correção principal: atualizar todos os dados, não apenas os filtrados
-                                if filtro_nome or filtro_tipo:
-                                    # Criar uma máscara para os dados que NÃO correspondem ao filtro atual
-                                    mask = pd.Series(True, index=st.session_state.local_data["quimicos"].index)
-                                    if filtro_nome:
-                                        mask = mask & ~st.session_state.local_data["quimicos"]["Nome"].str.contains(filtro_nome, case=False, na=False)
-                                    if filtro_tipo and filtro_tipo != "Todos":
-                                        mask = mask & (st.session_state.local_data["quimicos"]["Tipo"] != filtro_tipo)
-                                    
-                                    # Manter apenas os dados que não correspondem ao filtro
-                                    dados_restantes = st.session_state.local_data["quimicos"][mask]
-                                    
-                                    # Concatenar com os dados editados
-                                    st.session_state.local_data["quimicos"] = pd.concat([dados_restantes, edited_df], ignore_index=True)
+                                if filtro_nome != "Todos" or filtro_tipo != "Todos":
+                                    # Criar máscara para as linhas originais que correspondem ao filtro
+                                    mask = st.session_state.local_data["quimicos"]["Nome"].isin(edited_df["Nome"])
+                                    # Remover as linhas filtradas do DataFrame original
+                                    dados_original = st.session_state.local_data["quimicos"][~mask]
+                                    # Concatenar com as linhas editadas
+                                    st.session_state.local_data["quimicos"] = pd.concat([dados_original, edited_df], ignore_index=True)
                                 else:
                                     # Se não houver filtro, substituir todos os dados
                                     st.session_state.local_data["quimicos"] = edited_df
@@ -1089,21 +1081,10 @@ def gerenciamento():
                                     st.warning("Não há dados para salvar")
                                     st.stop()
                                 
-                                # Atualizar dados na sessão - IMPORTANTE: atualiza antes de enviar para o Google Sheets
-                                # Aqui está a correção principal: atualizar todos os dados, não apenas os filtrados
-                                if filtro_nome or filtro_tipo:
-                                    # Criar uma máscara para os dados que NÃO correspondem ao filtro atual
-                                    mask = pd.Series(True, index=st.session_state.local_data["biologicos"].index)
-                                    if filtro_nome:
-                                        mask = mask & ~st.session_state.local_data["biologicos"]["Nome"].str.contains(filtro_nome, case=False, na=False)
-                                    if filtro_tipo and filtro_tipo != "Todos":
-                                        mask = mask & (st.session_state.local_data["biologicos"]["Tipo"] != filtro_tipo)
-                                    
-                                    # Manter apenas os dados que não correspondem ao filtro
-                                    dados_restantes = st.session_state.local_data["biologicos"][mask]
-                                    
-                                    # Concatenar com os dados editados
-                                    st.session_state.local_data["biologicos"] = pd.concat([dados_restantes, edited_df], ignore_index=True)
+                                if filtro_nome != "Todos" or filtro_tipo != "Todos":
+                                    mask = st.session_state.local_data["biologicos"]["Nome"].isin(edited_df["Nome"])
+                                    dados_original = st.session_state.local_data["biologicos"][~mask]
+                                    st.session_state.local_data["biologicos"] = pd.concat([dados_original, edited_df], ignore_index=True)
                                 else:
                                     # Se não houver filtro, substituir todos os dados
                                     st.session_state.local_data["biologicos"] = edited_df
