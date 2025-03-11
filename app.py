@@ -265,25 +265,15 @@ def update_sheet(df: pd.DataFrame, sheet_name: str) -> bool:
         for col in df_copy.columns:
             if pd.api.types.is_datetime64_any_dtype(df_copy[col]):
                 df_copy[col] = df_copy[col].dt.strftime('%Y-%m-%d')
-            elif pd.api.types.is_object_dtype(df_copy[col]) and df_copy[col].notna().any():
-                # Tentar converter strings de data para formato consistente
-                try:
-                    sample_val = df_copy.loc[df_copy[col].first_valid_index(), col]
-                    if isinstance(sample_val, str) and '-' in sample_val:
-                        # Provavelmente é uma data em formato string
-                        pass  # Manter como está
-                except:
-                    pass
                 
         # Preparar dados para atualização
         header = df_copy.columns.tolist()
         values = df_copy.values.tolist()
         all_values = [header] + values
         
-        # Usar batch_update para melhorar a performance
+        # Atualizar toda a planilha de uma vez
         worksheet.clear()
-        # Corrigir o erro de atualização especificando a célula inicial 'A1'
-        worksheet.update('A1', all_values)
+        worksheet.update('A1', all_values, value_input_option='USER_ENTERED')  # Alteração importante aqui
         
         # Atualizar o cache local
         st.session_state.local_data[sheet_name.lower()] = df
@@ -791,13 +781,12 @@ def gerenciamento():
                                     df_final = edited_df
 
                                 # Atualizar dados locais e planilha
-                                st.session_state.local_data["quimicos"] = df_final
+                                st.session_state.local_data["quimicos"] = edited_df
                                 
-                                if update_sheet(df_final, "Quimicos"):
+                                if update_sheet(edited_df, "Quimicos"):
                                     st.session_state.edited_data["quimicos"] = False
                                     st.success("Dados salvos com sucesso!")
-                                    # Forçar atualização completa
-                                    st.cache_data.clear()
+                                    st.rerun()
 
                             except Exception as e:
                                 st.error(f"Erro ao salvar: {str(e)}")
@@ -978,12 +967,12 @@ def gerenciamento():
                                     df_final = edited_df
                                 
                                 # Atualizar dados locais e planilha
-                                st.session_state.local_data["biologicos"] = df_final
+                                st.session_state.local_data["biologicos"] = edited_df
                                 
-                                if update_sheet(df_final, "Biologicos"):
+                                if update_sheet(edited_df, "Biologicos"):
                                     st.session_state.edited_data["biologicos"] = False
                                     st.success("Dados salvos com sucesso!")
-                                    # Recarregar a página para mostrar os dados atualizados
+                                    st.rerun()
                             except Exception as e:
                                 st.error(f"Erro ao salvar alterações: {str(e)}")
     
@@ -1216,9 +1205,10 @@ def gerenciamento():
                                     st.session_state.local_data["resultados"] = edited_df
                                 
                                 # Depois enviar para o Google Sheets
-                                if update_sheet(st.session_state.local_data["resultados"], "Resultados"):
+                                if update_sheet(edited_df, "Resultados"):
                                     st.session_state.edited_data["resultados"] = False
                                     st.success("Dados salvos com sucesso!")
+                                    st.rerun()
                             except Exception as e:
                                 st.error(f"Erro ao salvar alterações: {str(e)}")
     
@@ -1450,14 +1440,13 @@ def gerenciamento():
                                     df_final = edited_df
 
                                 # Atualizar o estado da sessão
-                                st.session_state.local_data["solicitacoes"] = df_final
+                                st.session_state.local_data["solicitacoes"] = edited_df
 
                                 # Enviar para o Google Sheets
-                                if update_sheet(df_final, "Solicitacoes"):
+                                if update_sheet(edited_df, "Solicitacoes"):
                                     st.session_state.edited_data["solicitacoes"] = False
                                     st.success("Dados salvos com sucesso!")
-                                    # Forçar atualização completa
-                                    st.cache_data.clear()
+                                    st.rerun()
                             except Exception as e:
                                 st.error(f"Erro ao salvar dados: {str(e)}")
                                 st.stop()
