@@ -525,6 +525,11 @@ def mostrar_formulario_solicitacao(quimico=None, biologico=None):
 
     # Função para processar o envio do formulário
     def submit_form():
+
+        # Resetar estados de mensagem
+        st.session_state.form_error_message = None
+        st.session_state.form_success_message = None
+
         # Obter valores do formulário
         data = st.session_state.data_solicitacao
         solicitante = st.session_state.solicitante
@@ -533,13 +538,15 @@ def mostrar_formulario_solicitacao(quimico=None, biologico=None):
         observacoes = st.session_state.observacoes
         
         # Armazenar informações de validação para mostrar após o formulário
-        if not all([solicitante, quimico_input, biologico_input]):
+        if not all([solicitante.strip(), quimico_input.strip(), biologico_input.strip()]):
             st.session_state.form_error_message = """
-            Por favor, preencha todos os campos obrigatórios:
+            **Campos obrigatórios não preenchidos!**
+            Por favor, preencha:
             - Nome do solicitante
             - Nome do produto químico
             - Nome do produto biológico
             """
+            st.session_state.form_submitted = True  # Adicionado para forçar exibição do erro
             return
 
         # Preparar dados da solicitação
@@ -681,7 +688,6 @@ def gerenciamento():
                                 st.session_state.quimico_form_success = True
                                 st.session_state.quimico_form_error = ""
                                 st.session_state.quimico_just_submitted = True
-                                st.session_state.gerenciamento_aba_ativa = 0  # Manter na aba de químicos
                             else:
                                 st.session_state.quimico_form_submitted = True
                                 st.session_state.quimico_form_success = False
