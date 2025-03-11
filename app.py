@@ -497,6 +497,11 @@ def compatibilidade():
                 </div>
                 """, unsafe_allow_html=True)
     
+    # Exibir mensagem de sucesso se acabou de enviar uma solicitação
+    if st.session_state.form_submitted_successfully:
+        st.success("Solicitação de novo teste enviada com sucesso!")
+        st.session_state.form_submitted_successfully = False  # Reseta o estado
+
     # Função auxiliar para mostrar o formulário de solicitação
 def mostrar_formulario_solicitacao(quimico=None, biologico=None):
     # Inicializar variáveis de estado se não existirem
