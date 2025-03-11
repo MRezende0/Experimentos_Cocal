@@ -63,6 +63,10 @@ def local_css():
                 background-color: #FFB6C1;
                 color: #8B0000;
             }
+            .naotestado {
+                background-color: #fffce8;
+                color: #916c04;
+            }
             /* Estabilizar tabelas */
             [data-testid="stDataFrame"], [data-testid="stTable"], [data-testid="stDataEditor"] {
                 width: 100% !important;
@@ -538,11 +542,12 @@ def compatibilidade():
         
         else:
             # Mostrar aviso de que não existe compatibilidade cadastrada
-            st.warning(f"""
-                **Teste não realizado!**
-                
-                Solicite um novo teste.
-            """)
+            st.markdown("""
+                    <div class="resultado naotestado">
+                    Teste não realizado!
+                    Solicite um novo teste.
+                </div>
+                """, unsafe_allow_html=True)
     
     # Exibir mensagem de sucesso se acabou de enviar uma solicitação
     if st.session_state.form_submitted_successfully:
