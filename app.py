@@ -1353,7 +1353,7 @@ def gerenciamento():
                     df_filtrado,
                     hide_index=True,
                     num_rows="dynamic",
-                    key=f"solicitacoes_editor_{filtro_status}_{filtro_quimico}_{filtro_biologico}_{int(time.time())}",
+                    key=f"solicitacoes_editor_{filtro_status}_{filtro_quimico}_{filtro_biologico}",
                     column_config={
                         "Data": st.column_config.TextColumn("Data da Solicitação", required=True),
                         "Solicitante": st.column_config.TextColumn("Solicitante", required=True),
@@ -1412,23 +1412,35 @@ def gerenciamento():
                                 # Aqui está a correção principal: atualizar todos os dados, não apenas os filtrados
                                 if filtro_status != "Todos" or filtro_quimico != "Todos" or filtro_biologico != "Todos":
                                     df_completo = st.session_state.local_data["solicitacoes"].copy()
-                                    mask = (
-                                        (df_completo["Status"] == filtro_status) |
-                                        (df_completo["Quimico"] == filtro_quimico) |
-                                        (df_completo["Biologico"] == filtro_biologico)
-                                    )
-                                    df_restante = df_completo[~mask]
-                                    df_final = pd.concat([df_restante, edited_df], ignore_index=True)
+                                    
+                                    # Criar uma máscara para identificar os registros que estão no filtro atual
+                                    mask = pd.Series(False, index=df_completo.index)
+                                    if filtro_status != "Todos":
+                                        mask = mask | (df_completo["Status"] == filtro_status)
+                                    if filtro_quimico != "Todos":
+                                        mask = mask | (df_completo["Quimico"] == filtro_quimico)
+                                    if filtro_biologico != "Todos":
+                                        mask = mask | (df_completo["Biologico"] == filtro_biologico)
+                                    
+                                    # Remover os registros que estavam no filtro (serão substituídos pelos editados)
+                                    df_sem_filtrados = df_completo[~mask].reset_index(drop=True)
+                                    
+                                    # Concatenar com os dados editados
+                                    df_final = pd.concat([df_sem_filtrados, edited_df], ignore_index=True)
                                 else:
+                                    # Se não há filtro, simplesmente substituir todos os dados
                                     df_final = edited_df
-                                
-                                # Depois enviar para o Google Sheets
-                                if update_sheet(st.session_state.local_data["solicitacoes"], "Solicitacoes"):
+
+                                # Atualizar o estado da sessão
+                                st.session_state.local_data["solicitacoes"] = df_final
+
+                                # Enviar para o Google Sheets
+                                if update_sheet(df_final, "Solicitacoes"):
                                     st.session_state.edited_data["solicitacoes"] = False
                                     st.success("Dados salvos com sucesso!")
+                                    # Forçar atualização completa
+                                    st.cache_data.clear()
                                     st.experimental_rerun()
-                            except Exception as e:
-                                st.error(f"Erro ao salvar alterações: {str(e)}")
 
     # Removendo o componente JavaScript para evitar conflitos
     def fix_table_buttons():
