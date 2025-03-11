@@ -1044,6 +1044,14 @@ def gerenciamento():
                     duracao = st.session_state.resultado_duracao
                     tipo = st.session_state.resultado_tipo
                     resultado = st.session_state.resultado_status
+
+                    # Verificar se os campos obrigatórios estão preenchidos
+                    if not quimico or not biologico:
+                        st.session_state.compatibilidade_form_submitted = True
+                        st.session_state.compatibilidade_form_success = False
+                        st.session_state.compatibilidade_form_error = "Selecione os produtos químico e biológico"
+                        st.session_state.mostrar_form_compatibilidade = True
+                        return
                     
                     if quimico and biologico:
                         nova_compatibilidade = {
@@ -1065,6 +1073,7 @@ def gerenciamento():
                             st.session_state.compatibilidade_form_submitted = True
                             st.session_state.compatibilidade_form_success = False
                             st.session_state.compatibilidade_form_error = f"Combinação {quimico} e {biologico} já existe!"
+                            st.session_state.mostrar_form_compatibilidade = True
                         else:
                             # Adicionar à planilha
                             if append_to_sheet(nova_compatibilidade, "Resultados"):
@@ -1075,10 +1084,12 @@ def gerenciamento():
                                 st.session_state.compatibilidade_form_submitted = True
                                 st.session_state.compatibilidade_form_success = True
                                 st.session_state.compatibilidade_form_error = ""
+                                st.session_state.mostrar_form_compatibilidade = False
                             else:
                                 st.session_state.compatibilidade_form_submitted = True
                                 st.session_state.compatibilidade_form_success = False
                                 st.session_state.compatibilidade_form_error = "Falha ao adicionar compatibilidade"
+                                st.session_state.mostrar_form_compatibilidade = True
                     else:
                         st.session_state.compatibilidade_form_submitted = True
                         st.session_state.compatibilidade_form_success = False
