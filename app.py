@@ -1443,8 +1443,12 @@ def gerenciamento():
                                     st.experimental_rerun()
 
     # Removendo o componente JavaScript para evitar conflitos
-    def fix_table_buttons():
-        pass
+    try:
+        def fix_table_buttons():
+            pass
+    except Exception as e:
+        st.error(f"Erro ao carregar dados: {str(e)}")
+        st.stop()
 
 ########################################## SIDEBAR ##########################################
 
