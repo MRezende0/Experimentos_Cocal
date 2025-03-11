@@ -100,6 +100,15 @@ st.set_page_config(
     layout="wide"
 )
 
+# Desabilitar animações
+st.markdown("""
+    <style>
+    div.stButton > button:first-child {
+        transition: none;
+    }
+    </style>
+""", unsafe_allow_html=True)
+
 # Estilos CSS personalizados
 def local_css():
     st.markdown("""
@@ -142,7 +151,7 @@ def local_css():
             /* Estabilizar tabelas */
             [data-testid="stDataFrame"], [data-testid="stTable"] {
                 width: 100% !important;
-                min-height: 400px;
+                min-height: 600px;
                 height: auto !important;
                 max-height: none !important;
                 transform: none !important;
@@ -151,7 +160,7 @@ def local_css():
             /* Correção para tabelas editáveis */
             [data-testid="stDataEditor"] {
                 width: 100% !important;
-                min-height: 400px;
+                min-height: 600px;
                 height: auto !important;
                 max-height: none !important;
                 transform: none !important;
