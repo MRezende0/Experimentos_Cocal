@@ -282,7 +282,6 @@ def update_sheet(df: pd.DataFrame, sheet_name: str) -> bool:
         
         # Usar batch_update para melhorar a performance
         worksheet.clear()
-        # Corrigir o erro de atualização especificando a célula inicial 'A1'
         worksheet.update('A1', all_values)
         
         # Atualizar o cache local
@@ -773,13 +772,12 @@ def gerenciamento():
                                     st.warning("Não há dados para salvar")
                                     st.stop()
                                 
-                                # NOVA IMPLEMENTAÇÃO: Substituição direta dos dados
-                                # Se estamos filtrando, precisamos preservar os dados que não estão no filtro
-                                if filtro_nome or filtro_tipo != "Todos":
-                                    # Obter todos os dados originais
-                                    df_completo = st.session_state.local_data["quimicos"].copy()
-                                    
-                                    # Criar máscara para os registros que correspondem ao filtro
+                                # Obter DataFrame completo original
+                                df_completo = st.session_state.local_data["quimicos"].copy()
+                                
+                                # Verificar se há filtro aplicado
+                                if filtro_nome != "Todos" or filtro_tipo != "Todos":
+                                    # Criar máscara para identificar registros correspondentes
                                     mask = df_completo["Nome"].isin(edited_df["Nome"]) & (df_completo["Tipo"] == filtro_tipo)
                                     
                                     # Remover registros filtrados do original
@@ -791,9 +789,9 @@ def gerenciamento():
                                     df_final = edited_df
 
                                 # Atualizar dados locais e planilha
-                                st.session_state.local_data["quimicos"] = edited_df
+                                st.session_state.local_data["quimicos"] = df_final
                                 
-                                if update_sheet(edited_df, "Quimicos"):
+                                if update_sheet(df_final, "Quimicos"):
                                     st.session_state.edited_data["quimicos"] = False
                                     st.success("Dados salvos com sucesso!")
                                     st.rerun()
@@ -966,20 +964,18 @@ def gerenciamento():
                                     st.warning("Não há dados para salvar")
                                     st.stop()
                                 
-                                # NOVA IMPLEMENTAÇÃO: Substituição direta dos dados
-                                # Se estamos filtrando, precisamos preservar os dados que não estão no filtro
-                                if filtro_nome or filtro_tipo != "Todos":
-                                    df_completo = st.session_state.local_data["biologicos"].copy()
+                                df_completo = st.session_state.local_data["biologicos"].copy()
+                                
+                                if filtro_nome != "Todos" or filtro_tipo != "Todos":
                                     mask = df_completo["Nome"].isin(edited_df["Nome"]) & (df_completo["Tipo"] == filtro_tipo)
                                     df_restante = df_completo[~mask]
                                     df_final = pd.concat([df_restante, edited_df], ignore_index=True)
                                 else:
                                     df_final = edited_df
                                 
-                                # Atualizar dados locais e planilha
-                                st.session_state.local_data["biologicos"] = edited_df
+                                st.session_state.local_data["biologicos"] = df_final
                                 
-                                if update_sheet(edited_df, "Biologicos"):
+                                if update_sheet(df_final, "Biologicos"):
                                     st.session_state.edited_data["biologicos"] = False
                                     st.success("Dados salvos com sucesso!")
                                     st.rerun()
@@ -1195,27 +1191,18 @@ def gerenciamento():
                                 # Atualizar dados na sessão
                                 st.session_state.local_data["resultados"] = edited_df
                                 
-                                # Atualizar dados na sessão - IMPORTANTE: atualiza antes de enviar para o Google Sheets
-                                # Aqui está a correção principal: atualizar todos os dados, não apenas os filtrados
-                                if filtro_quimico or filtro_biologico:
-                                    # Criar uma máscara para os dados que NÃO correspondem ao filtro atual
-                                    mask = pd.Series(True, index=st.session_state.local_data["resultados"].index)
-                                    if filtro_quimico and filtro_quimico != "Todos":
-                                        mask = mask & (st.session_state.local_data["resultados"]["Quimico"] != filtro_quimico)
-                                    if filtro_biologico and filtro_biologico != "Todos":
-                                        mask = mask & (st.session_state.local_data["resultados"]["Biologico"] != filtro_biologico)
-                                    
-                                    # Manter apenas os dados que não correspondem ao filtro
-                                    dados_restantes = st.session_state.local_data["resultados"][mask]
-                                    
-                                    # Concatenar com os dados editados
-                                    st.session_state.local_data["resultados"] = pd.concat([dados_restantes, edited_df], ignore_index=True)
-                                else:
-                                    # Se não houver filtro, substituir todos os dados
-                                    st.session_state.local_data["resultados"] = edited_df
+                                df_completo = st.session_state.local_data["resultados"].copy()
                                 
-                                # Depois enviar para o Google Sheets
-                                if update_sheet(edited_df, "Resultados"):
+                                if filtro_quimico != "Todos" or filtro_biologico != "Todos":
+                                    mask = (df_completo["Quimico"] == filtro_quimico) | (df_completo["Biologico"] == filtro_biologico)
+                                    df_restante = df_completo[~mask]
+                                    df_final = pd.concat([df_restante, edited_df], ignore_index=True)
+                                else:
+                                    df_final = edited_df
+                                
+                                st.session_state.local_data["resultados"] = df_final
+                                
+                                if update_sheet(df_final, "Resultados"):
                                     st.session_state.edited_data["resultados"] = False
                                     st.success("Dados salvos com sucesso!")
                                     st.rerun()
@@ -1426,40 +1413,27 @@ def gerenciamento():
                                 # Atualizar dados na sessão
                                 st.session_state.local_data["solicitacoes"] = edited_df
                                 
-                                # Atualizar dados na sessão - IMPORTANTE: atualiza antes de enviar para o Google Sheets
-                                # Aqui está a correção principal: atualizar todos os dados, não apenas os filtrados
+                                df_completo = st.session_state.local_data["solicitacoes"].copy()
+                                
                                 if filtro_status != "Todos" or filtro_quimico != "Todos" or filtro_biologico != "Todos":
-                                    df_completo = st.session_state.local_data["solicitacoes"].copy()
-                                    
-                                    # Criar uma máscara para identificar os registros que estão no filtro atual
-                                    mask = pd.Series(False, index=df_completo.index)
-                                    if filtro_status != "Todos":
-                                        mask = mask | (df_completo["Status"] == filtro_status)
-                                    if filtro_quimico != "Todos":
-                                        mask = mask | (df_completo["Quimico"] == filtro_quimico)
-                                    if filtro_biologico != "Todos":
-                                        mask = mask | (df_completo["Biologico"] == filtro_biologico)
-                                    
-                                    # Remover os registros que estavam no filtro (serão substituídos pelos editados)
-                                    df_sem_filtrados = df_completo[~mask].reset_index(drop=True)
-                                    
-                                    # Concatenar com os dados editados
-                                    df_final = pd.concat([df_sem_filtrados, edited_df], ignore_index=True)
+                                    mask = (
+                                        (df_completo["Status"] == filtro_status) |
+                                        (df_completo["Quimico"] == filtro_quimico) |
+                                        (df_completo["Biologico"] == filtro_biologico)
+                                    )
+                                    df_restante = df_completo[~mask]
+                                    df_final = pd.concat([df_restante, edited_df], ignore_index=True)
                                 else:
-                                    # Se não há filtro, simplesmente substituir todos os dados
                                     df_final = edited_df
-
-                                # Atualizar o estado da sessão
-                                st.session_state.local_data["solicitacoes"] = edited_df
-
-                                # Enviar para o Google Sheets
-                                if update_sheet(edited_df, "Solicitacoes"):
+                                
+                                st.session_state.local_data["solicitacoes"] = df_final
+                                
+                                if update_sheet(df_final, "Solicitacoes"):
                                     st.session_state.edited_data["solicitacoes"] = False
                                     st.success("Dados salvos com sucesso!")
                                     st.rerun()
                             except Exception as e:
                                 st.error(f"Erro ao salvar dados: {str(e)}")
-                                st.stop()
 
     # Removendo o componente JavaScript para evitar conflitos
     def fix_table_buttons():
