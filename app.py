@@ -798,7 +798,6 @@ def gerenciamento():
                                     st.success("Dados salvos com sucesso!")
                                     # Forçar atualização completa
                                     st.cache_data.clear()
-                                    st.experimental_rerun()
 
                             except Exception as e:
                                 st.error(f"Erro ao salvar: {str(e)}")
@@ -985,7 +984,6 @@ def gerenciamento():
                                     st.session_state.edited_data["biologicos"] = False
                                     st.success("Dados salvos com sucesso!")
                                     # Recarregar a página para mostrar os dados atualizados
-                                    st.experimental_rerun()
                             except Exception as e:
                                 st.error(f"Erro ao salvar alterações: {str(e)}")
     
@@ -1460,7 +1458,6 @@ def gerenciamento():
                                     st.success("Dados salvos com sucesso!")
                                     # Forçar atualização completa
                                     st.cache_data.clear()
-                                    st.experimental_rerun()
                             except Exception as e:
                                 st.error(f"Erro ao salvar dados: {str(e)}")
                                 st.stop()
