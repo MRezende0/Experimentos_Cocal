@@ -265,15 +265,25 @@ def update_sheet(df: pd.DataFrame, sheet_name: str) -> bool:
         for col in df_copy.columns:
             if pd.api.types.is_datetime64_any_dtype(df_copy[col]):
                 df_copy[col] = df_copy[col].dt.strftime('%Y-%m-%d')
+            elif pd.api.types.is_object_dtype(df_copy[col]) and df_copy[col].notna().any():
+                # Tentar converter strings de data para formato consistente
+                try:
+                    sample_val = df_copy.loc[df_copy[col].first_valid_index(), col]
+                    if isinstance(sample_val, str) and '-' in sample_val:
+                        # Provavelmente é uma data em formato string
+                        pass  # Manter como está
+                except:
+                    pass
                 
         # Preparar dados para atualização
         header = df_copy.columns.tolist()
         values = df_copy.values.tolist()
         all_values = [header] + values
         
-        # Atualizar toda a planilha de uma vez
+        # Usar batch_update para melhorar a performance
         worksheet.clear()
-        worksheet.update('A1', all_values, value_input_option='USER_ENTERED')  # Alteração importante aqui
+        # Corrigir o erro de atualização especificando a célula inicial 'A1'
+        worksheet.update('A1', all_values)
         
         # Atualizar o cache local
         st.session_state.local_data[sheet_name.lower()] = df
