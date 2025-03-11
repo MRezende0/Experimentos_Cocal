@@ -884,7 +884,6 @@ def gerenciamento():
                                 st.session_state.biologico_form_submitted = True
                                 st.session_state.biologico_form_success = True
                                 st.session_state.biologico_form_error = ""
-                                st.session_state.gerenciamento_aba_ativa = 1  # Manter na aba de biológicos
                             else:
                                 st.session_state.biologico_form_submitted = True
                                 st.session_state.biologico_form_success = False
@@ -1076,7 +1075,6 @@ def gerenciamento():
                                 st.session_state.compatibilidade_form_submitted = True
                                 st.session_state.compatibilidade_form_success = True
                                 st.session_state.compatibilidade_form_error = ""
-                                st.session_state.gerenciamento_aba_ativa = 2  # Manter na aba de resultados
                             else:
                                 st.session_state.compatibilidade_form_submitted = True
                                 st.session_state.compatibilidade_form_success = False
@@ -1319,7 +1317,6 @@ def gerenciamento():
                             st.session_state.gerenciamento_last_submission = nova_solicitacao
                             # Marcar como enviado com sucesso
                             st.session_state.gerenciamento_form_submitted = True
-                            st.session_state.gerenciamento_aba_ativa = 3  # Manter na aba de solicitacoes
                         else:
                             st.error("Falha ao adicionar solicitação")
                             return False
