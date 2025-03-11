@@ -246,50 +246,33 @@ def load_sheet_data(sheet_name: str) -> pd.DataFrame:
     return retry_with_backoff(_load)
 
 def update_sheet(df: pd.DataFrame, sheet_name: str) -> bool:
-    """
-    Atualiza uma planilha no Google Sheets e também atualiza o cache local
-    """
     try:
         worksheet = get_sheet(sheet_name)
         if worksheet is None:
-            st.error(f"Não foi possível acessar a planilha {sheet_name}")
             return False
             
-        # Verificar se o DataFrame está vazio
-        if df.empty:
-            st.error(f"DataFrame vazio para {sheet_name}")
-            return False
-            
-        # Converter colunas datetime para string
+        # Converter todas as datas para string ISO
         df_copy = df.copy()
         for col in df_copy.columns:
             if pd.api.types.is_datetime64_any_dtype(df_copy[col]):
                 df_copy[col] = df_copy[col].dt.strftime('%Y-%m-%d')
-            elif pd.api.types.is_object_dtype(df_copy[col]) and df_copy[col].notna().any():
-                # Tentar converter strings de data para formato consistente
-                try:
-                    sample_val = df_copy.loc[df_copy[col].first_valid_index(), col]
-                    if isinstance(sample_val, str) and '-' in sample_val:
-                        # Provavelmente é uma data em formato string
-                        pass  # Manter como está
-                except:
-                    pass
                 
-        # Preparar dados para atualização
-        header = df_copy.columns.tolist()
-        values = df_copy.values.tolist()
-        all_values = [header] + values
+        # Garantir a ordem das colunas
+        df_copy = df_copy[COLUNAS_ESPERADAS[sheet_name]]
         
-        # Usar batch_update para melhorar a performance
+        # Atualizar toda a planilha
         worksheet.clear()
-        worksheet.update('A1', all_values)
+        worksheet.update(
+            [df_copy.columns.values.tolist()] + df_copy.values.tolist(),
+            value_input_option='USER_ENTERED'  # Adicionado para preservar formatos
+        )
         
-        # Atualizar o cache local
+        # Atualizar cache local
         st.session_state.local_data[sheet_name.lower()] = df
-        
         return True
+        
     except Exception as e:
-        st.error(f"Erro ao atualizar planilha {sheet_name}: {str(e)}")
+        st.error(f"Erro ao atualizar planilha: {str(e)}")
         return False
 
 def load_all_data():
@@ -753,51 +736,41 @@ def gerenciamento():
                     if st.button("Salvar Alterações", key="save_quimicos", use_container_width=True):
                         with st.spinner("Salvando dados..."):
                             try:
-                                # Verificar se é um DataFrame
-                                if not isinstance(edited_df, pd.DataFrame):
-                                    st.error("Erro: Os dados editados não são um DataFrame válido")
-                                    st.stop()
-                                
-                                # Garantir que todas as colunas necessárias estejam presentes
-                                for col in COLUNAS_ESPERADAS["Quimicos"]:
-                                    if col not in edited_df.columns:
-                                        st.error(f"Coluna obrigatória '{col}' não encontrada nos dados editados")
-                                        st.stop()
-                                
-                                # Remover linhas vazias
-                                edited_df = edited_df.dropna(subset=["Nome"], how="all").reset_index(drop=True)
-                                
-                                # Verificar se há dados para salvar
-                                if edited_df.empty and filtro_nome == "" and filtro_tipo == "Todos":
-                                    st.warning("Não há dados para salvar")
-                                    st.stop()
-                                
-                                # Obter DataFrame completo original
+                                # Obter dados completos originais
                                 df_completo = st.session_state.local_data["quimicos"].copy()
                                 
-                                # Verificar se há filtro aplicado
+                                # Criar máscara para identificar registros filtrados
                                 if filtro_nome != "Todos" or filtro_tipo != "Todos":
-                                    # Criar máscara para identificar registros correspondentes
-                                    mask = df_completo["Nome"].isin(edited_df["Nome"]) & (df_completo["Tipo"] == filtro_tipo)
-                                    
-                                    # Remover registros filtrados do original
-                                    df_restante = df_completo[~mask]
-                                    
-                                    # Concatenar com dados editados
-                                    df_final = pd.concat([df_restante, edited_df], ignore_index=True)
+                                    mask = (
+                                        (df_completo["Nome"].isin(edited_df["Nome"])) &
+                                        (df_completo["Tipo"] == filtro_tipo)
+                                    )
                                 else:
-                                    df_final = edited_df
-
-                                # Atualizar dados locais e planilha
-                                st.session_state.local_data["quimicos"] = df_final
+                                    mask = pd.Series([True]*len(df_completo), index=df_completo.index)
+                                    
+                                # Remover registros antigos que correspondem ao filtro
+                                df_completo = df_completo[~mask]
                                 
+                                # Adicionar dados editados
+                                df_final = pd.concat([df_completo, edited_df], ignore_index=True)
+                                
+                                # Remover duplicatas mantendo a última ocorrência
+                                df_final = df_final.drop_duplicates(
+                                    subset=["Nome", "Tipo"], 
+                                    keep="last"
+                                )
+                                
+                                # Ordenar e resetar índice
+                                df_final = df_final.sort_values(by="Nome").reset_index(drop=True)
+                                
+                                # Atualizar dados e planilha
+                                st.session_state.local_data["quimicos"] = df_final
                                 if update_sheet(df_final, "Quimicos"):
-                                    st.session_state.edited_data["quimicos"] = False
                                     st.success("Dados salvos com sucesso!")
-                                    st.rerun()
-
+                                    st.experimental_rerun()
+                                    
                             except Exception as e:
-                                st.error(f"Erro ao salvar: {str(e)}")
+                                st.error(f"Erro: {str(e)}")
     
     with tab2:
         st.subheader("Produtos Biológicos")
