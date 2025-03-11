@@ -187,11 +187,22 @@ def append_to_sheet(data_dict, sheet_name):
             
             # Adicionar os dados à planilha
             sheet.append_row(list(data_dict.values()))
+            
+            # Atualizar os dados locais também
+            nova_linha = pd.DataFrame([data_dict])
+            if sheet_name.lower() in st.session_state.local_data:
+                st.session_state.local_data[sheet_name.lower()] = pd.concat(
+                    [st.session_state.local_data[sheet_name.lower()], nova_linha], 
+                    ignore_index=True
+                )
+            
             return True
             
         except Exception as e:
             st.error(f"Erro ao adicionar dados: {str(e)}")
             return False
+            
+    return retry_with_backoff(_append, max_retries=5, initial_delay=2)
 
 def load_sheet_data(sheet_name: str) -> pd.DataFrame:
     def _load(sheet_name=sheet_name):
@@ -252,8 +263,17 @@ def update_sheet(df: pd.DataFrame, sheet_name: str) -> bool:
         # Converter colunas datetime para string
         df_copy = df.copy()
         for col in df_copy.columns:
-            if df_copy[col].dtype == 'datetime64[ns]':
+            if pd.api.types.is_datetime64_any_dtype(df_copy[col]):
                 df_copy[col] = df_copy[col].dt.strftime('%Y-%m-%d')
+            elif pd.api.types.is_object_dtype(df_copy[col]) and df_copy[col].notna().any():
+                # Tentar converter strings de data para formato consistente
+                try:
+                    sample_val = df_copy.loc[df_copy[col].first_valid_index(), col]
+                    if isinstance(sample_val, str) and '-' in sample_val:
+                        # Provavelmente é uma data em formato string
+                        pass  # Manter como está
+                except:
+                    pass
                 
         # Preparar dados para atualização
         header = df_copy.columns.tolist()
