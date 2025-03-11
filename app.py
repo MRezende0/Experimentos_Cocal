@@ -436,7 +436,6 @@ def compatibilidade():
             quimico=st.session_state.pre_selecionado_quimico,
             biologico=st.session_state.pre_selecionado_biologico
         )
-        return  # Importante: retornar para não mostrar o restante da interface
     
     # Interface de consulta de compatibilidade
     col1, col2 = st.columns([1, 1])
@@ -528,13 +527,14 @@ def mostrar_formulario_solicitacao(quimico=None, biologico=None):
         biologico_input = st.session_state.biologico_input
         observacoes = st.session_state.observacoes
         
+        # Armazenar informações de validação para mostrar após o formulário
         if not all([solicitante, quimico_input, biologico_input]):
-            st.error("""
+            st.session_state.form_error_message = """
             Por favor, preencha todos os campos obrigatórios:
             - Nome do solicitante
             - Nome do produto químico
             - Nome do produto biológico
-            """)
+            """
             return
 
         # Preparar dados da solicitação
@@ -551,8 +551,9 @@ def mostrar_formulario_solicitacao(quimico=None, biologico=None):
             st.session_state.form_submitted_successfully = True
             st.session_state.solicitar_novo_teste = False
             st.session_state.last_submission = nova_solicitacao
+            st.session_state.form_success_message = f"Solicitação para teste de compatibilidade entre {quimico_input} e {biologico_input} enviada com sucesso!"
         else:
-            st.error("Erro ao enviar solicitação. Tente novamente.")
+            st.session_state.form_error_message = "Erro ao enviar solicitação. Tente novamente."
     
     # Mostrar o formulário para entrada de dados
     st.subheader("Solicitar Novo Teste")
@@ -580,9 +581,27 @@ def mostrar_formulario_solicitacao(quimico=None, biologico=None):
             if st.form_submit_button("Cancelar"):
                 st.session_state.solicitar_novo_teste = False
 
+    # Exibir mensagens de erro ou sucesso após o formulário
+    if st.session_state.form_submitted:
+        if st.session_state.form_error_message:
+            st.error(st.session_state.form_error_message)
+            st.session_state.form_error_message = None
+        elif st.session_state.form_success_message:
+            st.success(st.session_state.form_success_message)
+            st.session_state.form_success_message = None
+
 ########################################## GERENCIAMENTO ##########################################
 
 def gerenciamento():
+
+    # Inicializar controle de aba ativa se não existir
+    if 'gerenciamento_aba_ativa' not in st.session_state:
+        st.session_state.gerenciamento_aba_ativa = 0
+
+    # Função para definir a aba ativa
+    def set_aba_ativa(indice):
+        st.session_state.gerenciamento_aba_ativa = indice
+
     st.title("⚙️ Gerenciamento")
 
     if 'edited_data' not in st.session_state:
@@ -600,9 +619,10 @@ def gerenciamento():
     # Usar dados da sessão em vez de recarregar a cada interação
     dados = st.session_state.local_data
     
-    tab1, tab2, tab3, tab4 = st.tabs(["Quimicos", "Biologicos", "Compatibilidades", "Solicitações"])
+    tab_names = ["Quimicos", "Biologicos", "Compatibilidades", "Solicitações"]
+    tabs = st.tabs(tab_names)
     
-    with tab1:
+    with tabs[0]:
         st.subheader("Produtos Químicos")
         if "quimicos" not in dados or dados["quimicos"].empty:
             st.error("Erro ao carregar dados dos produtos químicos!")
@@ -803,7 +823,7 @@ def gerenciamento():
                             except Exception as e:
                                 st.error(f"Erro ao salvar: {str(e)}")
     
-    with tab2:
+    with tabs[1]:
         st.subheader("Produtos Biológicos")
         if "biologicos" not in dados or dados["biologicos"].empty:
             st.error("Erro ao carregar dados dos produtos biológicos!")
@@ -989,7 +1009,7 @@ def gerenciamento():
                             except Exception as e:
                                 st.error(f"Erro ao salvar alterações: {str(e)}")
     
-    with tab3:
+    with tabs[2]:
         st.subheader("Resultados de Compatibilidade")
         if "resultados" not in dados or dados["resultados"].empty:
             st.error("Erro ao carregar dados dos resultados!")
@@ -1224,7 +1244,7 @@ def gerenciamento():
                             except Exception as e:
                                 st.error(f"Erro ao salvar alterações: {str(e)}")
     
-    with tab4:
+    with tabs[3]:
         st.subheader("Solicitações")
         if "solicitacoes" not in dados or dados["solicitacoes"].empty:
             st.warning("Sem solicitações para exibir")
