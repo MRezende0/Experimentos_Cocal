@@ -13,6 +13,78 @@ from oauth2client.service_account import ServiceAccountCredentials
 from google.oauth2 import service_account
 import streamlit.components.v1 as components
 
+# Componente personalizado para garantir a visibilidade dos botões de ação nas tabelas
+def fix_table_buttons():
+    components.html(
+        """
+        <script>
+        // Função para garantir que os botões de ação nas tabelas estejam visíveis
+        function fixTableButtons() {
+            // Aguardar o carregamento completo da página
+            setTimeout(function() {
+                // Selecionar todos os botões dentro das tabelas editáveis
+                const buttons = document.querySelectorAll('[data-testid="stDataEditor"] button');
+                const rowActions = document.querySelectorAll('[data-testid="dataframe-row-actions"]');
+                const addRowsButtons = document.querySelectorAll('[data-testid="dataframe-add-rows"]');
+                
+                // Aplicar estilos para garantir visibilidade
+                buttons.forEach(button => {
+                    button.style.visibility = 'visible';
+                    button.style.opacity = '1';
+                    button.style.display = 'inline-flex';
+                    button.style.pointerEvents = 'auto';
+                    button.style.zIndex = '999';
+                });
+                
+                rowActions.forEach(action => {
+                    action.style.visibility = 'visible';
+                    action.style.opacity = '1';
+                    action.style.display = 'flex';
+                    action.style.pointerEvents = 'auto';
+                    action.style.zIndex = '999';
+                });
+                
+                addRowsButtons.forEach(button => {
+                    button.style.visibility = 'visible';
+                    button.style.opacity = '1';
+                    button.style.display = 'flex';
+                    button.style.pointerEvents = 'auto';
+                    button.style.zIndex = '999';
+                });
+                
+                // Verificar se há SVGs (ícones) que precisam ser visíveis
+                const svgs = document.querySelectorAll('[data-testid="stDataEditor"] svg');
+                svgs.forEach(svg => {
+                    svg.style.visibility = 'visible';
+                    svg.style.opacity = '1';
+                    svg.style.display = 'inline-block';
+                    svg.style.pointerEvents = 'auto';
+                    svg.style.zIndex = '999';
+                });
+                
+                // Garantir que os contêineres não cortem os botões
+                const containers = document.querySelectorAll('[data-testid="stDataEditor"]');
+                containers.forEach(container => {
+                    container.style.overflow = 'visible';
+                    container.style.position = 'relative';
+                    container.style.zIndex = '1';
+                });
+                
+                // Executar novamente após algum tempo para garantir que funcione após atualizações dinâmicas
+                setTimeout(fixTableButtons, 2000);
+            }, 1000);
+        }
+        
+        // Iniciar a função quando a página carregar
+        document.addEventListener('DOMContentLoaded', fixTableButtons);
+        // Também executar quando o script for carregado
+        fixTableButtons();
+        </script>
+        """,
+        height=0,
+        width=0
+    )
+
 if 'local_data' not in st.session_state:
     st.session_state.local_data = {
         "quimicos": pd.DataFrame(),
@@ -68,13 +140,23 @@ def local_css():
                 color: #916c04;
             }
             /* Estabilizar tabelas */
-            [data-testid="stDataFrame"], [data-testid="stTable"], [data-testid="stDataEditor"] {
+            [data-testid="stDataFrame"], [data-testid="stTable"] {
                 width: 100% !important;
                 min-height: 400px;
                 height: auto !important;
                 max-height: none !important;
                 transform: none !important;
                 transition: none !important;
+            }
+            /* Correção para tabelas editáveis */
+            [data-testid="stDataEditor"] {
+                width: 100% !important;
+                min-height: 400px;
+                height: auto !important;
+                max-height: none !important;
+                transform: none !important;
+                transition: none !important;
+                overflow: visible !important;
             }
             /* Reduzir espaço entre tabelas e botões */
             .stButton {
@@ -87,41 +169,36 @@ def local_css():
             [data-testid="stDataEditor"] [data-testid="dataframe-cell-input"] {
                 min-height: 32px !important;
             }
-            [data-testid="stDataEditor"] [data-testid="dataframe-add-rows"] {
-                margin-top: 8px !important;
+            /* Garantir que os botões de ação nas tabelas sejam visíveis */
+            [data-testid="stDataEditor"] button,
+            [data-testid="stDataEditor"] svg,
+            [data-testid="stDataEditor"] [data-testid="baseButton-secondary"],
+            [data-testid="stDataEditor"] [data-testid="baseButton-primary"] {
+                opacity: 1 !important;
+                visibility: visible !important;
+                display: inline-flex !important;
+                pointer-events: auto !important;
+                z-index: 100 !important;
             }
             /* Garantir que os ícones de edição e exclusão sejam visíveis */
-            [data-testid="stDataEditor"] [data-testid="dataframe-row-actions"] {
+            [data-testid="stDataEditor"] [data-testid="dataframe-row-actions"],
+            [data-testid="stDataEditor"] [data-testid="dataframe-actions"] {
                 visibility: visible !important;
                 opacity: 1 !important;
                 display: flex !important;
+                pointer-events: auto !important;
+                z-index: 100 !important;
             }
             /* Garantir que o botão de adicionar linhas seja visível */
             [data-testid="stDataEditor"] [data-testid="dataframe-add-rows"] {
                 visibility: visible !important;
                 opacity: 1 !important;
                 display: flex !important;
-            }
-            /* Melhorar visibilidade dos botões de ação nas tabelas */
-            [data-testid="stDataEditor"] button {
-                opacity: 1 !important;
-                visibility: visible !important;
-            }
-            /* Forçar exibição de ícones específicos */
-            button[data-testid="BaseButton"] {
-                opacity: 1 !important;
-                visibility: visible !important;
-            }
-            /* Garantir que os ícones de edição apareçam */
-            .stDataEditor [data-testid="dataEditor-addRows"],
-            .stDataEditor [data-testid="dataEditor-deleteRows"],
-            .stDataEditor [data-testid="dataEditor-saveButton"] {
-                display: inline-flex !important;
-                visibility: visible !important;
-                opacity: 1 !important;
+                pointer-events: auto !important;
+                z-index: 100 !important;
             }
             /* Ajustar altura mínima das células para evitar problemas de layout */
-            .stDataEditor td {
+            [data-testid="stDataEditor"] td {
                 min-height: 38px !important;
             }
             /* Otimizações de performance */
@@ -137,6 +214,31 @@ def local_css():
             .stDataFrame {
                 max-height: 600px;
                 overflow-y: auto;
+            }
+            /* Corrigir problema de sobreposição que pode esconder botões */
+            .stDataEditor {
+                position: relative !important;
+                z-index: 1 !important;
+            }
+            /* Garantir que os botões de ação não sejam cortados */
+            .stDataEditor [data-testid="dataEditor-container"] {
+                overflow: visible !important;
+            }
+            /* Forçar visibilidade dos botões de edição e exclusão */
+            .stDataEditor [data-testid="dataEditor-addRows"],
+            .stDataEditor [data-testid="dataEditor-deleteRows"],
+            .stDataEditor [data-testid="dataEditor-saveButton"],
+            .stDataEditor [data-testid="dataEditor-editCell"] {
+                display: inline-flex !important;
+                visibility: visible !important;
+                opacity: 1 !important;
+                pointer-events: auto !important;
+                z-index: 999 !important;
+            }
+            /* Garantir que os botões não sejam escondidos por outros elementos */
+            .stDataEditor [data-testid="dataEditor-container"] button {
+                position: relative !important;
+                z-index: 999 !important;
             }
         </style>
     """, unsafe_allow_html=True)
@@ -795,7 +897,9 @@ def gerenciamento():
                     use_container_width=True,
                     height=400,
                     on_change=lambda: st.session_state.edited_data.update({"quimicos": True}),
-                    disabled=False
+                    disabled=False,
+                    column_order=COLUNAS_ESPERADAS["Quimicos"],
+                    key_column="Nome"
                 )
                 
                 # Botão para salvar alterações
@@ -956,8 +1060,8 @@ def gerenciamento():
                 # Tabela editável
                 edited_df = st.data_editor(
                     df_filtrado,
-                    num_rows="dynamic",
                     hide_index=True,
+                    num_rows="dynamic",
                     key=f"biologicos_editor_{filtro_nome}_{filtro_tipo}_{int(time.time())}",
                     column_config={
                         "Nome": st.column_config.TextColumn("Produto Biológico", required=True),
@@ -970,7 +1074,9 @@ def gerenciamento():
                     use_container_width=True,
                     height=400,
                     on_change=lambda: st.session_state.edited_data.update({"biologicos": True}),
-                    disabled=False
+                    disabled=False,
+                    column_order=COLUNAS_ESPERADAS["Biologicos"],
+                    key_column="Nome"
                 )
                 
                 # Botão para salvar alterações
@@ -1185,7 +1291,9 @@ def gerenciamento():
                     use_container_width=True,
                     height=400,
                     on_change=lambda: st.session_state.edited_data.update({"resultados": True}),
-                    disabled=False
+                    disabled=False,
+                    column_order=COLUNAS_ESPERADAS["Resultados"],
+                    key_column=None
                 )
                 
                 # Botão para salvar alterações
@@ -1395,7 +1503,9 @@ def gerenciamento():
                     use_container_width=True,
                     height=400,
                     on_change=lambda: st.session_state.edited_data.update({"solicitacoes": True}),
-                    disabled=False
+                    disabled=False,
+                    column_order=COLUNAS_ESPERADAS["Solicitacoes"],
+                    key_column=None
                 )
                 
                 # Botão para salvar alterações
@@ -1432,6 +1542,9 @@ def gerenciamento():
                                     st.success("Dados salvos com sucesso!")
                             except Exception as e:
                                 st.error(f"Erro ao salvar alterações: {str(e)}")
+
+    # Aplicar correção para garantir que os botões nas tabelas sejam visíveis
+    fix_table_buttons()
 
 ########################################## SIDEBAR ##########################################
 
