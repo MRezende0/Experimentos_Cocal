@@ -1441,14 +1441,13 @@ def gerenciamento():
                                     # Forçar atualização completa
                                     st.cache_data.clear()
                                     st.experimental_rerun()
+                            except Exception as e:
+                                st.error(f"Erro ao salvar dados: {str(e)}")
+                                st.stop()
 
     # Removendo o componente JavaScript para evitar conflitos
-    try:
-        def fix_table_buttons():
-            pass
-    except Exception as e:
-        st.error(f"Erro ao carregar dados: {str(e)}")
-        st.stop()
+    def fix_table_buttons():
+        pass
 
 ########################################## SIDEBAR ##########################################
 
