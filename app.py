@@ -360,9 +360,9 @@ def _load_and_validate_sheet(sheet_name):
 ########################################## COMPATIBILIDADE ##########################################
 
 def compatibilidade():
-    # Garantir que o formulário não seja exibido ao abrir a página
-    st.session_state.solicitar_novo_teste = False
-    
+    # Inicializar variável de estado para controle do formulário
+    if 'solicitar_novo_teste' not in st.session_state:
+        st.session_state.solicitar_novo_teste = False
     if 'pre_selecionado_quimico' not in st.session_state:
         st.session_state.pre_selecionado_quimico = None
     if 'pre_selecionado_biologico' not in st.session_state:
@@ -406,11 +406,6 @@ def compatibilidade():
             st.session_state.pre_selecionado_biologico = None
             
         st.markdown("</div>", unsafe_allow_html=True)
-
-    # Mostrar formulário se solicitado
-    if st.session_state.solicitar_novo_teste:
-        mostrar_formulario_solicitacao()
-        return  # Sai da função aqui para não mostrar o resto
     
     dados = load_all_data()
     
@@ -441,6 +436,7 @@ def compatibilidade():
             quimico=st.session_state.pre_selecionado_quimico,
             biologico=st.session_state.pre_selecionado_biologico
         )
+        return  # Importante: retornar para não mostrar o restante da interface
     
     # Interface de consulta de compatibilidade
     col1, col2 = st.columns([1, 1])
@@ -525,11 +521,6 @@ def mostrar_formulario_solicitacao(quimico=None, biologico=None):
 
     # Função para processar o envio do formulário
     def submit_form():
-
-        # Resetar estados de mensagem
-        st.session_state.form_error_message = None
-        st.session_state.form_success_message = None
-
         # Obter valores do formulário
         data = st.session_state.data_solicitacao
         solicitante = st.session_state.solicitante
@@ -537,16 +528,13 @@ def mostrar_formulario_solicitacao(quimico=None, biologico=None):
         biologico_input = st.session_state.biologico_input
         observacoes = st.session_state.observacoes
         
-        # Armazenar informações de validação para mostrar após o formulário
-        if not all([solicitante.strip(), quimico_input.strip(), biologico_input.strip()]):
-            st.session_state.form_error_message = """
-            **Campos obrigatórios não preenchidos!**
-            Por favor, preencha:
+        if not all([solicitante, quimico_input, biologico_input]):
+            st.error("""
+            Por favor, preencha todos os campos obrigatórios:
             - Nome do solicitante
             - Nome do produto químico
             - Nome do produto biológico
-            """
-            st.session_state.form_submitted = True  # Adicionado para forçar exibição do erro
+            """)
             return
 
         # Preparar dados da solicitação
@@ -563,9 +551,8 @@ def mostrar_formulario_solicitacao(quimico=None, biologico=None):
             st.session_state.form_submitted_successfully = True
             st.session_state.solicitar_novo_teste = False
             st.session_state.last_submission = nova_solicitacao
-            st.session_state.form_success_message = f"Solicitação para teste de compatibilidade entre {quimico_input} e {biologico_input} enviada com sucesso!"
         else:
-            st.session_state.form_error_message = "Erro ao enviar solicitação. Tente novamente."
+            st.error("Erro ao enviar solicitação. Tente novamente.")
     
     # Mostrar o formulário para entrada de dados
     st.subheader("Solicitar Novo Teste")
@@ -593,27 +580,9 @@ def mostrar_formulario_solicitacao(quimico=None, biologico=None):
             if st.form_submit_button("Cancelar"):
                 st.session_state.solicitar_novo_teste = False
 
-    # Exibir mensagens de erro ou sucesso após o formulário
-    if st.session_state.form_submitted:
-        if st.session_state.form_error_message:
-            st.error(st.session_state.form_error_message)
-            st.session_state.form_error_message = None
-        elif st.session_state.form_success_message:
-            st.success(st.session_state.form_success_message)
-            st.session_state.form_success_message = None
-
 ########################################## GERENCIAMENTO ##########################################
 
 def gerenciamento():
-
-    # Inicializar controle de aba ativa se não existir
-    if 'gerenciamento_aba_ativa' not in st.session_state:
-        st.session_state.gerenciamento_aba_ativa = 0
-
-    # Função para definir a aba ativa
-    def set_aba_ativa(indice):
-        st.session_state.gerenciamento_aba_ativa = indice
-
     st.title("⚙️ Gerenciamento")
 
     if 'edited_data' not in st.session_state:
@@ -631,10 +600,9 @@ def gerenciamento():
     # Usar dados da sessão em vez de recarregar a cada interação
     dados = st.session_state.local_data
     
-    tab_names = ["Quimicos", "Biologicos", "Compatibilidades", "Solicitações"]
-    tabs = st.tabs(tab_names)
+    tab1, tab2, tab3, tab4 = st.tabs(["Quimicos", "Biologicos", "Compatibilidades", "Solicitações"])
     
-    with tabs[0]:
+    with tab1:
         st.subheader("Produtos Químicos")
         if "quimicos" not in dados or dados["quimicos"].empty:
             st.error("Erro ao carregar dados dos produtos químicos!")
@@ -688,6 +656,8 @@ def gerenciamento():
                                 st.session_state.quimico_form_success = True
                                 st.session_state.quimico_form_error = ""
                                 st.session_state.quimico_just_submitted = True
+                                # Garantir que permanecemos na página atual
+                                st.session_state.current_page = "Gerenciamento"
                             else:
                                 st.session_state.quimico_form_submitted = True
                                 st.session_state.quimico_form_success = False
@@ -833,7 +803,7 @@ def gerenciamento():
                             except Exception as e:
                                 st.error(f"Erro ao salvar: {str(e)}")
     
-    with tabs[1]:
+    with tab2:
         st.subheader("Produtos Biológicos")
         if "biologicos" not in dados or dados["biologicos"].empty:
             st.error("Erro ao carregar dados dos produtos biológicos!")
@@ -1019,7 +989,7 @@ def gerenciamento():
                             except Exception as e:
                                 st.error(f"Erro ao salvar alterações: {str(e)}")
     
-    with tabs[2]:
+    with tab3:
         st.subheader("Resultados de Compatibilidade")
         if "resultados" not in dados or dados["resultados"].empty:
             st.error("Erro ao carregar dados dos resultados!")
@@ -1044,14 +1014,6 @@ def gerenciamento():
                     duracao = st.session_state.resultado_duracao
                     tipo = st.session_state.resultado_tipo
                     resultado = st.session_state.resultado_status
-
-                    # Verificar se os campos obrigatórios estão preenchidos
-                    if not quimico or not biologico:
-                        st.session_state.compatibilidade_form_submitted = True
-                        st.session_state.compatibilidade_form_success = False
-                        st.session_state.compatibilidade_form_error = "Selecione os produtos químico e biológico"
-                        st.session_state.mostrar_form_compatibilidade = True
-                        return
                     
                     if quimico and biologico:
                         nova_compatibilidade = {
@@ -1073,7 +1035,6 @@ def gerenciamento():
                             st.session_state.compatibilidade_form_submitted = True
                             st.session_state.compatibilidade_form_success = False
                             st.session_state.compatibilidade_form_error = f"Combinação {quimico} e {biologico} já existe!"
-                            st.session_state.mostrar_form_compatibilidade = True
                         else:
                             # Adicionar à planilha
                             if append_to_sheet(nova_compatibilidade, "Resultados"):
@@ -1084,12 +1045,12 @@ def gerenciamento():
                                 st.session_state.compatibilidade_form_submitted = True
                                 st.session_state.compatibilidade_form_success = True
                                 st.session_state.compatibilidade_form_error = ""
-                                st.session_state.mostrar_form_compatibilidade = False
+                                # Garantir que permanecemos na página atual
+                                st.session_state.current_page = "Gerenciamento"
                             else:
                                 st.session_state.compatibilidade_form_submitted = True
                                 st.session_state.compatibilidade_form_success = False
                                 st.session_state.compatibilidade_form_error = "Falha ao adicionar compatibilidade"
-                                st.session_state.mostrar_form_compatibilidade = True
                     else:
                         st.session_state.compatibilidade_form_submitted = True
                         st.session_state.compatibilidade_form_success = False
@@ -1263,7 +1224,7 @@ def gerenciamento():
                             except Exception as e:
                                 st.error(f"Erro ao salvar alterações: {str(e)}")
     
-    with tabs[3]:
+    with tab4:
         st.subheader("Solicitações")
         if "solicitacoes" not in dados or dados["solicitacoes"].empty:
             st.warning("Sem solicitações para exibir")
@@ -1328,6 +1289,8 @@ def gerenciamento():
                             st.session_state.gerenciamento_last_submission = nova_solicitacao
                             # Marcar como enviado com sucesso
                             st.session_state.gerenciamento_form_submitted = True
+                            # Garantir que permanecemos na página atual
+                            st.session_state.current_page = "Gerenciamento"
                         else:
                             st.error("Falha ao adicionar solicitação")
                             return False
