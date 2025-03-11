@@ -516,31 +516,15 @@ def compatibilidade():
             
             if compativel:
                 st.markdown("""
-                    <div style="
-                        background-color: #d4edda;
-                        color: #155724;
-                        padding: 15px;
-                        border-radius: 5px;
-                        margin-top: 20px;
-                        border-left: 5px solid #28a745;
-                    ">
-                        <h3 style="margin-top: 0;">✅ Compatível</h3>
-                        <p>Os produtos selecionados são compatíveis e podem ser usados juntos.</p>
-                    </div>
+                    <div class="resultado compativel">
+                    Compatível
+                </div>
                 """, unsafe_allow_html=True)
             else:
                 st.markdown("""
-                    <div style="
-                        background-color: #f8d7da;
-                        color: #721c24;
-                        padding: 15px;
-                        border-radius: 5px;
-                        margin-top: 20px;
-                        border-left: 5px solid #dc3545;
-                    ">
-                        <h3 style="margin-top: 0;">❌ Incompatível</h3>
-                        <p>Os produtos selecionados NÃO são compatíveis e NÃO devem ser usados juntos.</p>
-                    </div>
+                    <div class="resultado incompativel">
+                    Incompatível
+                </div>
                 """, unsafe_allow_html=True)
             
             # Mostrar detalhes do teste
