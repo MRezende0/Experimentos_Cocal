@@ -340,6 +340,24 @@ def _load_and_validate_sheet(sheet_name):
         st.error(f"Falha crítica ao carregar {sheet_name}: {str(e)}")
         return pd.DataFrame()
 
+def convert_scientific_to_float(value):
+    """Converte notação científica em string para float"""
+    try:
+        if isinstance(value, (int, float)):
+            return float(value)
+        # Remove espaços e substitui vírgula por ponto
+        value = str(value).replace(' ', '').replace(',', '.')
+        # Trata notação com 'E' ou 'e'
+        if 'e' in value.lower():
+            return float(value)
+        # Trata notação com ×10^
+        if '×10^' in value:
+            base, exponent = value.split('×10^')
+            return float(base) * (10 ** float(exponent))
+        return float(value)
+    except:
+        return 0.0
+
 ########################################## COMPATIBILIDADE ##########################################
 
 def compatibilidade():
@@ -667,7 +685,7 @@ def gerenciamento():
                     with col2:
                         st.selectbox("Formulação", options=["Suspensão concentrada", "Formulação em óleo", "Pó molhável", "Formulação em pó", "Granulado dispersível"], key="biologico_formulacao")
                         st.number_input("Dose (kg/ha ou litro/ha)", value=0.0, step=1.0, key="biologico_dose")
-                        st.number_input("Concentração em bula (UFC/g ou UFC/ml)", value=0.0, step=1.0, key="biologico_concentracao")
+                        st.text_input("Concentração em bula (UFC/g ou UFC/ml)", help="Digite em notação científica (ex: 1e9)", required=True, value="", key="biologico_concentracao")
                     st.text_input("Fabricante", key="biologico_fabricante")
                     
                     submitted = st.form_submit_button("Adicionar Produto", on_click=submit_biologico_form)
@@ -724,7 +742,7 @@ def gerenciamento():
                         "IngredienteAtivo": st.column_config.TextColumn("Ingrediente Ativo", required=True),
                         "Formulacao": st.column_config.SelectboxColumn("Formulação", options=["Suspensão concentrada", "Formulação em óleo", "Pó molhável", "Formulação em pó", "Granulado dispersível"]),
                         "Dose": st.column_config.NumberColumn("Dose (kg/ha ou litro/ha)", min_value=0.0, step=1.0, required=True),
-                        "Concentracao": st.column_config.NumberColumn("Concentração em bula (UFC/g ou UFC/ml)", min_value=0.0, step=1.0, required=True),
+                        "Concentracao": st.column_config.TextColumn("Concentração em bula (UFC/g ou UFC/ml)", required=True),
                         "Fabricante": st.column_config.TextColumn("Fabricante", required=True)
                     },
                     use_container_width=True,
@@ -733,6 +751,10 @@ def gerenciamento():
                     on_change=lambda: st.session_state.edited_data.update({"biologicos": True}),
                     disabled=False
                 )
+
+                if not edited_df.equals(df_biologicos):
+                    # Converter a coluna de concentração para float
+                    edited_df['Concentracao'] = edited_df['Concentracao'].apply(convert_scientific_to_float)
                 
                 # Botão para salvar alterações
                 if st.button("Salvar Alterações", key="save_biologicos", use_container_width=True):
