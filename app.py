@@ -685,7 +685,7 @@ def gerenciamento():
                     with col2:
                         st.selectbox("Formulação", options=["Suspensão concentrada", "Formulação em óleo", "Pó molhável", "Formulação em pó", "Granulado dispersível"], key="biologico_formulacao")
                         st.number_input("Dose (kg/ha ou litro/ha)", value=0.0, step=1.0, key="biologico_dose")
-                        st.text_input("Concentração em bula (UFC/g ou UFC/ml)", help="Digite em notação científica (ex: 1e9)", required=True, value="", key="biologico_concentracao")
+                        st.text_input("Concentração em bula (UFC/g ou UFC/ml)", help="Digite em notação científica (ex: 1e9)", value="", key="biologico_concentracao")
                     st.text_input("Fabricante", key="biologico_fabricante")
                     
                     submitted = st.form_submit_button("Adicionar Produto", on_click=submit_biologico_form)
