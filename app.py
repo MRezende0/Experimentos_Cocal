@@ -1128,8 +1128,8 @@ def gerenciamento():
                     st.info("**Detalhes da solicitação:**")
                     st.write(f"**Data:** {st.session_state.gerenciamento_last_submission.get('Data', '')}")
                     st.write(f"**Solicitante:** {st.session_state.gerenciamento_last_submission.get('Solicitante', '')}")
-                    st.write(f"**Produto Químico:** {st.session_state.gerenciamento_last_submission.get('Quimico', '')}")
                     st.write(f"**Produto Biológico:** {st.session_state.gerenciamento_last_submission.get('Biologico', '')}")
+                    st.write(f"**Produto Químico:** {st.session_state.gerenciamento_last_submission.get('Quimico', '')}")
                     
                     if st.button("Fazer nova solicitação", key="btn_nova_solicitacao_gerenciamento"):
                         st.session_state.gerenciamento_form_submitted = False
@@ -1142,8 +1142,8 @@ def gerenciamento():
                     # Obter valores do formulário
                     data = st.session_state.gerenciamento_data
                     solicitante = st.session_state.gerenciamento_solicitante
-                    quimico = st.session_state.gerenciamento_quimico
                     biologico = st.session_state.gerenciamento_biologico
+                    quimico = st.session_state.gerenciamento_quimico
                     observacoes = st.session_state.gerenciamento_observacoes
                     
                     # Validar campos obrigatórios
@@ -1155,8 +1155,8 @@ def gerenciamento():
                     nova_solicitacao = {
                         "Data": data.strftime("%Y-%m-%d"),
                         "Solicitante": solicitante,
-                        "Quimico": quimico,
                         "Biologico": biologico,
+                        "Quimico": quimico,
                         "Observacoes": observacoes,
                         "Status": "Pendente"
                     }
@@ -1185,11 +1185,12 @@ def gerenciamento():
                 with st.form(key="gerenciamento_form"):
                     col1, col2 = st.columns(2)
                     with col1:
-                        st.text_input("Nome do solicitante", key="gerenciamento_solicitante")
-                        st.text_input("Produto Químico", key="gerenciamento_quimico")
-                    with col2:
-                        st.date_input("Data da Solicitação", value=datetime.now(), key="gerenciamento_data", format="DD/MM/YYYY")
                         st.text_input("Produto Biológico", key="gerenciamento_biologico")
+                        st.text_input("Nome do solicitante", key="gerenciamento_solicitante")
+                        
+                    with col2:
+                        st.text_input("Produto Químico", key="gerenciamento_quimico")
+                        st.date_input("Data da Solicitação", value=datetime.now(), key="gerenciamento_data", format="DD/MM/YYYY")
                     
                     st.text_area("Observações", key="gerenciamento_observacoes")
                     
@@ -1207,18 +1208,18 @@ def gerenciamento():
                         key="filtro_status_solicitacoes"
                     )
                 with col2:
-                    filtro_quimico = st.selectbox(
-                        "🔍 Filtrar por Produto Químico",
-                        options=["Todos"] + sorted(dados["solicitacoes"]["Quimico"].unique().tolist()),
-                        index=0,
-                        key="filtro_quimico_solicitacoes"
-                    )
-                with col3:
                     filtro_biologico = st.selectbox(
                         "🔍 Filtrar por Produto Biológico",
                         options=["Todos"] + sorted(dados["solicitacoes"]["Biologico"].unique().tolist()),
                         index=0,
                         key="filtro_biologico_solicitacoes"
+                    )
+                with col3:
+                    filtro_quimico = st.selectbox(
+                        "🔍 Filtrar por Produto Químico",
+                        options=["Todos"] + sorted(dados["solicitacoes"]["Quimico"].unique().tolist()),
+                        index=0,
+                        key="filtro_quimico_solicitacoes"
                     )
                 
                 # Aplicar filtros
@@ -1229,10 +1230,10 @@ def gerenciamento():
 
                 if filtro_status != "Todos":
                     df_filtrado = df_filtrado[df_filtrado["Status"] == filtro_status]
-                if filtro_quimico != "Todos":
-                    df_filtrado = df_filtrado[df_filtrado["Quimico"] == filtro_quimico]
                 if filtro_biologico != "Todos":
                     df_filtrado = df_filtrado[df_filtrado["Biologico"] == filtro_biologico]
+                if filtro_quimico != "Todos":
+                    df_filtrado = df_filtrado[df_filtrado["Quimico"] == filtro_quimico]
                 
                 # Garantir colunas esperadas
                 df_filtrado = df_filtrado[COLUNAS_ESPERADAS["Solicitacoes"]].copy()
@@ -1257,8 +1258,8 @@ def gerenciamento():
                     column_config={
                         "Data": st.column_config.TextColumn("Data da Solicitação", required=True),
                         "Solicitante": st.column_config.TextColumn("Solicitante", required=True),
-                        "Quimico": st.column_config.SelectboxColumn("Produto Químico", options=sorted(dados["quimicos"]["Nome"].unique().tolist()), required=True),
                         "Biologico": st.column_config.SelectboxColumn("Produto Biológico", options=sorted(dados["biologicos"]["Nome"].unique().tolist()), required=True),
+                        "Quimico": st.column_config.SelectboxColumn("Produto Químico", options=sorted(dados["quimicos"]["Nome"].unique().tolist()), required=True),
                         "Observacoes": st.column_config.TextColumn("Observações", required=True),
                         "Status": st.column_config.SelectboxColumn("Status", options=["Pendente", "Em Análise", "Concluído", "Cancelado"])
                     },
