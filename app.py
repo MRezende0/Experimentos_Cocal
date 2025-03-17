@@ -1308,115 +1308,79 @@ def gerenciamento():
 def calculos():
     st.title("🧮 Cálculos de Concentração")
     
-    # Criar tabs para os diferentes cálculos
-    tab1, tab2, tab3 = st.tabs(["Concentração Obtida", "Concentração Esperada", "Resultado"])
-    
-    # Variáveis de estado para armazenar os resultados
     if 'concentracao_obtida' not in st.session_state:
         st.session_state.concentracao_obtida = 0.0
     if 'concentracao_esperada' not in st.session_state:
         st.session_state.concentracao_esperada = 0.0
     
-    # Tab Concentração Obtida
-    with tab1:
-        st.subheader("Cálculo da Concentração Obtida")
-        st.markdown("Fórmula: Média das placas (colônias) × Diluição × 10")
-        
-        col1, col2 = st.columns(2)
-        with col1:
-            placa1 = st.number_input("Placa 1 (colônias)", min_value=0, step=1, value=st.session_state.get('placa1', 0), key="placa1")
-            placa2 = st.number_input("Placa 2 (colônias)", min_value=0, step=1, value=st.session_state.get('placa2', 0), key="placa2")
-            placa3 = st.number_input("Placa 3 (colônias)", min_value=0, step=1, value=st.session_state.get('placa3', 0), key="placa3")
-        
-        with col2:
-            diluicao = st.number_input("Diluição", min_value=0.0, format="%.2e", value=st.session_state.get('diluicao', 1e-6), key="diluicao")
-            
-        # Auto-calculate without button
-        media_placas = (placa1 + placa2 + placa3) / 3
-        concentracao_obtida = media_placas * diluicao * 10
-        st.session_state.concentracao_obtida = concentracao_obtida
-        
-        st.info(f"Concentração Obtida: {concentracao_obtida:.2e} UFC/mL")
+    st.header("Concentração Obtida")
+    st.markdown("Fórmula: Média das placas (colônias) × Diluição × 10")
     
-    # Tab Concentração Esperada
-    with tab2:
-        st.subheader("Cálculo da Concentração Esperada")
-        st.markdown("Fórmula: (Concentração do ativo × Dose) ÷ Volume de calda")
-        
-        col1, col2 = st.columns(2)
-        with col1:
-            conc_ativo = st.number_input("Concentração do ativo (UFC/mL)", min_value=0.0, format="%.2e", value=st.session_state.get('conc_ativo', 1e9), key="conc_ativo")
-            dose = st.number_input("Dose (L/ha ou kg/ha)", min_value=0.0, step=0.1, value=st.session_state.get('dose', 1.0), key="dose")
-        
-        with col2:
-            volume_calda = st.number_input("Volume de calda (L/ha)", min_value=0.1, step=1.0, value=st.session_state.get('volume_calda', 200.0), key="volume_calda")
-        
-        # Auto-calculate without button
-        concentracao_esperada = (conc_ativo * dose) / volume_calda
-        st.session_state.concentracao_esperada = concentracao_esperada
-        
-        st.info(f"Concentração Esperada: {concentracao_esperada:.2e} UFC/mL")
+    col1, col2 = st.columns(2)
+    with col1:
+        placa1 = st.number_input("Placa 1 (colônias)", min_value=0, step=1, value=st.session_state.get('placa1', 0), key="placa1")
+        placa2 = st.number_input("Placa 2 (colônias)", min_value=0, step=1, value=st.session_state.get('placa2', 0), key="placa2")
+        placa3 = st.number_input("Placa 3 (colônias)", min_value=0, step=1, value=st.session_state.get('placa3', 0), key="placa3")
     
-    # Tab Resultado da Compatibilidade
-    with tab3:
-        st.subheader("Resultado da Compatibilidade")
+    with col2:
+        diluicao = st.number_input("Diluição", min_value=0.0, format="%.2e", value=st.session_state.get('diluicao', 1e-6), key="diluicao")
         
-        if st.session_state.concentracao_obtida > 0 and st.session_state.concentracao_esperada > 0:
-            razao = st.session_state.concentracao_obtida / st.session_state.concentracao_esperada
-            
-            col1, col2 = st.columns(2)
-            with col1:
-                st.write("**Valores calculados:**")
-                st.write(f"- Concentração Obtida (X): {st.session_state.concentracao_obtida:.2e} UFC/mL")
-                st.write(f"- Concentração Esperada (Y): {st.session_state.concentracao_esperada:.2e} UFC/mL")
-                st.write(f"- Razão (X/Y): {razao:.2f}")
-            
-            with col2:
-                if 0.8 <= razao <= 1.5:
-                    st.success("✅ COMPATÍVEL\nA razão está dentro do intervalo ideal (0,8 a 1,5)")
-                elif razao > 1.5:
-                    st.warning("⚠️ ATENÇÃO\nA razão está acima de 1,5")
-                else:
-                    st.error("❌ INCOMPATÍVEL\nA razão está abaixo de 0,8")
-            
-            fig = go.Figure()
-            
-            # Compatibility region
-            fig.add_shape(
-                type="rect",
-                x0=0.8,
-                x1=1.5,
-                y0=0,
-                y1=1,
-                fillcolor="rgba(0,255,0,0.2)",
-                line=dict(width=0),
-                layer="below"
-            )
-            
-            # Current value line
-            fig.add_shape(
-                type="line",
-                x0=razao,
-                x1=razao,
-                y0=0,
-                y1=1,
-                line=dict(color="red", width=2, dash="dash"),
-            )
-            
-            fig.update_layout(
-                title="Faixa de Compatibilidade",
-                xaxis_title="Razão (X/Y)",
-                yaxis_title="",
-                showlegend=False,
-                height=300,
-                margin=dict(l=20, r=20, t=40, b=20),
-                xaxis=dict(range=[0, max(2, razao + 0.5)])
-            )
-            
-            st.plotly_chart(fig, use_container_width=True)
-            
+    media_placas = (placa1 + placa2 + placa3) / 3
+    concentracao_obtida = media_placas * diluicao * 10
+    st.session_state.concentracao_obtida = concentracao_obtida
+    
+    st.info(f"Concentração Obtida: {concentracao_obtida:.2e} UFC/mL")
+    
+    st.markdown("---")
+    
+    st.header("Concentração Esperada")
+    st.markdown("Fórmula: (Concentração do ativo × Dose) ÷ Volume de calda")
+    
+    col1, col2 = st.columns(2)
+    with col1:
+        conc_ativo = st.number_input("Concentração do ativo (UFC/mL)", min_value=0.0, format="%.2e", value=st.session_state.get('conc_ativo', 1e9), key="conc_ativo")
+        dose = st.number_input("Dose (L/ha ou kg/ha)", min_value=0.0, step=0.1, value=st.session_state.get('dose', 1.0), key="dose")
+    
+    with col2:
+        volume_calda = st.number_input("Volume de calda (L/ha)", min_value=0.1, step=1.0, value=st.session_state.get('volume_calda', 200.0), key="volume_calda")
+    
+    concentracao_esperada = (conc_ativo * dose) / volume_calda
+    st.session_state.concentracao_esperada = concentracao_esperada
+    
+    st.info(f"Concentração Esperada: {concentracao_esperada:.2e} UFC/mL")
+    
+    st.markdown("---")
+    
+    st.header("Resultado Final")
+    
+    if st.session_state.concentracao_obtida > 0 and st.session_state.concentracao_esperada > 0:
+        razao = st.session_state.concentracao_obtida / st.session_state.concentracao_esperada
+        
+        st.write("**Detalhamento dos Cálculos:**")
+        st.write(f"""
+        **1. Concentração Obtida**
+        - Média das placas = ({placa1} + {placa2} + {placa3}) ÷ 3 = {media_placas:.1f}
+        - Diluição = {diluicao:.2e}
+        - Concentração Obtida = {media_placas:.1f} × {diluicao:.2e} × 10 = {concentracao_obtida:.2e} UFC/mL
+        
+        **2. Concentração Esperada**
+        - Concentração do ativo = {conc_ativo:.2e} UFC/mL
+        - Dose = {dose:.1f} L/ha
+        - Volume de calda = {volume_calda:.1f} L/ha
+        - Concentração Esperada = ({conc_ativo:.2e} × {dose:.1f}) ÷ {volume_calda:.1f} = {concentracao_esperada:.2e} UFC/mL
+        
+        **3. Compatibilidade**
+        - Razão (Obtida/Esperada) = {concentracao_obtida:.2e} ÷ {concentracao_esperada:.2e} = {razao:.2f}
+        """)
+        
+        if 0.8 <= razao <= 1.5:
+            st.success("✅ COMPATÍVEL - A razão está dentro do intervalo ideal (0,8 a 1,5)")
+        elif razao > 1.5:
+            st.warning("⚠️ ATENÇÃO - A razão está acima de 1,5")
         else:
-            st.info("Insira os valores nos campos acima para ver o resultado da compatibilidade.")
+            st.error("❌ INCOMPATÍVEL - A razão está abaixo de 0,8")
+    else:
+        st.info("Preencha os valores acima para ver o resultado da compatibilidade.")
 
 ########################################## SIDEBAR ##########################################
 
