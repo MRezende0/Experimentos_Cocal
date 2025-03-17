@@ -87,7 +87,7 @@ SHEET_GIDS = {
 COLUNAS_ESPERADAS = {
     "Quimicos": ["Nome", "Classe", "Fabricante", "Dose"],
     "Biologicos": ["Nome", "Classe", "IngredienteAtivo", "Formulacao", "Dose", "Concentracao", "Fabricante"],
-    "Resultados": ["Data", "Quimico", "Biologico", "Duracao", "Tipo", "Resultado"],
+    "Resultados": ["Data", "Quimico", "Biologico", "Tempo", "Resultado"],
     "Solicitacoes": ["Data", "Solicitante", "Quimico", "Biologico", "Observacoes", "Status"]
 }
 
@@ -951,8 +951,7 @@ def gerenciamento():
                     quimico = st.session_state.resultado_quimico
                     biologico = st.session_state.resultado_biologico
                     data_teste = st.session_state.resultado_data
-                    duracao = st.session_state.resultado_duracao
-                    tipo = st.session_state.resultado_tipo
+                    tempo = st.session_state.resultado_duracao
                     resultado = st.session_state.resultado_status
                     
                     if quimico and biologico:
@@ -960,8 +959,7 @@ def gerenciamento():
                             "Data": data_teste.strftime("%Y-%m-%d"),
                             "Quimico": quimico,
                             "Biologico": biologico,
-                            "Duracao": duracao,
-                            "Tipo": tipo,
+                            "Tempo": tempo,
                             "Resultado": resultado
                         }
                         
@@ -996,22 +994,21 @@ def gerenciamento():
                         st.session_state.compatibilidade_form_error = "Selecione os produtos químico e biológico"
                 
                 with st.form("nova_compatibilidade_form"):
-                    col_a, col_b = st.columns(2)
-                    with col_a:
+                    col1, col2 = st.columns(2)
+                    with col1:
                         st.selectbox(
                             "Produto Químico",
                             options=sorted(dados["quimicos"]["Nome"].unique().tolist()),
                             key="resultado_quimico"
                         )
                         st.date_input("Data do Teste", key="resultado_data", format="DD/MM/YYYY")
-                        st.selectbox("Tipo de Teste", options=["Simples", "Composto"], key="resultado_tipo")
-                    with col_b:
+                    with col2:
                         st.selectbox(
                             "Produto Biológico",
                             options=sorted(dados["biologicos"]["Nome"].unique().tolist()),
                             key="resultado_biologico"
                         )
-                        st.number_input("Duração (horas)", min_value=0, value=0, key="resultado_duracao")
+                        st.number_input("Tempo máximo testado em calda (horas)", min_value=0, value=0, key="resultado_tempo")
                         st.selectbox("Resultado", options=["Compatível", "Incompatível"], key="resultado_status")
                     
                     submitted = st.form_submit_button("Adicionar Compatibilidade", on_click=submit_compatibilidade_form)
@@ -1072,8 +1069,7 @@ def gerenciamento():
                         "Data": st.column_config.TextColumn("Data do Teste", required=True),
                         "Quimico": st.column_config.SelectboxColumn("Produto Químico", options=sorted(dados["quimicos"]["Nome"].unique().tolist()), required=True),
                         "Biologico": st.column_config.SelectboxColumn("Produto Biológico", options=sorted(dados["biologicos"]["Nome"].unique().tolist()), required=True),
-                        "Duracao": st.column_config.NumberColumn("Duração (horas)", min_value=0, default=0),
-                        "Tipo": st.column_config.SelectboxColumn("Tipo de Teste", options=["Simples", "Composto"], required=True),
+                        "Tempo": st.column_config.NumberColumn("Tempo (horas)", min_value=0, default=0),
                         "Resultado": st.column_config.SelectboxColumn("Resultado", options=["Compatível", "Incompatível"], required=True)
                     },
                     use_container_width=True,
