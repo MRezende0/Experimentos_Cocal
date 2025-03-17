@@ -1009,7 +1009,7 @@ def gerenciamento():
                             key="resultado_biologico"
                         )
                         st.number_input("Tempo máximo testado em calda (horas)", min_value=0, value=0, key="resultado_tempo")
-                        st.selectbox("Resultado", options=["Compatível", "Incompatível"], key="resultado_status")
+                    st.selectbox("Resultado", options=["Compatível", "Incompatível"], key="resultado_status")
                     
                     submitted = st.form_submit_button("Adicionar Compatibilidade", on_click=submit_compatibilidade_form)
                 
