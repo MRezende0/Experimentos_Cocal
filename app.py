@@ -501,11 +501,46 @@ def mostrar_formulario_solicitacao(quimico=None, biologico=None):
     if 'form_submitted_successfully' not in st.session_state:
         st.session_state.form_submitted_successfully = False
 
-    # Mostrar o formulário para entrada de dados
+    # Função para processar o envio do formulário
+    def submit_form():
+        # Obter valores do formulário
+        data = st.session_state.data_solicitacao
+        solicitante = st.session_state.solicitante
+        quimico_input = st.session_state.quimico_input
+        biologico_input = st.session_state.biologico_input
+        observacoes = st.session_state.observacoes
+        
+        if not all([solicitante, quimico_input, biologico_input]):
+            st.error("""
+            Por favor, preencha todos os campos obrigatórios:
+            - Nome do solicitante
+            - Nome do produto químico
+            - Nome do produto biológico
+            """)
+            return
+
+        # Preparar dados da solicitação
+        nova_solicitacao = {
+            "Data": data.strftime("%Y-%m-%d"),
+            "Solicitante": solicitante,
+            "Quimico": quimico_input,
+            "Biologico": biologico_input,
+            "Observacoes": observacoes,
+            "Status": "Pendente"
+        }
+
+        if append_to_sheet(nova_solicitacao, "Solicitacoes"):
+            st.session_state.form_submitted_successfully = True
+            st.session_state.solicitar_novo_teste = False
+            st.session_state.last_submission = nova_solicitacao
+        else:
+            st.error("Erro ao enviar solicitação. Tente novamente.")
+        # Mostrar o formulário para entrada de dados
     st.subheader("Solicitar Novo Teste")
     
-    # Container para mensagens de erro do formulário
-    form_messages = st.container()
+    # Valores iniciais para os campos
+    default_quimico = quimico if quimico else ""
+    default_biologico = biologico if biologico else ""
     
     # Usar st.form para evitar recarregamentos
     with st.form(key="solicitar_teste_form"):
@@ -527,44 +562,6 @@ def mostrar_formulario_solicitacao(quimico=None, biologico=None):
         with col2:
             if st.form_submit_button("Cancelar"):
                 st.session_state.solicitar_novo_teste = False
-                
-        # Validação do formulário
-        if submitted:
-            if not all([st.session_state.solicitante, st.session_state.quimico_input, st.session_state.biologico_input]):
-                st.session_state.form_error = """
-                Por favor, preencha todos os campos obrigatórios:
-                - Nome do solicitante
-                - Nome do produto químico
-                - Nome do produto biológico
-                """
-                st.session_state.form_submitted = True
-            else:
-                # Preparar dados da solicitação
-                nova_solicitacao = {
-                    "Data": st.session_state.data_solicitacao.strftime("%Y-%m-%d"),
-                    "Solicitante": st.session_state.solicitante,
-                    "Quimico": st.session_state.quimico_input,
-                    "Biologico": st.session_state.biologico_input,
-                    "Observacoes": st.session_state.observacoes,
-                    "Status": "Pendente"
-                }
-
-                if append_to_sheet(nova_solicitacao, "Solicitacoes"):
-                    st.session_state.form_submitted_successfully = True
-                    st.session_state.solicitar_novo_teste = False
-                    st.session_state.last_submission = nova_solicitacao
-                else:
-                    st.session_state.form_error = "Erro ao enviar solicitação. Tente novamente."
-                    st.session_state.form_submitted = True
-
-    # Mostrar mensagens de erro abaixo do formulário
-    if 'form_submitted' in st.session_state and st.session_state.form_submitted:
-        if 'form_error' in st.session_state:
-            with form_messages:
-                st.error(st.session_state.form_error)
-                # Limpar o erro após exibir
-                del st.session_state.form_error
-                st.session_state.form_submitted = False
 
 ########################################## GERENCIAMENTO ##########################################
 
@@ -604,6 +601,8 @@ def gerenciamento():
                     st.session_state.quimico_form_success = False
                 if 'quimico_form_error' not in st.session_state:
                     st.session_state.quimico_form_error = ""
+                if 'quimico_just_submitted' not in st.session_state:
+                    st.session_state.quimico_just_submitted = False
                 
                 # Função para processar o envio do formulário
                 def submit_quimico_form():
@@ -639,6 +638,9 @@ def gerenciamento():
                                 st.session_state.quimico_form_submitted = True
                                 st.session_state.quimico_form_success = True
                                 st.session_state.quimico_form_error = ""
+                                st.session_state.quimico_just_submitted = True
+                                # Garantir que permanecemos na página atual
+                                st.session_state.current_page = "Gerenciamento"
                             else:
                                 st.session_state.quimico_form_submitted = True
                                 st.session_state.quimico_form_success = False
@@ -670,6 +672,7 @@ def gerenciamento():
                             st.success(f"Produto {st.session_state.quimico_nome} adicionado com sucesso!")
                             st.session_state.quimico_form_submitted = False
                             st.session_state.quimico_form_success = False
+                            st.session_state.quimico_just_submitted = False
                     else:
                         st.error(st.session_state.quimico_form_error)
             
