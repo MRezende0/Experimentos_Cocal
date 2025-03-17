@@ -1576,15 +1576,12 @@ def main():
     st.sidebar.image("imagens/logo-cocal.png")
     st.sidebar.title("Menu")
     
-    # Usar o estado atual para definir o valor padrão do radio
-    menu_options = ["Compatibilidade", "Cálculos"]
-    if st.session_state.get('authenticated', False):
-        menu_options.append("Gerenciamento")
-    
+    # Mostrar todas as opções no menu, incluindo Gerenciamento
     menu_option = st.sidebar.radio(
         "Selecione a funcionalidade:",
-        menu_options,
-        index=menu_options.index(st.session_state.current_page) if st.session_state.current_page in menu_options else 0
+        ("Compatibilidade", "Gerenciamento", "Cálculos"),
+        index=0 if st.session_state.current_page == "Compatibilidade" else 
+              1 if st.session_state.current_page == "Gerenciamento" else 2
     )
     
     # Atualizar o estado da página atual
@@ -1602,7 +1599,9 @@ def main():
     if menu_option == "Compatibilidade":
         compatibilidade()
     elif menu_option == "Gerenciamento":
-        if check_login():
+        if not st.session_state.get('authenticated', False):
+            check_login()
+        else:
             gerenciamento()
     elif menu_option == "Cálculos":
         calculos()
