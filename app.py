@@ -1032,11 +1032,11 @@ def gerenciamento():
                         st.session_state.compatibilidade_form_error = ""
 
                     # Obter valores do formulário
-                    biologico = st.session_state.resultado_biologico
-                    quimico = st.session_state.resultado_quimico
-                    data_teste = st.session_state.resultado_data
-                    tempo = st.session_state.resultado_tempo
-                    resultado = st.session_state.resultado_status
+                    biologico = st.session_state.compatibilidade_biologico
+                    quimico = st.session_state.compatibilidade_quimico
+                    data_teste = st.session_state.compatibilidade_data
+                    tempo = st.session_state.compatibilidade_tempo
+                    resultado = st.session_state.compatibilidade_status
                     
                     if quimico and biologico:
                         nova_compatibilidade = {
