@@ -802,20 +802,22 @@ def gerenciamento():
                 # Função para processar o envio do formulário
                 def submit_biologico_form():
                     nome = st.session_state.biologico_nome
-                    tipo = st.session_state.tipo_biologico
+                    classe = st.session_state.classe_biologico
                     ingrediente_ativo = st.session_state.biologico_ingrediente
                     formulacao = st.session_state.biologico_formulacao
-                    aplicacao = st.session_state.biologico_aplicacao
-                    validade = st.session_state.biologico_validade
+                    fabricante = st.session_state.biologico_fabricante
+                    dose = st.session_state.biologico_dose
+                    concentracao = st.session_state.biologico_concentracao
                     
                     if nome:
                         novo_produto = {
                             "Nome": nome,
-                            "Tipo": tipo,
+                            "Classe": classe,
                             "IngredienteAtivo": ingrediente_ativo,
                             "Formulacao": formulacao,
-                            "Aplicacao": aplicacao,
-                            "Validade": validade
+                            "Fabricante": fabricante,
+                            "Dose": dose,
+                            "Concentracao": concentracao
                         }
                         
                         # Verificar se o produto já existe
@@ -846,12 +848,13 @@ def gerenciamento():
                     col1, col2 = st.columns(2)
                     with col1:
                         st.text_input("Nome do Produto", key="biologico_nome")
-                        st.selectbox("Tipo", options=["Bioestimulante", "Controle Biológico"], key="tipo_biologico")
+                        st.selectbox("Classe", options=["Bioestimulante", "Biofungicida", "Bionematicida", "Bioinseticida", "Inoculante"], key="classe_biologico")
                         st.text_input("Ingrediente Ativo", key="biologico_ingrediente")
+                        st.text_input("Fabricante", key="biologico_fabricante")
                     with col2:
-                        st.text_input("Formulação", key="biologico_formulacao")
-                        st.text_input("Aplicação", key="biologico_aplicacao")
-                        st.text_input("Validade", key="biologico_validade")
+                        st.selectbox("Formulação", options=["Suspensão concentrada", "Formulação em óleo", "Pó molhável", "Formulação em pó", "Granulado dispersível"], key="biologico_formulacao")
+                        st.text_input("Dose (kg/ha ou litro/ha)", value=0.0, step=1.0, key="biologico_dose")
+                        st.text_input("Concentração", value=0.0, step=1.0, key="biologico_concentracao")
                     
                     submitted = st.form_submit_button("Adicionar Produto", on_click=submit_biologico_form)
                 
@@ -878,19 +881,19 @@ def gerenciamento():
                         key="filtro_nome_biologicos"
                     )
                 with col2:
-                    filtro_tipo = st.selectbox(
-                        "🔍 Filtrar por Tipo",
-                        options=["Todos", "Bioestimulante", "Controle Biológico"],
+                    filtro_classe = st.selectbox(
+                        "🔍 Filtrar por Classe",
+                        options=["Todos", "Bioestimulante", "Biofungicida", "Bionematicida", "Bioinseticida", "Inoculante"],
                         index=0,
-                        key="filtro_tipo_biologicos"
+                        key="filtro_classe_biologicos"
                     )
 
                 # Aplicar filtro
                 df_filtrado = dados["biologicos"].copy()
                 if filtro_nome != "Todos":
                     df_filtrado = df_filtrado[df_filtrado["Nome"] == filtro_nome]
-                if filtro_tipo != "Todos":
-                    df_filtrado = df_filtrado[df_filtrado["Tipo"] == filtro_tipo]
+                if filtro_classe != "Todos":
+                    df_filtrado = df_filtrado[df_filtrado["Classe"] == filtro_classe]
                 
                 # Garantir que apenas as colunas esperadas estejam presentes
                 df_filtrado = df_filtrado[COLUNAS_ESPERADAS["Biologicos"]].copy()
@@ -906,14 +909,15 @@ def gerenciamento():
                     df_filtrado,
                     hide_index=True,
                     num_rows="dynamic",
-                    key=f"biologicos_editor_{filtro_nome}_{filtro_tipo}_{int(time.time())}",
+                    key=f"biologicos_editor_{filtro_nome}_{filtro_classe}_{int(time.time())}",
                     column_config={
                         "Nome": st.column_config.TextColumn("Produto Biológico", required=True),
-                        "Tipo": st.column_config.SelectboxColumn("Tipo", options=["Bioestimulante", "Controle Biológico"]),
+                        "Classe": st.column_config.SelectboxColumn("Classe", options=["Bioestimulante", "Biofungicida", "Bionematicida", "Bioinseticida", "Inoculante"]),
                         "IngredienteAtivo": st.column_config.TextColumn("Ingrediente Ativo", required=True),
-                        "Formulacao": st.column_config.TextColumn("Formulação", required=True),
-                        "Aplicacao": st.column_config.TextColumn("Aplicação", required=True),
-                        "Validade": st.column_config.TextColumn("Validade", required=True)
+                        "Formulacao": st.column_config.SelectboxColumn("Formulação", options=["Suspensão concentrada", "Formulação em óleo", "Pó molhável", "Formulação em pó", "Granulado dispersível"]),
+                        "Dose": st.column_config.TextColumn("Dose (kg/ha ou litro/ha)", value=0.0, step=1.0, required=True),
+                        "Concentracao": st.column_config.TextColumn("Concentração (UFC/g ou UFC/ml)", value=0.0, step=1.0, required=True),
+                        "Fabricante": st.column_config.TextColumn("Fabricante", required=True)
                     },
                     use_container_width=True,
                     height=400,
@@ -943,14 +947,14 @@ def gerenciamento():
                                 edited_df = edited_df.dropna(subset=["Nome"], how="all").reset_index(drop=True)
                                 
                                 # Verificar se há dados para salvar
-                                if edited_df.empty and filtro_nome == "" and filtro_tipo == "Todos":
+                                if edited_df.empty and filtro_nome == "" and filtro_classe == "Todos":
                                     st.warning("Não há dados para salvar")
                                     st.stop()
                                 
                                 df_completo = st.session_state.local_data["biologicos"].copy()
                                 
-                                if filtro_nome != "Todos" or filtro_tipo != "Todos":
-                                    mask = df_completo["Nome"].isin(edited_df["Nome"]) & (df_completo["Tipo"] == filtro_tipo)
+                                if filtro_nome != "Todos" or filtro_classe != "Todos":
+                                    mask = df_completo["Nome"].isin(edited_df["Nome"]) & (df_completo["Classe"] == filtro_classe)
                                     df_restante = df_completo[~mask]
                                     df_final = pd.concat([df_restante, edited_df], ignore_index=True)
                                 else:
