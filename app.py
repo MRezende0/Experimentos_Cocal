@@ -590,12 +590,17 @@ def gerenciamento():
     # Usar dados da sessão em vez de recarregar a cada interação
     dados = st.session_state.local_data
     
-    tabs = st.tabs([
-        "Quimicos", "Biologicos", "Compatibilidades", "Solicitações"
-    ])
+    aba_selecionada = st.radio(
+        "Selecione a aba:",
+        ["Quimicos", "Biologicos", "Compatibilidades", "Solicitações"],
+        key="management_tabs",
+        horizontal=True,
+        label_visibility="collapsed"
+    )
+    st.session_state.current_management_tab = aba_selecionada
 
     # Conteúdo da tab Quimicos
-    with tabs[0]:
+    if aba_selecionada == "Quimicos":
         st.subheader("Produtos Químicos")
         if "quimicos" not in dados or dados["quimicos"].empty:
             st.error("Erro ao carregar dados dos produtos químicos!")
@@ -773,23 +778,19 @@ def gerenciamento():
                                 
                                 # Ordenar e resetar índice
                                 df_final = df_final.sort_values(by="Nome").reset_index(drop=True)
-
-                                # Salva a aba atual antes de recarregar
-                                previous_tab = st.session_state.current_management_tab
                                 
                                 # Atualizar dados e planilha
                                 st.session_state.local_data["quimicos"] = df_final
                                 if update_sheet(df_final, "Quimicos"):
                                     st.session_state.edited_data["quimicos"] = False
                                     st.success("Dados salvos com sucesso!")
-                                    st.session_state.current_management_tab = previous_tab
                                     st.experimental_rerun()
                                     
                             except Exception as e:
                                 st.error(f"Erro: {str(e)}")
     
     # Conteúdo da tab Biologicos
-    with tabs[1]:
+    elif aba_selecionada == "Biologicos":
         st.subheader("Produtos Biológicos")
         if "biologicos" not in dados or dados["biologicos"].empty:
             st.error("Erro ao carregar dados dos produtos biológicos!")
@@ -964,20 +965,16 @@ def gerenciamento():
                                     df_final = edited_df
                                 
                                 st.session_state.local_data["biologicos"] = df_final
-
-                                # Salva a aba atual antes de recarregar
-                                previous_tab = st.session_state.current_management_tab
                                 
                                 if update_sheet(df_final, "Biologicos"):
                                     st.session_state.edited_data["biologicos"] = False
                                     st.success("Dados salvos com sucesso!")
-                                    st.session_state.current_management_tab = previous_tab
                                     st.experimental_rerun()
                             except Exception as e:
                                 st.error(f"Erro ao salvar alterações: {str(e)}")
     
     # Conteúdo da tab Compatibilidades
-    with tabs[2]:
+    elif aba_selecionada == "Compatibilidades":
         st.subheader("Resultados de Compatibilidade")
         if "resultados" not in dados or dados["resultados"].empty:
             st.error("Erro ao carregar dados dos resultados!")
@@ -1196,20 +1193,16 @@ def gerenciamento():
                                     df_final = edited_df
                                 
                                 st.session_state.local_data["resultados"] = df_final
-
-                                # Salva a aba atual antes de recarregar
-                                previous_tab = st.session_state.current_management_tab
                                 
                                 if update_sheet(df_final, "Resultados"):
                                     st.session_state.edited_data["resultados"] = False
                                     st.success("Dados salvos com sucesso!")
-                                    st.session_state.current_management_tab = previous_tab
                                     st.experimental_rerun()
                             except Exception as e:
                                 st.error(f"Erro ao salvar alterações: {str(e)}")
     
     # Conteúdo da tab Solicitações
-    with tabs[3]:
+    elif aba_selecionada == "Solicitações":
         st.subheader("Solicitações")
         if "solicitacoes" not in dados or dados["solicitacoes"].empty:
             st.warning("Sem solicitações para exibir")
@@ -1427,14 +1420,10 @@ def gerenciamento():
                                     df_final = edited_df
                                 
                                 st.session_state.local_data["solicitacoes"] = df_final
-
-                                # Salva a aba atual antes de recarregar
-                                previous_tab = st.session_state.current_management_tab
                                 
                                 if update_sheet(df_final, "Solicitacoes"):
                                     st.session_state.edited_data["solicitacoes"] = False
                                     st.success("Dados salvos com sucesso!")
-                                    st.session_state.current_management_tab = previous_tab
                                     st.experimental_rerun()
                             except Exception as e:
                                 st.error(f"Erro ao salvar dados: {str(e)}")
