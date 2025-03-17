@@ -666,9 +666,9 @@ def gerenciamento():
                     with col1:
                         st.text_input("Nome do Produto", key="quimico_nome")
                         st.selectbox("Classe", options=["Herbicida", "Fungicida", "Inseticida", "Adjuvante", "Nutricional"], key="quimico_classe")
-                        st.text_input("Fabricante", key="quimico_fabricante")
                     with col2:
-                        st.number_input("Dose", value=0.0, step=1.0, key="quimico_dose")
+                        st.number_input("Dose (kg/ha ou litro/ha)", value=0.0, step=1.0, key="quimico_dose")
+                        st.text_input("Fabricante", key="quimico_fabricante")
                     
                     submitted = st.form_submit_button("Adicionar Produto", on_click=submit_quimico_form)
                 
@@ -729,7 +729,7 @@ def gerenciamento():
                         "Nome": st.column_config.TextColumn("Nome do Produto", required=True),
                         "Classe": st.column_config.SelectboxColumn("Classe", options=["Herbicida", "Fungicida", "Inseticida", "Adjuvante", "Nutricional"]),
                         "Fabricante": "Fabricante",
-                        "Dose (kg/ha ou litro/ha)": st.column_config.TextColumn("Dose", required=True),
+                        "Dose": st.column_config.TextColumn("Dose", required=True),
                     },
                     use_container_width=True,
                     height=400,
