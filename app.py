@@ -343,20 +343,40 @@ def _load_and_validate_sheet(sheet_name):
 def convert_scientific_to_float(value):
     """Converte notação científica em string para float"""
     try:
+        # Se o valor for vazio ou None, retorna None
+        if pd.isna(value) or value == '' or value is None:
+            return None
+            
         if isinstance(value, (int, float)):
             return float(value)
+            
         # Remove espaços e substitui vírgula por ponto
-        value = str(value).replace(' ', '').replace(',', '.')
+        value = str(value).strip().replace(' ', '').replace(',', '.')
+        
         # Trata notação com 'E' ou 'e'
         if 'e' in value.lower():
-            return float(value)
+            try:
+                return float(value)
+            except ValueError:
+                raise ValueError(f"Formato inválido para notação científica: {value}")
+                
         # Trata notação com ×10^
         if '×10^' in value:
-            base, exponent = value.split('×10^')
-            return float(base) * (10 ** float(exponent))
-        return float(value)
-    except:
-        return 0.0
+            try:
+                base, exponent = value.split('×10^')
+                return float(base) * (10 ** float(exponent))
+            except ValueError:
+                raise ValueError(f"Formato inválido para notação com ×10^: {value}")
+                
+        # Tenta converter diretamente para float
+        try:
+            return float(value)
+        except ValueError:
+            raise ValueError(f"Valor não pode ser convertido para número: {value}")
+            
+    except Exception as e:
+        # Propaga o erro para ser tratado pelo chamador
+        raise ValueError(f"Erro ao converter valor '{value}': {str(e)}")
 
 ########################################## COMPATIBILIDADE ##########################################
 
@@ -641,40 +661,43 @@ def gerenciamento():
                     dose = st.session_state.biologico_dose
                     concentracao = st.session_state.biologico_concentracao
                     
-                    if nome:
+                    if not nome:
+                        st.session_state.biologico_form_error = "Nome do produto é obrigatório"
+                        return
+                        
+                    try:
+                        # Validar e converter a concentração
+                        concentracao_float = convert_scientific_to_float(concentracao) if concentracao else None
+                        
                         novo_produto = {
                             "Nome": nome,
                             "Classe": classe,
                             "IngredienteAtivo": ingrediente_ativo,
                             "Formulacao": formulacao,
                             "Dose": dose,
-                            "Concentracao": convert_scientific_to_float(concentracao),
+                            "Concentracao": concentracao_float,
                             "Fabricante": fabricante
                         }
                         
                         # Verificar se o produto já existe
                         if nome in dados["biologicos"]["Nome"].values:
-                            st.session_state.biologico_form_submitted = True
-                            st.session_state.biologico_form_success = False
                             st.session_state.biologico_form_error = f"Produto '{nome}' já existe!"
+                            return
+                            
+                        # Adicionar à planilha
+                        if append_to_sheet(novo_produto, "Biologicos"):
+                            # Atualizar dados locais
+                            nova_linha = pd.DataFrame([novo_produto])
+                            st.session_state.local_data["biologicos"] = pd.concat([st.session_state.local_data["biologicos"], nova_linha], ignore_index=True)
+                            st.success(f"Produto {nome} adicionado com sucesso!")
+                            st.experimental_rerun()
                         else:
-                            # Adicionar à planilha
-                            if append_to_sheet(novo_produto, "Biologicos"):
-                                # Atualizar dados locais
-                                nova_linha = pd.DataFrame([novo_produto])
-                                st.session_state.local_data["biologicos"] = pd.concat([st.session_state.local_data["biologicos"], nova_linha], ignore_index=True)
-                                
-                                st.session_state.biologico_form_submitted = True
-                                st.session_state.biologico_form_success = True
-                                st.session_state.biologico_form_error = ""
-                            else:
-                                st.session_state.biologico_form_submitted = True
-                                st.session_state.biologico_form_success = False
-                                st.session_state.biologico_form_error = "Falha ao adicionar produto"
-                    else:
-                        st.session_state.biologico_form_submitted = True
-                        st.session_state.biologico_form_success = False
-                        st.session_state.biologico_form_error = "Nome do produto é obrigatório"
+                            st.session_state.biologico_form_error = "Falha ao adicionar produto"
+                            
+                    except ValueError as e:
+                        st.session_state.biologico_form_error = f"Concentração inválida: {str(e)}"
+                    except Exception as e:
+                        st.session_state.biologico_form_error = f"Erro ao processar dados: {str(e)}"
                 
                 with st.form("novo_biologico_form"):
                     col1, col2 = st.columns(2)
@@ -685,19 +708,18 @@ def gerenciamento():
                     with col2:
                         st.selectbox("Formulação", options=["Suspensão concentrada", "Formulação em óleo", "Pó molhável", "Formulação em pó", "Granulado dispersível"], key="biologico_formulacao")
                         st.number_input("Dose (kg/ha ou litro/ha)", value=0.0, step=1.0, key="biologico_dose")
-                        st.text_input("Concentração em bula (UFC/g ou UFC/ml)", help="Digite em notação científica (ex: 1e9)", value="", key="biologico_concentracao")
+                        st.text_input(
+                            "Concentração em bula (UFC/g ou UFC/ml)", 
+                            help="Digite em notação científica (ex: 1e9)", 
+                            key="biologico_concentracao"
+                        )
                     st.text_input("Fabricante", key="biologico_fabricante")
                     
                     submitted = st.form_submit_button("Adicionar Produto", on_click=submit_biologico_form)
                 
-                # Mostrar mensagens de sucesso ou erro abaixo do formulário
-                if st.session_state.biologico_form_submitted:
-                    if st.session_state.biologico_form_success:
-                        st.success(f"Produto {st.session_state.biologico_nome} adicionado com sucesso!")
-                        st.session_state.biologico_form_submitted = False
-                        st.session_state.biologico_form_success = False
-                    else:
-                        st.error(st.session_state.biologico_form_error)
+                if "biologico_form_error" in st.session_state and st.session_state.biologico_form_error:
+                    st.error(st.session_state.biologico_form_error)
+                    st.session_state.biologico_form_error = ""
             
             else:  # Visualizar produtos cadastrados
                 # Filtros para a tabela
@@ -724,11 +746,18 @@ def gerenciamento():
                 if filtro_classe != "Todos":
                     df_filtrado = df_filtrado[df_filtrado["Classe"] == filtro_classe]
                 
-                # Garantir colunas esperadas
+                # Garantir colunas esperadas e tipos de dados
                 df_filtrado = df_filtrado[COLUNAS_ESPERADAS["Biologicos"]].copy()
                 
                 if df_filtrado.empty:
                     df_filtrado = pd.DataFrame(columns=COLUNAS_ESPERADAS["Biologicos"])
+                else:
+                    # Garantir que todas as colunas numéricas são do tipo correto
+                    df_filtrado['Dose'] = pd.to_numeric(df_filtrado['Dose'], errors='coerce')
+                    df_filtrado['Concentracao'] = pd.to_numeric(df_filtrado['Concentracao'], errors='coerce')
+                
+                # Converter a coluna de concentração para notação científica
+                df_filtrado['Concentracao'] = df_filtrado['Concentracao'].apply(lambda x: f"{float(x):.2e}" if pd.notna(x) else '')
                 
                 # Tabela editável
                 with st.form("biologicos_form", clear_on_submit=False):
@@ -742,8 +771,12 @@ def gerenciamento():
                             "Classe": st.column_config.SelectboxColumn("Classe", options=["Bioestimulante", "Biofungicida", "Bionematicida", "Bioinseticida", "Inoculante"]),
                             "IngredienteAtivo": st.column_config.TextColumn("Ingrediente Ativo"),
                             "Formulacao": st.column_config.SelectboxColumn("Formulação", options=["Suspensão concentrada", "Formulação em óleo", "Pó molhável", "Formulação em pó", "Granulado dispersível"]),
-                            "Dose": st.column_config.NumberColumn("Dose (kg/ha ou litro/ha)", min_value=0.0, step=1.0),
-                            "Concentracao": st.column_config.TextColumn("Concentração em bula (UFC/g ou UFC/ml)"),
+                            "Dose": st.column_config.NumberColumn("Dose (kg/ha ou litro/ha)", min_value=0.0, step=0.1, format="%.2f"),
+                            "Concentracao": st.column_config.TextColumn(
+                                "Concentração em bula (UFC/g ou UFC/ml)",
+                                help="Digite em notação científica (ex: 1e9)",
+                                validate="^[0-9]+\.?[0-9]*[eE][-+]?[0-9]+$"
+                            ),
                             "Fabricante": st.column_config.TextColumn("Fabricante")
                         },
                         use_container_width=True,
@@ -752,12 +785,36 @@ def gerenciamento():
                         disabled=False
                     )
 
-                    # Converter a coluna de concentração para float antes de salvar
+                    # Converter e validar dados antes de salvar
                     if not edited_df.equals(df_filtrado):
                         try:
-                            edited_df['Concentracao'] = edited_df['Concentracao'].apply(lambda x: convert_scientific_to_float(x) if pd.notna(x) else x)
+                            edited_df_copy = edited_df.copy()
+                            
+                            # Validar concentrações
+                            invalid_rows = []
+                            for idx, row in edited_df_copy.iterrows():
+                                if pd.notna(row['Concentracao']) and row['Concentracao'] != '':
+                                    try:
+                                        float(row['Concentracao'])
+                                    except ValueError:
+                                        invalid_rows.append(row['Nome'])
+                            
+                            if invalid_rows:
+                                st.error(f"Concentração inválida nos produtos: {', '.join(invalid_rows)}. Use notação científica (ex: 1e9)")
+                                return
+                            
+                            # Converter concentrações válidas
+                            edited_df_copy['Concentracao'] = edited_df_copy['Concentracao'].apply(
+                                lambda x: convert_scientific_to_float(x) if pd.notna(x) and x != '' else None
+                            )
+                            
+                            # Garantir tipo numérico para Dose
+                            edited_df_copy['Dose'] = pd.to_numeric(edited_df_copy['Dose'], errors='coerce')
+                            
+                            edited_df = edited_df_copy
                         except Exception as e:
-                            st.error(f"Erro ao converter concentração: {str(e)}")
+                            st.error(f"Erro ao processar dados: {str(e)}")
+                            return
                 
                     # Botão de submit do form
                     submitted = st.form_submit_button("Salvar Alterações", use_container_width=True)
@@ -782,7 +839,6 @@ def gerenciamento():
                                 
                                 st.session_state.local_data["biologicos"] = df_final
                                 if update_sheet(df_final, "Biologicos"):
-                                    st.session_state.edited_data["biologicos"] = False
                                     st.success("Dados salvos com sucesso!")
                                     st.experimental_rerun()
                             except Exception as e:
