@@ -622,20 +622,16 @@ def gerenciamento():
                 # Função para processar o envio do formulário
                 def submit_quimico_form():
                     nome = st.session_state.quimico_nome
-                    tipo = st.session_state.tipo_quimico
+                    classe = st.session_state.quimico_classe
                     fabricante = st.session_state.quimico_fabricante
                     concentracao = st.session_state.quimico_concentracao
-                    classe = st.session_state.quimico_classe
-                    modo_acao = st.session_state.quimico_modo_acao
                     
                     if nome:
                         novo_produto = {
                             "Nome": nome,
-                            "Tipo": tipo,
-                            "Fabricante": fabricante,
-                            "Concentracao": concentracao,
                             "Classe": classe,
-                            "ModoAcao": modo_acao
+                            "Fabricante": fabricante,
+                            "Dose": dose,
                         }
                         
                         # Verificar se o produto já existe
@@ -669,12 +665,10 @@ def gerenciamento():
                     col1, col2 = st.columns(2)
                     with col1:
                         st.text_input("Nome do Produto", key="quimico_nome")
-                        st.selectbox("Tipo", options=["Herbicida", "Fungicida", "Inseticida"], key="tipo_quimico")
+                        st.selectbox("Classe", options=["Herbicida", "Fungicida", "Inseticida", "Adjuvante", "Nutricional"], key="quimico_classe")
                         st.text_input("Fabricante", key="quimico_fabricante")
                     with col2:
-                        st.number_input("Concentração", value=0.0, step=1.0, key="quimico_concentracao")
-                        st.text_input("Classe", key="quimico_classe")
-                        st.text_input("Modo de Ação", key="quimico_modo_acao")
+                        st.number_input("Dose", value=0.0, step=1.0, key="quimico_dose")
                     
                     submitted = st.form_submit_button("Adicionar Produto", on_click=submit_quimico_form)
                 
@@ -702,19 +696,19 @@ def gerenciamento():
                         key="filtro_nome_quimicos"
                     )
                 with col2:
-                    filtro_tipo = st.selectbox(
-                        "🔍 Filtrar por Tipo",
-                        options=["Todos", "Herbicida", "Fungicida", "Inseticida"],
+                    filtro_classe = st.selectbox(
+                        "🔍 Filtrar por Classe",
+                        options=["Todos", "Herbicida", "Fungicida", "Inseticida", "Adjuvante", "Nutricional"],
                         index=0,
-                        key="filtro_tipo_quimicos"
+                        key="filtro_classe_quimicos"
                     )
 
                 # Aplicar filtro
                 df_filtrado = dados["quimicos"].copy()
                 if filtro_nome != "Todos":
                     df_filtrado = df_filtrado[df_filtrado["Nome"] == filtro_nome]
-                if filtro_tipo != "Todos":
-                    df_filtrado = df_filtrado[df_filtrado["Tipo"] == filtro_tipo]
+                if filtro_classe != "Todos":
+                    df_filtrado = df_filtrado[df_filtrado["Classe"] == filtro_classe]
                 
                 # Garantir que apenas as colunas esperadas estejam presentes
                 df_filtrado = df_filtrado[COLUNAS_ESPERADAS["Quimicos"]].copy()
@@ -730,14 +724,12 @@ def gerenciamento():
                     df_filtrado,
                     num_rows="dynamic",
                     hide_index=True,
-                    key=f"quimicos_editor_{filtro_nome}_{filtro_tipo}_{int(time.time())}",
+                    key=f"quimicos_editor_{filtro_nome}_{filtro_classe}_{int(time.time())}",
                     column_config={
                         "Nome": st.column_config.TextColumn("Nome do Produto", required=True),
-                        "Tipo": st.column_config.SelectboxColumn("Tipo", options=["Herbicida", "Fungicida", "Inseticida"]),
+                        "Classe": st.column_config.SelectboxColumn("Classe", options=["Herbicida", "Fungicida", "Inseticida", "Adjuvante", "Nutricional"]),
                         "Fabricante": "Fabricante",
-                        "Concentracao": st.column_config.TextColumn("Concentração", required=True),
-                        "Classe": "Classe",
-                        "ModoAcao": "Modo de Ação",
+                        "Dose (kg/ha ou litro/ha)": st.column_config.TextColumn("Dose", required=True),
                     },
                     use_container_width=True,
                     height=400,
@@ -756,10 +748,10 @@ def gerenciamento():
                                 df_completo = st.session_state.local_data["quimicos"].copy()
                                 
                                 # Criar máscara para identificar registros filtrados
-                                if filtro_nome != "Todos" or filtro_tipo != "Todos":
+                                if filtro_nome != "Todos" or filtro_classe != "Todos":
                                     mask = (
                                         (df_completo["Nome"].isin(edited_df["Nome"])) &
-                                        (df_completo["Tipo"] == filtro_tipo)
+                                        (df_completo["Classe"] == filtro_classe)
                                     )
                                 else:
                                     mask = pd.Series([True]*len(df_completo), index=df_completo.index)
@@ -772,7 +764,7 @@ def gerenciamento():
                                 
                                 # Remover duplicatas mantendo a última ocorrência
                                 df_final = df_final.drop_duplicates(
-                                    subset=["Nome", "Tipo"], 
+                                    subset=["Nome", "Classe"],
                                     keep="last"
                                 )
                                 
@@ -1446,6 +1438,12 @@ def gerenciamento():
 
 ########################################## SIDEBAR ##########################################
 
+def calculos():
+    st.title("Cálculos")
+
+
+########################################## SIDEBAR ##########################################
+
 def main():
     if 'local_data' not in st.session_state:
         st.session_state.local_data = {
@@ -1478,6 +1476,8 @@ def main():
         compatibilidade()
     elif menu_option == "Gerenciamento":
         gerenciamento()
+    elif menu_option == "Cálculos":
+        calculos()
 
 ########################################## EXECUÇÃO ##########################################
 
