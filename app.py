@@ -815,9 +815,9 @@ def gerenciamento():
                             "Classe": classe,
                             "IngredienteAtivo": ingrediente_ativo,
                             "Formulacao": formulacao,
-                            "Fabricante": fabricante,
                             "Dose": dose,
-                            "Concentracao": concentracao
+                            "Concentracao": concentracao,
+                            "Fabricante": fabricante
                         }
                         
                         # Verificar se o produto já existe
@@ -854,7 +854,7 @@ def gerenciamento():
                     with col2:
                         st.selectbox("Formulação", options=["Suspensão concentrada", "Formulação em óleo", "Pó molhável", "Formulação em pó", "Granulado dispersível"], key="biologico_formulacao")
                         st.text_input("Dose (kg/ha ou litro/ha)", value=0.0, step=1.0, key="biologico_dose")
-                        st.text_input("Concentração", value=0.0, step=1.0, key="biologico_concentracao")
+                        st.text_input("Concentração em bula (UFC/g ou UFC/ml)", value=0.0, step=1.0, key="biologico_concentracao")
                     
                     submitted = st.form_submit_button("Adicionar Produto", on_click=submit_biologico_form)
                 
@@ -915,8 +915,8 @@ def gerenciamento():
                         "Classe": st.column_config.SelectboxColumn("Classe", options=["Bioestimulante", "Biofungicida", "Bionematicida", "Bioinseticida", "Inoculante"]),
                         "IngredienteAtivo": st.column_config.TextColumn("Ingrediente Ativo", required=True),
                         "Formulacao": st.column_config.SelectboxColumn("Formulação", options=["Suspensão concentrada", "Formulação em óleo", "Pó molhável", "Formulação em pó", "Granulado dispersível"]),
-                        "Dose": st.column_config.TextColumn("Dose (kg/ha ou litro/ha)", value=0.0, step=1.0, required=True),
-                        "Concentracao": st.column_config.TextColumn("Concentração (UFC/g ou UFC/ml)", value=0.0, step=1.0, required=True),
+                        "Dose": st.column_config.TextColumn("Dose", value=0.0, step=1.0, required=True),
+                        "Concentracao": st.column_config.TextColumn("Concentração em bula", value=0.0, step=1.0, required=True),
                         "Fabricante": st.column_config.TextColumn("Fabricante", required=True)
                     },
                     use_container_width=True,
