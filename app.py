@@ -1765,36 +1765,52 @@ def gerenciamento():
                             if save_data(df_final, "Solicitacoes", "solicitacoes"):
                                 st.success("Dados salvos com sucesso!")
                         except Exception as e:
-                            st.error(f"Erro: {str(e)}")
-            
-            # Mostrar estatísticas
-            with st.expander("📊 Estatísticas"):
-                stats_df = dados["solicitacoes"].copy()
-                total = len(stats_df)
-                
-                col1, col2 = st.columns(2)
-                with col1:
-                    st.metric("Total de Solicitações", total)
-                    status_counts = stats_df["Status"].value_counts()
-                    st.write("**Por Status:**")
-                    for status, count in status_counts.items():
-                        if status == "Pendente":
-                            st.warning(f"⏳ {count} ({(count/total*100):.1f}%)")
-                        elif status == "Em análise":
-                            st.info(f"🔄 {count} ({(count/total*100):.1f}%)")
-                        else:  # Concluído
-                            st.success(f"✅ {count} ({(count/total*100):.1f}%)")
-                
-                with col2:
-                    solicitantes = stats_df["Solicitante"].nunique()
-                    st.metric("Solicitantes Únicos", solicitantes)
-                    
-                    # Tempo médio de conclusão
-                    concluidos = stats_df[stats_df["Status"] == "Concluído"]
-                    if not concluidos.empty:
-                        tempo_medio = (
-                            concluidos["DataSolicitacao"]
-                            .apply(lambda x: (datetime.now() - x).days)
-                            .mean()
-                        )
-                        st.metric("Tempo Médio (dias)", f"{tempo_medio:.1f}")
+                                st.error(f"Erro ao salvar dados: {str(e)}")
+
+########################################## SIDEBAR ##########################################
+
+def main():
+    if 'local_data' not in st.session_state:
+        st.session_state.local_data = {
+            "quimicos": pd.DataFrame(),
+            "biologicos": pd.DataFrame(),
+            "resultados": pd.DataFrame(),
+            "solicitacoes": pd.DataFrame()
+        }
+    
+    # Inicializar a página atual se não existir
+    if 'current_page' not in st.session_state:
+        st.session_state.current_page = "Compatibilidade"
+
+    st.sidebar.image("imagens/logo-cocal.png")
+    st.sidebar.title("Menu")
+    
+    # Usar o estado atual para definir o valor padrão do radio
+    menu_option = st.sidebar.radio(
+        "Selecione a funcionalidade:",
+        ("Compatibilidade", "Gerenciamento"),
+        index=0 if st.session_state.current_page == "Compatibilidade" else 1
+    )
+    
+    # Atualizar o estado da página atual
+    st.session_state.current_page = menu_option
+
+    st.sidebar.markdown("---")
+
+    if menu_option == "Compatibilidade":
+        compatibilidade()
+    elif menu_option == "Gerenciamento":
+        gerenciamento()
+
+########################################## EXECUÇÃO ##########################################
+
+if __name__ == "__main__":
+    if "logged_in" not in st.session_state:
+        st.session_state["logged_in"] = True
+
+    try:
+        if st.session_state["logged_in"]:
+            main()
+    except Exception as e:
+        st.error(f"Erro ao executar a aplicação: {e}")
+        st.stop()
