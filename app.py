@@ -1354,4 +1354,4 @@ if __name__ == "__main__":
         if st.session_state["logged_in"]:
             main()
     except Exception as e:
-        st.error(f"Erro ao
+        st.error(f"Erro ao iniciar a sessão: {str(e)}")
