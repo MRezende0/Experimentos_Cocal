@@ -1520,6 +1520,46 @@ def calculos():
 
 ########################################## SIDEBAR ##########################################
 
+def check_login():
+    if 'authenticated' not in st.session_state:
+        st.session_state.authenticated = False
+        st.session_state.failed_attempts = 0
+
+    if not st.session_state.authenticated:
+        st.title("🔒 Login Necessário")
+        st.write("Para acessar a página de gerenciamento, faça login:")
+        
+        with st.form("login_form"):
+            username = st.text_input("Usuário")
+            password = st.text_input("Senha", type="password")
+            submitted = st.form_submit_button("Entrar")
+            
+            if submitted:
+                # Aqui você pode adicionar mais usuários e senhas conforme necessário
+                valid_credentials = {
+                    "admin": "cocal2024"
+                }
+                
+                if username in valid_credentials and password == valid_credentials[username]:
+                    st.session_state.authenticated = True
+                    st.session_state.failed_attempts = 0
+                    st.success("Login realizado com sucesso!")
+                    st.experimental_rerun()
+                else:
+                    st.session_state.failed_attempts += 1
+                    remaining_attempts = 3 - st.session_state.failed_attempts
+                    
+                    if remaining_attempts > 0:
+                        st.error(f"Usuário ou senha incorretos. Você tem mais {remaining_attempts} tentativas.")
+                    else:
+                        st.error("Número máximo de tentativas excedido. Por favor, tente novamente mais tarde.")
+                        st.session_state.failed_attempts = 0
+        
+        return False
+    return True
+
+########################################## EXECUÇÃO ##########################################
+
 def main():
     if 'local_data' not in st.session_state:
         st.session_state.local_data = {
@@ -1537,32 +1577,38 @@ def main():
     st.sidebar.title("Menu")
     
     # Usar o estado atual para definir o valor padrão do radio
+    menu_options = ["Compatibilidade", "Cálculos"]
+    if st.session_state.get('authenticated', False):
+        menu_options.append("Gerenciamento")
+    
     menu_option = st.sidebar.radio(
         "Selecione a funcionalidade:",
-        ("Compatibilidade", "Gerenciamento", "Cálculos"),
-        index=0 if st.session_state.current_page == "Compatibilidade" else 1 if st.session_state.current_page == "Gerenciamento" else 2
+        menu_options,
+        index=menu_options.index(st.session_state.current_page) if st.session_state.current_page in menu_options else 0
     )
     
     # Atualizar o estado da página atual
     st.session_state.current_page = menu_option
 
     st.sidebar.markdown("---")
+    
+    # Adicionar botão de logout se estiver autenticado
+    if st.session_state.get('authenticated', False):
+        if st.sidebar.button("Logout"):
+            st.session_state.authenticated = False
+            st.session_state.current_page = "Compatibilidade"
+            st.experimental_rerun()
 
     if menu_option == "Compatibilidade":
         compatibilidade()
     elif menu_option == "Gerenciamento":
-        gerenciamento()
+        if check_login():
+            gerenciamento()
     elif menu_option == "Cálculos":
         calculos()
 
-########################################## EXECUÇÃO ##########################################
-
 if __name__ == "__main__":
-    if "logged_in" not in st.session_state:
-        st.session_state["logged_in"] = True
-
     try:
-        if st.session_state["logged_in"]:
-            main()
+        main()
     except Exception as e:
         st.error(f"Erro ao iniciar a sessão: {str(e)}")
