@@ -648,7 +648,7 @@ def gerenciamento():
                             "IngredienteAtivo": ingrediente_ativo,
                             "Formulacao": formulacao,
                             "Dose": dose,
-                            "Concentracao": concentracao,
+                            "Concentracao": convert_scientific_to_float(concentracao),
                             "Fabricante": fabricante
                         }
                         
@@ -752,7 +752,7 @@ def gerenciamento():
                     disabled=False
                 )
 
-                if not edited_df.equals(df_biologicos):
+                if not edited_df.equals(df_filtrado):
                     # Converter a coluna de concentração para float
                     edited_df['Concentracao'] = edited_df['Concentracao'].apply(convert_scientific_to_float)
                 
