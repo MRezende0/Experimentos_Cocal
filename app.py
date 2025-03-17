@@ -1019,24 +1019,12 @@ def gerenciamento():
                 
                 # Função para processar o envio do formulário
                 def submit_compatibilidade_form():
-
-                    if 'quimico_nome' not in st.session_state:
-                        st.session_state.quimico_nome = ""
-                    if 'biologico_nome' not in st.session_state:
-                        st.session_state.biologico_nome = ""
-                    if 'compatibilidade_form_submitted' not in st.session_state:
-                        st.session_state.compatibilidade_form_submitted = False
-                    if 'compatibilidade_form_success' not in st.session_state:
-                        st.session_state.compatibilidade_form_success = False
-                    if 'compatibilidade_form_error' not in st.session_state:
-                        st.session_state.compatibilidade_form_error = ""
-
                     # Obter valores do formulário
-                    biologico = st.session_state.compatibilidade_biologico
-                    quimico = st.session_state.compatibilidade_quimico
-                    data_teste = st.session_state.compatibilidade_data
-                    tempo = st.session_state.compatibilidade_tempo
-                    resultado = st.session_state.compatibilidade_status
+                    biologico = st.session_state.biologico
+                    quimico = st.session_state.quimico
+                    data_teste = st.session_state.data_teste
+                    tempo = st.session_state.tempo_teste
+                    resultado = st.session_state.status
                     
                     if quimico and biologico:
                         nova_compatibilidade = {
