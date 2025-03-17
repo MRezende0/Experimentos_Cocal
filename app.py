@@ -571,12 +571,6 @@ def mostrar_formulario_solicitacao(quimico=None, biologico=None):
 def gerenciamento():
     st.title("⚙️ Gerenciamento")
 
-    # Limpar mensagens após 2 segundos
-    if 'ultima_acao' in st.session_state:
-        if time.time() - st.session_state.ultima_acao > 2:
-            del st.session_state.ultima_acao
-            st.session_state.edited_data = {k: False for k in st.session_state.edited_data}
-
     if 'edited_data' not in st.session_state:
         st.session_state.edited_data = {
             "quimicos": False,
@@ -592,19 +586,9 @@ def gerenciamento():
     # Usar dados da sessão em vez de recarregar a cada interação
     dados = st.session_state.local_data
     
-    abas = ["Quimicos", "Biologicos", "Compatibilidades", "Solicitações"]
-    if 'aba_ativa' not in st.session_state:
-        st.session_state.aba_ativa = 0
-
-    cols = st.columns(len(abas))
-    for i, nome_aba in enumerate(abas):
-        with cols[i]:
-            if st.button(nome_aba, key=f"btn_aba_{nome_aba}"):
-                st.session_state.aba_ativa = i
-
-    tab1, tab2, tab3, tab4 = st.tabs(abas)
+    tab1, tab2, tab3, tab4 = st.tabs(["Quimicos", "Biologicos", "Compatibilidades", "Solicitações"])
     
-    with tab1 if st.session_state.aba_ativa == 0 else st.empty():
+    with tab1:
         st.subheader("Produtos Químicos")
         if "quimicos" not in dados or dados["quimicos"].empty:
             st.error("Erro ao carregar dados dos produtos químicos!")
@@ -787,13 +771,13 @@ def gerenciamento():
                                 st.session_state.local_data["quimicos"] = df_final
                                 if update_sheet(df_final, "Quimicos"):
                                     st.session_state.edited_data["quimicos"] = False
-                                    st.session_state.ultima_acao = time.time()
                                     st.success("Dados salvos com sucesso!")
+                                    st.rerun()
                                     
                             except Exception as e:
                                 st.error(f"Erro: {str(e)}")
     
-    with tab2 if st.session_state.aba_ativa == 1 else st.empty():
+    with tab2:
         st.subheader("Produtos Biológicos")
         if "biologicos" not in dados or dados["biologicos"].empty:
             st.error("Erro ao carregar dados dos produtos biológicos!")
@@ -971,12 +955,12 @@ def gerenciamento():
                                 
                                 if update_sheet(df_final, "Biologicos"):
                                     st.session_state.edited_data["biologicos"] = False
-                                    st.session_state.ultima_acao = time.time()
                                     st.success("Dados salvos com sucesso!")
+                                    st.rerun()
                             except Exception as e:
                                 st.error(f"Erro ao salvar alterações: {str(e)}")
     
-    with tab3 if st.session_state.aba_ativa == 2 else st.empty():
+    with tab3:
         st.subheader("Resultados de Compatibilidade")
         if "resultados" not in dados or dados["resultados"].empty:
             st.error("Erro ao carregar dados dos resultados!")
@@ -1198,12 +1182,12 @@ def gerenciamento():
                                 
                                 if update_sheet(df_final, "Resultados"):
                                     st.session_state.edited_data["resultados"] = False
-                                    st.session_state.ultima_acao = time.time()
                                     st.success("Dados salvos com sucesso!")
+                                    st.rerun()
                             except Exception as e:
                                 st.error(f"Erro ao salvar alterações: {str(e)}")
     
-    with tab4 if st.session_state.aba_ativa == 3 else st.empty():
+    with tab4:
         st.subheader("Solicitações")
         if "solicitacoes" not in dados or dados["solicitacoes"].empty:
             st.warning("Sem solicitações para exibir")
@@ -1424,8 +1408,8 @@ def gerenciamento():
                                 
                                 if update_sheet(df_final, "Solicitacoes"):
                                     st.session_state.edited_data["solicitacoes"] = False
-                                    st.session_state.ultima_acao = time.time()
                                     st.success("Dados salvos com sucesso!")
+                                    st.rerun()
                             except Exception as e:
                                 st.error(f"Erro ao salvar dados: {str(e)}")
 
