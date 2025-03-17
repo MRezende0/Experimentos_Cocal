@@ -731,57 +731,63 @@ def gerenciamento():
                     df_filtrado = pd.DataFrame(columns=COLUNAS_ESPERADAS["Biologicos"])
                 
                 # Tabela editável
-                edited_df = st.data_editor(
-                    df_filtrado,
-                    hide_index=True,
-                    num_rows="dynamic",
-                    key="biologicos_editor",
-                    column_config={
-                        "Nome": st.column_config.TextColumn("Produto Biológico", required=True),
-                        "Classe": st.column_config.SelectboxColumn("Classe", options=["Bioestimulante", "Biofungicida", "Bionematicida", "Bioinseticida", "Inoculante"]),
-                        "IngredienteAtivo": st.column_config.TextColumn("Ingrediente Ativo", required=True),
-                        "Formulacao": st.column_config.SelectboxColumn("Formulação", options=["Suspensão concentrada", "Formulação em óleo", "Pó molhável", "Formulação em pó", "Granulado dispersível"]),
-                        "Dose": st.column_config.NumberColumn("Dose (kg/ha ou litro/ha)", min_value=0.0, step=1.0, required=True),
-                        "Concentracao": st.column_config.TextColumn("Concentração em bula (UFC/g ou UFC/ml)", required=True),
-                        "Fabricante": st.column_config.TextColumn("Fabricante", required=True)
-                    },
-                    use_container_width=True,
-                    height=400,
-                    column_order=COLUNAS_ESPERADAS["Biologicos"],
-                    on_change=lambda: st.session_state.edited_data.update({"biologicos": True}),
-                    disabled=False
-                )
+                with st.form("biologicos_form", clear_on_submit=False):
+                    edited_df = st.data_editor(
+                        df_filtrado,
+                        hide_index=True,
+                        num_rows="dynamic",
+                        key="biologicos_editor",
+                        column_config={
+                            "Nome": st.column_config.TextColumn("Produto Biológico"),
+                            "Classe": st.column_config.SelectboxColumn("Classe", options=["Bioestimulante", "Biofungicida", "Bionematicida", "Bioinseticida", "Inoculante"]),
+                            "IngredienteAtivo": st.column_config.TextColumn("Ingrediente Ativo"),
+                            "Formulacao": st.column_config.SelectboxColumn("Formulação", options=["Suspensão concentrada", "Formulação em óleo", "Pó molhável", "Formulação em pó", "Granulado dispersível"]),
+                            "Dose": st.column_config.NumberColumn("Dose (kg/ha ou litro/ha)", min_value=0.0, step=1.0),
+                            "Concentracao": st.column_config.TextColumn("Concentração em bula (UFC/g ou UFC/ml)"),
+                            "Fabricante": st.column_config.TextColumn("Fabricante")
+                        },
+                        use_container_width=True,
+                        height=400,
+                        column_order=COLUNAS_ESPERADAS["Biologicos"],
+                        on_change=lambda: st.session_state.edited_data.update({"biologicos": True}),
+                        disabled=False
+                    )
 
-                if not edited_df.equals(df_filtrado):
-                    # Converter a coluna de concentração para float
-                    edited_df['Concentracao'] = edited_df['Concentracao'].apply(convert_scientific_to_float)
-                
-                # Botão para salvar alterações
-                if st.button("Salvar Alterações", key="save_biologicos", use_container_width=True):
-                    with st.spinner("Salvando dados..."):
+                    # Converter a coluna de concentração para float antes de salvar
+                    if not edited_df.equals(df_filtrado):
                         try:
-                            df_completo = st.session_state.local_data["biologicos"].copy()
-                            
-                            if filtro_nome != "Todos" or filtro_classe != "Todos":
-                                mask = (
-                                    (df_completo["Nome"].isin(edited_df["Nome"])) &
-                                    (df_completo["Classe"] == filtro_classe if filtro_classe != "Todos" else True)
-                                )
-                            else:
-                                mask = pd.Series([True]*len(df_completo), index=df_completo.index)
-                            
-                            df_completo = df_completo[~mask]
-                            df_final = pd.concat([df_completo, edited_df], ignore_index=True)
-                            df_final = df_final.drop_duplicates(subset=["Nome"], keep="last")
-                            df_final = df_final.sort_values(by="Nome").reset_index(drop=True)
-                            
-                            st.session_state.local_data["biologicos"] = df_final
-                            if update_sheet(df_final, "Biologicos"):
-                                st.session_state.edited_data["biologicos"] = False
-                                st.success("Dados salvos com sucesso!")
-                                st.experimental_rerun()
+                            edited_df['Concentracao'] = edited_df['Concentracao'].apply(lambda x: convert_scientific_to_float(x) if pd.notna(x) else x)
                         except Exception as e:
-                            st.error(f"Erro ao salvar alterações: {str(e)}")
+                            st.error(f"Erro ao converter concentração: {str(e)}")
+                
+                    # Botão de submit do form
+                    submitted = st.form_submit_button("Salvar Alterações", use_container_width=True)
+                    
+                    if submitted:
+                        with st.spinner("Salvando dados..."):
+                            try:
+                                df_completo = st.session_state.local_data["biologicos"].copy()
+                                
+                                if filtro_nome != "Todos" or filtro_classe != "Todos":
+                                    mask = (
+                                        (df_completo["Nome"].isin(edited_df["Nome"])) &
+                                        (df_completo["Classe"] == filtro_classe if filtro_classe != "Todos" else True)
+                                    )
+                                else:
+                                    mask = pd.Series([True]*len(df_completo), index=df_completo.index)
+                                
+                                df_completo = df_completo[~mask]
+                                df_final = pd.concat([df_completo, edited_df], ignore_index=True)
+                                df_final = df_final.drop_duplicates(subset=["Nome"], keep="last")
+                                df_final = df_final.sort_values(by="Nome").reset_index(drop=True)
+                                
+                                st.session_state.local_data["biologicos"] = df_final
+                                if update_sheet(df_final, "Biologicos"):
+                                    st.session_state.edited_data["biologicos"] = False
+                                    st.success("Dados salvos com sucesso!")
+                                    st.experimental_rerun()
+                            except Exception as e:
+                                st.error(f"Erro ao salvar alterações: {str(e)}")
 
     # Conteúdo da tab Quimicos
     elif aba_selecionada == "Quimicos":
@@ -898,10 +904,10 @@ def gerenciamento():
                     hide_index=True,
                     key="quimicos_editor",
                     column_config={
-                        "Nome": st.column_config.TextColumn("Nome do Produto", required=True),
+                        "Nome": st.column_config.TextColumn("Nome do Produto"),
                         "Classe": st.column_config.SelectboxColumn("Classe", options=["Herbicida", "Fungicida", "Inseticida", "Adjuvante", "Nutricional"]),
-                        "Fabricante": st.column_config.TextColumn("Fabricante", required=True),
-                        "Dose": st.column_config.NumberColumn("Dose (kg/ha ou litro/ha)", min_value=0.0, step=1.0, required=True)
+                        "Fabricante": st.column_config.TextColumn("Fabricante"),
+                        "Dose": st.column_config.NumberColumn("Dose (kg/ha ou litro/ha)", min_value=0.0, step=1.0)
                     },
                     use_container_width=True,
                     height=400,
@@ -1089,11 +1095,11 @@ def gerenciamento():
                     num_rows="dynamic",
                     key="compatibilidades_editor",
                     column_config={
-                        "Data": st.column_config.TextColumn("Data do Teste", required=True),
-                        "Biologico": st.column_config.SelectboxColumn("Produto Biológico", options=sorted(dados["biologicos"]["Nome"].unique().tolist()), required=True),
-                        "Quimico": st.column_config.SelectboxColumn("Produto Químico", options=sorted(dados["quimicos"]["Nome"].unique().tolist()), required=True),
+                        "Data": st.column_config.TextColumn("Data do Teste"),
+                        "Biologico": st.column_config.SelectboxColumn("Produto Biológico", options=sorted(dados["biologicos"]["Nome"].unique().tolist())),
+                        "Quimico": st.column_config.SelectboxColumn("Produto Químico", options=sorted(dados["quimicos"]["Nome"].unique().tolist())),
                         "Tempo": st.column_config.NumberColumn("Tempo (horas)", min_value=0, default=0),
-                        "Resultado": st.column_config.SelectboxColumn("Resultado", options=["Compatível", "Incompatível"], required=True)
+                        "Resultado": st.column_config.SelectboxColumn("Resultado", options=["Compatível", "Incompatível"])
                     },
                     use_container_width=True,
                     height=400,
@@ -1279,11 +1285,11 @@ def gerenciamento():
                     num_rows="dynamic",
                     key="solicitacoes_editor",
                     column_config={
-                        "Data": st.column_config.TextColumn("Data da Solicitação", required=True),
-                        "Solicitante": st.column_config.TextColumn("Solicitante", required=True),
-                        "Biologico": st.column_config.SelectboxColumn("Produto Biológico", options=sorted(dados["biologicos"]["Nome"].unique().tolist()), required=True),
-                        "Quimico": st.column_config.SelectboxColumn("Produto Químico", options=sorted(dados["quimicos"]["Nome"].unique().tolist()), required=True),
-                        "Observacoes": st.column_config.TextColumn("Observações", required=True),
+                        "Data": st.column_config.TextColumn("Data da Solicitação"),
+                        "Solicitante": st.column_config.TextColumn("Solicitante"),
+                        "Biologico": st.column_config.SelectboxColumn("Produto Biológico", options=sorted(dados["biologicos"]["Nome"].unique().tolist())),
+                        "Quimico": st.column_config.SelectboxColumn("Produto Químico", options=sorted(dados["quimicos"]["Nome"].unique().tolist())),
+                        "Observacoes": st.column_config.TextColumn("Observações"),
                         "Status": st.column_config.SelectboxColumn("Status", options=["Pendente", "Em Análise", "Concluído", "Cancelado"])
                     },
                     use_container_width=True,
