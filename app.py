@@ -626,7 +626,7 @@ def gerenciamento():
     
     aba_selecionada = st.radio(
         "Selecione a aba:",
-        ["Biologicos", "Quimicos", "Compatibilidades", "Solicitações"],
+        ["Biologicos", "Quimicos", "Compatibilidades", "Solicitações", "Cálculos"],
         key="management_tabs",
         horizontal=True,
         label_visibility="collapsed"
@@ -1389,6 +1389,10 @@ def gerenciamento():
                             except Exception as e:
                                 st.error(f"Erro ao salvar dados: {str(e)}")
 
+    # Conteúdo da tab Cálculos
+    elif aba_selecionada == "Cálculos":
+        calculos()
+
     # Removendo o componente JavaScript para evitar conflitos
     def fix_table_buttons():
         pass
@@ -1537,7 +1541,7 @@ def check_login():
             if submitted:
                 # Aqui você pode adicionar mais usuários e senhas conforme necessário
                 valid_credentials = {
-                    "admin": "cocal2024"
+                    "adm": "cocal2024"
                 }
                 
                 if username in valid_credentials and password == valid_credentials[username]:
@@ -1576,12 +1580,11 @@ def main():
     st.sidebar.image("imagens/logo-cocal.png")
     st.sidebar.title("Menu")
     
-    # Mostrar todas as opções no menu, incluindo Gerenciamento
+    # Mostrar apenas Compatibilidade e Gerenciamento no menu
     menu_option = st.sidebar.radio(
         "Selecione a funcionalidade:",
-        ("Compatibilidade", "Gerenciamento", "Cálculos"),
-        index=0 if st.session_state.current_page == "Compatibilidade" else 
-              1 if st.session_state.current_page == "Gerenciamento" else 2
+        ("Compatibilidade", "Gerenciamento"),
+        index=0 if st.session_state.current_page == "Compatibilidade" else 1
     )
     
     # Atualizar o estado da página atual
@@ -1591,7 +1594,7 @@ def main():
     
     # Adicionar botão de logout se estiver autenticado
     if st.session_state.get('authenticated', False):
-        if st.sidebar.button("Logout"):
+        if st.sidebar.button("Sair"):
             st.session_state.authenticated = False
             st.session_state.current_page = "Compatibilidade"
             st.experimental_rerun()
@@ -1603,8 +1606,6 @@ def main():
             check_login()
         else:
             gerenciamento()
-    elif menu_option == "Cálculos":
-        calculos()
 
 if __name__ == "__main__":
     try:
