@@ -8,6 +8,7 @@ import streamlit as st
 import pandas as pd
 import numpy as np
 import plotly.express as px
+import plotly.graph_objects as go
 import gspread
 from oauth2client.service_account import ServiceAccountCredentials
 from google.oauth2 import service_account
@@ -1302,11 +1303,120 @@ def gerenciamento():
     def fix_table_buttons():
         pass
 
-########################################## SIDEBAR ##########################################
+########################################## CÁLCULOS ##########################################
 
 def calculos():
-    st.title("Cálculos")
-
+    st.title("🧮 Cálculos de Concentração")
+    
+    # Criar tabs para os diferentes cálculos
+    tab1, tab2, tab3 = st.tabs(["Concentração Obtida", "Concentração Esperada", "Resultado"])
+    
+    # Variáveis de estado para armazenar os resultados
+    if 'concentracao_obtida' not in st.session_state:
+        st.session_state.concentracao_obtida = 0.0
+    if 'concentracao_esperada' not in st.session_state:
+        st.session_state.concentracao_esperada = 0.0
+    
+    # Tab Concentração Obtida
+    with tab1:
+        st.subheader("Cálculo da Concentração Obtida")
+        st.markdown("Fórmula: Média das placas (colônias) × Diluição × 10")
+        
+        col1, col2 = st.columns(2)
+        with col1:
+            placa1 = st.number_input("Placa 1 (colônias)", min_value=0, step=1, value=st.session_state.get('placa1', 0), key="placa1")
+            placa2 = st.number_input("Placa 2 (colônias)", min_value=0, step=1, value=st.session_state.get('placa2', 0), key="placa2")
+            placa3 = st.number_input("Placa 3 (colônias)", min_value=0, step=1, value=st.session_state.get('placa3', 0), key="placa3")
+        
+        with col2:
+            diluicao = st.number_input("Diluição", min_value=0.0, format="%.2e", value=st.session_state.get('diluicao', 1e-6), key="diluicao")
+            
+        # Auto-calculate without button
+        media_placas = (placa1 + placa2 + placa3) / 3
+        concentracao_obtida = media_placas * diluicao * 10
+        st.session_state.concentracao_obtida = concentracao_obtida
+        
+        st.info(f"Concentração Obtida: {concentracao_obtida:.2e} UFC/mL")
+    
+    # Tab Concentração Esperada
+    with tab2:
+        st.subheader("Cálculo da Concentração Esperada")
+        st.markdown("Fórmula: (Concentração do ativo × Dose) ÷ Volume de calda")
+        
+        col1, col2 = st.columns(2)
+        with col1:
+            conc_ativo = st.number_input("Concentração do ativo (UFC/mL)", min_value=0.0, format="%.2e", value=st.session_state.get('conc_ativo', 1e9), key="conc_ativo")
+            dose = st.number_input("Dose (L/ha ou kg/ha)", min_value=0.0, step=0.1, value=st.session_state.get('dose', 1.0), key="dose")
+        
+        with col2:
+            volume_calda = st.number_input("Volume de calda (L/ha)", min_value=0.1, step=1.0, value=st.session_state.get('volume_calda', 200.0), key="volume_calda")
+        
+        # Auto-calculate without button
+        concentracao_esperada = (conc_ativo * dose) / volume_calda
+        st.session_state.concentracao_esperada = concentracao_esperada
+        
+        st.info(f"Concentração Esperada: {concentracao_esperada:.2e} UFC/mL")
+    
+    # Tab Resultado da Compatibilidade
+    with tab3:
+        st.subheader("Resultado da Compatibilidade")
+        
+        if st.session_state.concentracao_obtida > 0 and st.session_state.concentracao_esperada > 0:
+            razao = st.session_state.concentracao_obtida / st.session_state.concentracao_esperada
+            
+            col1, col2 = st.columns(2)
+            with col1:
+                st.write("**Valores calculados:**")
+                st.write(f"- Concentração Obtida (X): {st.session_state.concentracao_obtida:.2e} UFC/mL")
+                st.write(f"- Concentração Esperada (Y): {st.session_state.concentracao_esperada:.2e} UFC/mL")
+                st.write(f"- Razão (X/Y): {razao:.2f}")
+            
+            with col2:
+                if 0.8 <= razao <= 1.5:
+                    st.success("✅ COMPATÍVEL\nA razão está dentro do intervalo ideal (0,8 a 1,5)")
+                elif razao > 1.5:
+                    st.warning("⚠️ ATENÇÃO\nA razão está acima de 1,5")
+                else:
+                    st.error("❌ INCOMPATÍVEL\nA razão está abaixo de 0,8")
+            
+            fig = go.Figure()
+            
+            # Compatibility region
+            fig.add_shape(
+                type="rect",
+                x0=0.8,
+                x1=1.5,
+                y0=0,
+                y1=1,
+                fillcolor="rgba(0,255,0,0.2)",
+                line=dict(width=0),
+                layer="below"
+            )
+            
+            # Current value line
+            fig.add_shape(
+                type="line",
+                x0=razao,
+                x1=razao,
+                y0=0,
+                y1=1,
+                line=dict(color="red", width=2, dash="dash"),
+            )
+            
+            fig.update_layout(
+                title="Faixa de Compatibilidade",
+                xaxis_title="Razão (X/Y)",
+                yaxis_title="",
+                showlegend=False,
+                height=300,
+                margin=dict(l=20, r=20, t=40, b=20),
+                xaxis=dict(range=[0, max(2, razao + 0.5)])
+            )
+            
+            st.plotly_chart(fig, use_container_width=True)
+            
+        else:
+            st.info("Insira os valores nos campos acima para ver o resultado da compatibilidade.")
 
 ########################################## SIDEBAR ##########################################
 
@@ -1329,8 +1439,8 @@ def main():
     # Usar o estado atual para definir o valor padrão do radio
     menu_option = st.sidebar.radio(
         "Selecione a funcionalidade:",
-        ("Compatibilidade", "Gerenciamento"),
-        index=0 if st.session_state.current_page == "Compatibilidade" else 1
+        ("Compatibilidade", "Gerenciamento", "Cálculos"),
+        index=0 if st.session_state.current_page == "Compatibilidade" else 1 if st.session_state.current_page == "Gerenciamento" else 2
     )
     
     # Atualizar o estado da página atual
