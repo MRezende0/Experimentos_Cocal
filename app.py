@@ -1398,10 +1398,46 @@ def gerenciamento():
 def calculos():
     st.title("🧮 Cálculos de Concentração")
     
+    # Carregar dados se não estiverem na session_state
+    if 'local_data' not in st.session_state:
+        st.session_state.local_data = load_all_data()
+    
+    # Inicializar variáveis de estado
     if 'concentracao_obtida' not in st.session_state:
         st.session_state.concentracao_obtida = 0.0
     if 'concentracao_esperada' not in st.session_state:
         st.session_state.concentracao_esperada = 0.0
+    
+    # Seleção de produtos
+    st.header("Seleção de Produtos")
+    col1, col2 = st.columns(2)
+    
+    with col1:
+        biologico_selecionado = st.selectbox(
+            "Selecione o Produto Biológico",
+            options=sorted(st.session_state.local_data["biologicos"]["Nome"].unique()),
+            key="calc_biologico"
+        )
+        
+        # Obter a dose registrada do biológico
+        dose_registrada = st.session_state.local_data["biologicos"][
+            st.session_state.local_data["biologicos"]["Nome"] == biologico_selecionado
+        ]["Dose"].iloc[0]
+        
+        st.info(f"Dose registrada: {dose_registrada} L/ha ou kg/ha")
+    
+    with col2:
+        quimicos_selecionados = st.multiselect(
+            "Selecione os Produtos Químicos",
+            options=sorted(st.session_state.local_data["quimicos"]["Nome"].unique()),
+            key="calc_quimicos"
+        )
+    
+    if not quimicos_selecionados:
+        st.warning("Selecione pelo menos um produto químico para continuar")
+        return
+    
+    st.markdown("---")
     
     st.header("Concentração Obtida")
     st.markdown("Fórmula: Média das placas (colônias) × Diluição × 10")
@@ -1429,7 +1465,8 @@ def calculos():
     col1, col2 = st.columns(2)
     with col1:
         conc_ativo = st.number_input("Concentração do ativo (UFC/mL)", min_value=0.0, format="%.2e", value=st.session_state.get('conc_ativo', 1e9), key="conc_ativo")
-        dose = st.number_input("Dose (L/ha ou kg/ha)", min_value=0.0, step=0.1, value=st.session_state.get('dose', 1.0), key="dose")
+        # Usar a dose registrada do biológico
+        dose = st.number_input("Dose (L/ha ou kg/ha)", min_value=0.0, step=0.1, value=dose_registrada, key="dose", disabled=True)
     
     with col2:
         volume_calda = st.number_input("Volume de calda (L/ha)", min_value=0.1, step=1.0, value=st.session_state.get('volume_calda', 200.0), key="volume_calda")
@@ -1455,7 +1492,7 @@ def calculos():
         
         **2. Concentração Esperada**
         - Concentração do ativo = {conc_ativo:.2e} UFC/mL
-        - Dose = {dose:.1f} L/ha
+        - Dose = {dose:.1f} L/ha (registrada para {biologico_selecionado})
         - Volume de calda = {volume_calda:.1f} L/ha
         - Concentração Esperada = ({conc_ativo:.2e} × {dose:.1f}) ÷ {volume_calda:.1f} = {concentracao_esperada:.2e} UFC/mL
         
@@ -1464,11 +1501,20 @@ def calculos():
         """)
         
         if 0.8 <= razao <= 1.5:
-            st.success("✅ COMPATÍVEL - A razão está dentro do intervalo ideal (0,8 a 1,5)")
+            st.success(f"✅ COMPATÍVEL - A razão está dentro do intervalo ideal (0,8 a 1,5)")
+            st.write(f"O produto {biologico_selecionado} é compatível com os produtos químicos selecionados:")
+            for quimico in quimicos_selecionados:
+                st.write(f"- {quimico}")
         elif razao > 1.5:
-            st.warning("⚠️ ATENÇÃO - A razão está acima de 1,5")
+            st.warning(f"⚠️ ATENÇÃO - A razão está acima de 1,5")
+            st.write(f"Possível interação positiva entre {biologico_selecionado} e os produtos químicos:")
+            for quimico in quimicos_selecionados:
+                st.write(f"- {quimico}")
         else:
-            st.error("❌ INCOMPATÍVEL - A razão está abaixo de 0,8")
+            st.error(f"❌ INCOMPATÍVEL - A razão está abaixo de 0,8")
+            st.write(f"O produto {biologico_selecionado} NÃO é compatível com os produtos químicos:")
+            for quimico in quimicos_selecionados:
+                st.write(f"- {quimico}")
     else:
         st.info("Preencha os valores acima para ver o resultado da compatibilidade.")
 
