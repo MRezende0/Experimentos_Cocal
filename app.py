@@ -574,7 +574,7 @@ def gerenciamento():
     # Inicializar estado da aba de gerenciamento
     if 'current_management_tab' not in st.session_state:
         st.session_state.current_management_tab = "Quimicos"
-
+    
     if 'edited_data' not in st.session_state:
         st.session_state.edited_data = {
             "quimicos": False,
@@ -590,19 +590,12 @@ def gerenciamento():
     # Usar dados da sessão em vez de recarregar a cada interação
     dados = st.session_state.local_data
     
-    tabs = st.tabs(["Quimicos", "Biologicos", "Compatibilidades", "Solicitações"])
-    
-    # Atualizar estado quando uma tab é clicada
-    for i, tab in enumerate(tabs):
-        with tab:
-            if tab == tabs[i]:
-                st.session_state.current_management_tab = ["Quimicos", "Biologicos", "Compatibilidades", "Solicitações"][i]
-    
-    # Usar índice correto para a tab ativa
-    tab_index = ["Quimicos", "Biologicos", "Compatibilidades", "Solicitações"].index(st.session_state.current_management_tab)
-    tab1, tab2, tab3, tab4 = tabs[tab_index], tabs[(tab_index+1)%4], tabs[(tab_index+2)%4], tabs[(tab_index+3)%4]
-    
-    with tab1:
+    tabs = st.tabs([
+        "Quimicos", "Biologicos", "Compatibilidades", "Solicitações"
+    ])
+
+    # Conteúdo da tab Quimicos
+    with tabs[0]:
         st.subheader("Produtos Químicos")
         if "quimicos" not in dados or dados["quimicos"].empty:
             st.error("Erro ao carregar dados dos produtos químicos!")
@@ -795,7 +788,8 @@ def gerenciamento():
                             except Exception as e:
                                 st.error(f"Erro: {str(e)}")
     
-    with tab2:
+    # Conteúdo da tab Biologicos
+    with tabs[1]:
         st.subheader("Produtos Biológicos")
         if "biologicos" not in dados or dados["biologicos"].empty:
             st.error("Erro ao carregar dados dos produtos biológicos!")
@@ -982,7 +976,8 @@ def gerenciamento():
                             except Exception as e:
                                 st.error(f"Erro ao salvar alterações: {str(e)}")
     
-    with tab3:
+    # Conteúdo da tab Compatibilidades
+    with tabs[2]:
         st.subheader("Resultados de Compatibilidade")
         if "resultados" not in dados or dados["resultados"].empty:
             st.error("Erro ao carregar dados dos resultados!")
@@ -1213,7 +1208,8 @@ def gerenciamento():
                             except Exception as e:
                                 st.error(f"Erro ao salvar alterações: {str(e)}")
     
-    with tab4:
+    # Conteúdo da tab Solicitações
+    with tabs[3]:
         st.subheader("Solicitações")
         if "solicitacoes" not in dados or dados["solicitacoes"].empty:
             st.warning("Sem solicitações para exibir")
