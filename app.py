@@ -749,7 +749,6 @@ def gerenciamento():
                         use_container_width=True,
                         height=400,
                         column_order=COLUNAS_ESPERADAS["Biologicos"],
-                        on_change=lambda: st.session_state.edited_data.update({"biologicos": True}),
                         disabled=False
                     )
 
