@@ -951,7 +951,7 @@ def gerenciamento():
                     quimico = st.session_state.resultado_quimico
                     biologico = st.session_state.resultado_biologico
                     data_teste = st.session_state.resultado_data
-                    tempo = st.session_state.resultado_duracao
+                    tempo = st.session_state.resultado_tempo
                     resultado = st.session_state.resultado_status
                     
                     if quimico and biologico:
