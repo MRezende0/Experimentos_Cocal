@@ -85,8 +85,8 @@ SHEET_GIDS = {
 }
 
 COLUNAS_ESPERADAS = {
-    "Quimicos": ["Nome", "Tipo", "Fabricante", "Concentracao", "Classe", "ModoAcao"],
-    "Biologicos": ["Nome", "Tipo", "IngredienteAtivo", "Formulacao", "Aplicacao", "Validade"],
+    "Quimicos": ["Nome", "Classe", "Fabricante", "Dose"],
+    "Biologicos": ["Nome", "Classe", "IngredienteAtivo", "Formulacao", "Dose", "Concentracao", "Fabricante"],
     "Resultados": ["Data", "Quimico", "Biologico", "Duracao", "Tipo", "Resultado"],
     "Solicitacoes": ["Data", "Solicitante", "Quimico", "Biologico", "Observacoes", "Status"]
 }
@@ -226,8 +226,8 @@ def load_sheet_data(sheet_name: str) -> pd.DataFrame:
             
             # Verificar colunas essenciais
             required_columns = {
-                "Quimicos": ["Nome", "Tipo"],
-                "Biologicos": ["Nome", "Tipo"],
+                "Quimicos": ["Nome", "Classe"],
+                "Biologicos": ["Nome", "Classe"],
                 "Resultados": ["Quimico", "Biologico"],
                 "Solicitacoes": ["Quimico", "Biologico"]
             }
@@ -571,9 +571,9 @@ def mostrar_formulario_solicitacao(quimico=None, biologico=None):
 def gerenciamento():
     st.title("⚙️ Gerenciamento")
 
-    # Inicializar estado da aba de gerenciamento
-    if 'current_management_tab' not in st.session_state:
-        st.session_state.current_management_tab = "Quimicos"
+    # Inicializar dados locais
+    if 'local_data' not in st.session_state:
+        st.session_state.local_data = load_all_data()
     
     if 'edited_data' not in st.session_state:
         st.session_state.edited_data = {
@@ -582,10 +582,6 @@ def gerenciamento():
             "resultados": False,
             "solicitacoes": False
         }
-    
-    # Inicializar dados locais
-    if 'local_data' not in st.session_state:
-        st.session_state.local_data = load_all_data()
     
     # Usar dados da sessão em vez de recarregar a cada interação
     dados = st.session_state.local_data
@@ -616,22 +612,20 @@ def gerenciamento():
                     st.session_state.quimico_form_success = False
                 if 'quimico_form_error' not in st.session_state:
                     st.session_state.quimico_form_error = ""
-                if 'quimico_just_submitted' not in st.session_state:
-                    st.session_state.quimico_just_submitted = False
                 
                 # Função para processar o envio do formulário
                 def submit_quimico_form():
                     nome = st.session_state.quimico_nome
                     classe = st.session_state.quimico_classe
                     fabricante = st.session_state.quimico_fabricante
-                    concentracao = st.session_state.quimico_concentracao
+                    dose = st.session_state.quimico_dose
                     
                     if nome:
                         novo_produto = {
                             "Nome": nome,
                             "Classe": classe,
                             "Fabricante": fabricante,
-                            "Dose": dose,
+                            "Dose": dose
                         }
                         
                         # Verificar se o produto já existe
@@ -649,9 +643,6 @@ def gerenciamento():
                                 st.session_state.quimico_form_submitted = True
                                 st.session_state.quimico_form_success = True
                                 st.session_state.quimico_form_error = ""
-                                st.session_state.quimico_just_submitted = True
-                                # Garantir que permanecemos na página atual
-                                st.session_state.current_page = "Gerenciamento"
                             else:
                                 st.session_state.quimico_form_submitted = True
                                 st.session_state.quimico_form_success = False
@@ -675,13 +666,9 @@ def gerenciamento():
                 # Mostrar mensagens de sucesso ou erro abaixo do formulário
                 if st.session_state.quimico_form_submitted:
                     if st.session_state.quimico_form_success:
-                        # Usar um container para destacar a mensagem de sucesso
-                        success_container = st.container()
-                        with success_container:
-                            st.success(f"Produto {st.session_state.quimico_nome} adicionado com sucesso!")
-                            st.session_state.quimico_form_submitted = False
-                            st.session_state.quimico_form_success = False
-                            st.session_state.quimico_just_submitted = False
+                        st.success(f"Produto {st.session_state.quimico_nome} adicionado com sucesso!")
+                        st.session_state.quimico_form_submitted = False
+                        st.session_state.quimico_form_success = False
                     else:
                         st.error(st.session_state.quimico_form_error)
             
@@ -710,77 +697,58 @@ def gerenciamento():
                 if filtro_classe != "Todos":
                     df_filtrado = df_filtrado[df_filtrado["Classe"] == filtro_classe]
                 
-                # Garantir que apenas as colunas esperadas estejam presentes
+                # Garantir colunas esperadas
                 df_filtrado = df_filtrado[COLUNAS_ESPERADAS["Quimicos"]].copy()
                 
-                # Garantir que o DataFrame tenha pelo menos uma linha vazia para adição
                 if df_filtrado.empty:
-                    df_vazio = pd.DataFrame(columns=COLUNAS_ESPERADAS["Quimicos"])
-                    # Adicionar uma linha vazia para facilitar a adição de novos dados
-                    df_filtrado = df_vazio
+                    df_filtrado = pd.DataFrame(columns=COLUNAS_ESPERADAS["Quimicos"])
                 
                 # Tabela editável
                 edited_df = st.data_editor(
                     df_filtrado,
                     num_rows="dynamic",
                     hide_index=True,
-                    key=f"quimicos_editor_{filtro_nome}_{filtro_classe}_{int(time.time())}",
+                    key="quimicos_editor",
                     column_config={
                         "Nome": st.column_config.TextColumn("Nome do Produto", required=True),
                         "Classe": st.column_config.SelectboxColumn("Classe", options=["Herbicida", "Fungicida", "Inseticida", "Adjuvante", "Nutricional"]),
-                        "Fabricante": "Fabricante",
-                        "Dose": st.column_config.TextColumn("Dose", required=True),
+                        "Fabricante": st.column_config.TextColumn("Fabricante", required=True),
+                        "Dose": st.column_config.NumberColumn("Dose (kg/ha ou litro/ha)", min_value=0.0, step=1.0, required=True)
                     },
                     use_container_width=True,
                     height=400,
+                    column_order=COLUNAS_ESPERADAS["Quimicos"],
                     on_change=lambda: st.session_state.edited_data.update({"quimicos": True}),
-                    disabled=False,
-                    column_order=COLUNAS_ESPERADAS["Quimicos"]
+                    disabled=False
                 )
                 
                 # Botão para salvar alterações
-                col_btn = st.container()
-                with col_btn:
-                    if st.button("Salvar Alterações", key="save_quimicos", use_container_width=True):
-                        with st.spinner("Salvando dados..."):
-                            try:
-                                # Obter dados completos originais
-                                df_completo = st.session_state.local_data["quimicos"].copy()
-                                
-                                # Criar máscara para identificar registros filtrados
-                                if filtro_nome != "Todos" or filtro_classe != "Todos":
-                                    mask = (
-                                        (df_completo["Nome"].isin(edited_df["Nome"])) &
-                                        (df_completo["Classe"] == filtro_classe)
-                                    )
-                                else:
-                                    mask = pd.Series([True]*len(df_completo), index=df_completo.index)
-                                    
-                                # Remover registros antigos que correspondem ao filtro
-                                df_completo = df_completo[~mask]
-                                
-                                # Adicionar dados editados
-                                df_final = pd.concat([df_completo, edited_df], ignore_index=True)
-                                
-                                # Remover duplicatas mantendo a última ocorrência
-                                df_final = df_final.drop_duplicates(
-                                    subset=["Nome", "Classe"],
-                                    keep="last"
+                if st.button("Salvar Alterações", key="save_quimicos", use_container_width=True):
+                    with st.spinner("Salvando dados..."):
+                        try:
+                            df_completo = st.session_state.local_data["quimicos"].copy()
+                            
+                            if filtro_nome != "Todos" or filtro_classe != "Todos":
+                                mask = (
+                                    (df_completo["Nome"].isin(edited_df["Nome"])) &
+                                    (df_completo["Classe"] == filtro_classe if filtro_classe != "Todos" else True)
                                 )
-                                
-                                # Ordenar e resetar índice
-                                df_final = df_final.sort_values(by="Nome").reset_index(drop=True)
-                                
-                                # Atualizar dados e planilha
-                                st.session_state.local_data["quimicos"] = df_final
-                                if update_sheet(df_final, "Quimicos"):
-                                    st.session_state.edited_data["quimicos"] = False
-                                    st.success("Dados salvos com sucesso!")
-                                    st.experimental_rerun()
-                                    
-                            except Exception as e:
-                                st.error(f"Erro: {str(e)}")
-    
+                            else:
+                                mask = pd.Series([True]*len(df_completo), index=df_completo.index)
+                            
+                            df_completo = df_completo[~mask]
+                            df_final = pd.concat([df_completo, edited_df], ignore_index=True)
+                            df_final = df_final.drop_duplicates(subset=["Nome"], keep="last")
+                            df_final = df_final.sort_values(by="Nome").reset_index(drop=True)
+                            
+                            st.session_state.local_data["quimicos"] = df_final
+                            if update_sheet(df_final, "Quimicos"):
+                                st.session_state.edited_data["quimicos"] = False
+                                st.success("Dados salvos com sucesso!")
+                                st.experimental_rerun()
+                        except Exception as e:
+                            st.error(f"Erro: {str(e)}")
+
     # Conteúdo da tab Biologicos
     elif aba_selecionada == "Biologicos":
         st.subheader("Produtos Biológicos")
@@ -853,20 +821,17 @@ def gerenciamento():
                         st.text_input("Fabricante", key="biologico_fabricante")
                     with col2:
                         st.selectbox("Formulação", options=["Suspensão concentrada", "Formulação em óleo", "Pó molhável", "Formulação em pó", "Granulado dispersível"], key="biologico_formulacao")
-                        st.text_input("Dose (kg/ha ou litro/ha)", value=0.0, step=1.0, key="biologico_dose")
-                        st.text_input("Concentração em bula (UFC/g ou UFC/ml)", value=0.0, step=1.0, key="biologico_concentracao")
+                        st.number_input("Dose (kg/ha ou litro/ha)", value=0.0, step=1.0, key="biologico_dose")
+                        st.number_input("Concentração em bula (UFC/g ou UFC/ml)", value=0.0, step=1.0, key="biologico_concentracao")
                     
                     submitted = st.form_submit_button("Adicionar Produto", on_click=submit_biologico_form)
                 
                 # Mostrar mensagens de sucesso ou erro abaixo do formulário
                 if st.session_state.biologico_form_submitted:
                     if st.session_state.biologico_form_success:
-                        # Usar um container para destacar a mensagem de sucesso
-                        success_container = st.container()
-                        with success_container:
-                            st.success(f"Produto {st.session_state.biologico_nome} adicionado com sucesso!")
-                            st.session_state.biologico_form_submitted = False
-                            st.session_state.biologico_form_success = False
+                        st.success(f"Produto {st.session_state.biologico_nome} adicionado com sucesso!")
+                        st.session_state.biologico_form_submitted = False
+                        st.session_state.biologico_form_success = False
                     else:
                         st.error(st.session_state.biologico_form_error)
             
@@ -895,80 +860,61 @@ def gerenciamento():
                 if filtro_classe != "Todos":
                     df_filtrado = df_filtrado[df_filtrado["Classe"] == filtro_classe]
                 
-                # Garantir que apenas as colunas esperadas estejam presentes
+                # Garantir colunas esperadas
                 df_filtrado = df_filtrado[COLUNAS_ESPERADAS["Biologicos"]].copy()
                 
-                # Garantir que o DataFrame tenha pelo menos uma linha vazia para adição
                 if df_filtrado.empty:
-                    df_vazio = pd.DataFrame(columns=COLUNAS_ESPERADAS["Biologicos"])
-                    # Adicionar uma linha vazia para facilitar a adição de novos dados
-                    df_filtrado = df_vazio
+                    df_filtrado = pd.DataFrame(columns=COLUNAS_ESPERADAS["Biologicos"])
                 
                 # Tabela editável
                 edited_df = st.data_editor(
                     df_filtrado,
                     hide_index=True,
                     num_rows="dynamic",
-                    key=f"biologicos_editor_{filtro_nome}_{filtro_classe}_{int(time.time())}",
+                    key="biologicos_editor",
                     column_config={
                         "Nome": st.column_config.TextColumn("Produto Biológico", required=True),
                         "Classe": st.column_config.SelectboxColumn("Classe", options=["Bioestimulante", "Biofungicida", "Bionematicida", "Bioinseticida", "Inoculante"]),
                         "IngredienteAtivo": st.column_config.TextColumn("Ingrediente Ativo", required=True),
                         "Formulacao": st.column_config.SelectboxColumn("Formulação", options=["Suspensão concentrada", "Formulação em óleo", "Pó molhável", "Formulação em pó", "Granulado dispersível"]),
-                        "Dose": st.column_config.TextColumn("Dose", value=0.0, step=1.0, required=True),
-                        "Concentracao": st.column_config.TextColumn("Concentração em bula", value=0.0, step=1.0, required=True),
+                        "Dose": st.column_config.NumberColumn("Dose (kg/ha ou litro/ha)", min_value=0.0, step=1.0, required=True),
+                        "Concentracao": st.column_config.NumberColumn("Concentração em bula (UFC/g ou UFC/ml)", min_value=0.0, step=1.0, required=True),
                         "Fabricante": st.column_config.TextColumn("Fabricante", required=True)
                     },
                     use_container_width=True,
                     height=400,
+                    column_order=COLUNAS_ESPERADAS["Biologicos"],
                     on_change=lambda: st.session_state.edited_data.update({"biologicos": True}),
-                    disabled=False,
-                    column_order=COLUNAS_ESPERADAS["Biologicos"]
+                    disabled=False
                 )
                 
                 # Botão para salvar alterações
-                col_btn = st.container()
-                with col_btn:
-                    if st.button("Salvar Alterações", key="save_biologicos", use_container_width=True):
-                        with st.spinner("Salvando dados..."):
-                            try:
-                                # Verificar se é um DataFrame
-                                if not isinstance(edited_df, pd.DataFrame):
-                                    st.error("Erro: Os dados editados não são um DataFrame válido")
-                                    st.stop()
-                                
-                                # Garantir que todas as colunas necessárias estejam presentes
-                                for col in COLUNAS_ESPERADAS["Biologicos"]:
-                                    if col not in edited_df.columns:
-                                        st.error(f"Coluna obrigatória '{col}' não encontrada nos dados editados")
-                                        st.stop()
-                                
-                                # Remover linhas vazias
-                                edited_df = edited_df.dropna(subset=["Nome"], how="all").reset_index(drop=True)
-                                
-                                # Verificar se há dados para salvar
-                                if edited_df.empty and filtro_nome == "" and filtro_classe == "Todos":
-                                    st.warning("Não há dados para salvar")
-                                    st.stop()
-                                
-                                df_completo = st.session_state.local_data["biologicos"].copy()
-                                
-                                if filtro_nome != "Todos" or filtro_classe != "Todos":
-                                    mask = df_completo["Nome"].isin(edited_df["Nome"]) & (df_completo["Classe"] == filtro_classe)
-                                    df_restante = df_completo[~mask]
-                                    df_final = pd.concat([df_restante, edited_df], ignore_index=True)
-                                else:
-                                    df_final = edited_df
-                                
-                                st.session_state.local_data["biologicos"] = df_final
-                                
-                                if update_sheet(df_final, "Biologicos"):
-                                    st.session_state.edited_data["biologicos"] = False
-                                    st.success("Dados salvos com sucesso!")
-                                    st.experimental_rerun()
-                            except Exception as e:
-                                st.error(f"Erro ao salvar alterações: {str(e)}")
-    
+                if st.button("Salvar Alterações", key="save_biologicos", use_container_width=True):
+                    with st.spinner("Salvando dados..."):
+                        try:
+                            df_completo = st.session_state.local_data["biologicos"].copy()
+                            
+                            if filtro_nome != "Todos" or filtro_classe != "Todos":
+                                mask = (
+                                    (df_completo["Nome"].isin(edited_df["Nome"])) &
+                                    (df_completo["Classe"] == filtro_classe if filtro_classe != "Todos" else True)
+                                )
+                            else:
+                                mask = pd.Series([True]*len(df_completo), index=df_completo.index)
+                            
+                            df_completo = df_completo[~mask]
+                            df_final = pd.concat([df_completo, edited_df], ignore_index=True)
+                            df_final = df_final.drop_duplicates(subset=["Nome"], keep="last")
+                            df_final = df_final.sort_values(by="Nome").reset_index(drop=True)
+                            
+                            st.session_state.local_data["biologicos"] = df_final
+                            if update_sheet(df_final, "Biologicos"):
+                                st.session_state.edited_data["biologicos"] = False
+                                st.success("Dados salvos com sucesso!")
+                                st.experimental_rerun()
+                        except Exception as e:
+                            st.error(f"Erro ao salvar alterações: {str(e)}")
+
     # Conteúdo da tab Compatibilidades
     elif aba_selecionada == "Compatibilidades":
         st.subheader("Resultados de Compatibilidade")
@@ -1105,14 +1051,11 @@ def gerenciamento():
                 if filtro_biologico != "Todos":
                     df_filtrado = df_filtrado[df_filtrado["Biologico"] == filtro_biologico]
                 
-                # Garantir que apenas as colunas esperadas estejam presentes
+                # Garantir colunas esperadas
                 df_filtrado = df_filtrado[COLUNAS_ESPERADAS["Resultados"]].copy()
                 
-                # Garantir que o DataFrame tenha pelo menos uma linha vazia para adição
                 if df_filtrado.empty:
-                    df_vazio = pd.DataFrame(columns=COLUNAS_ESPERADAS["Resultados"])
-                    # Adicionar uma linha vazia para facilitar a adição de novos dados
-                    df_filtrado = df_vazio
+                    df_filtrado = pd.DataFrame(columns=COLUNAS_ESPERADAS["Resultados"])
                 
                 # Garantir que a coluna Data seja do tipo correto
                 if 'Data' in df_filtrado.columns:
@@ -1124,90 +1067,48 @@ def gerenciamento():
                     df_filtrado,
                     hide_index=True,
                     num_rows="dynamic",
-                    key=f"resultados_editor_{filtro_quimico}_{filtro_biologico}_{int(time.time())}",
+                    key="resultados_editor",
                     column_config={
-                        "Data": st.column_config.TextColumn(
-                            "Data do Teste",
-                            required=True
-                        ),
-                        "Quimico": st.column_config.SelectboxColumn(
-                            "Produto Químico",
-                            options=sorted(dados["quimicos"]["Nome"].unique().tolist()),
-                            required=True
-                        ),
-                        "Biologico": st.column_config.SelectboxColumn(
-                            "Produto Biológico",
-                            options=sorted(dados["biologicos"]["Nome"].unique().tolist()),
-                            required=True
-                        ),
-                        "Duracao": st.column_config.NumberColumn(
-                            "Duração (horas)",
-                            min_value=0,
-                            default=0
-                        ),
-                        "Tipo": st.column_config.SelectboxColumn(
-                            "Tipo de Teste",
-                            options=["Simples", "Composto"],
-                            required=True
-                        ),
-                        "Resultado": st.column_config.SelectboxColumn(
-                            "Resultado",
-                            options=["Compatível", "Incompatível"],
-                            required=True
-                        )
+                        "Data": st.column_config.TextColumn("Data do Teste", required=True),
+                        "Quimico": st.column_config.SelectboxColumn("Produto Químico", options=sorted(dados["quimicos"]["Nome"].unique().tolist()), required=True),
+                        "Biologico": st.column_config.SelectboxColumn("Produto Biológico", options=sorted(dados["biologicos"]["Nome"].unique().tolist()), required=True),
+                        "Duracao": st.column_config.NumberColumn("Duração (horas)", min_value=0, default=0),
+                        "Tipo": st.column_config.SelectboxColumn("Tipo de Teste", options=["Simples", "Composto"], required=True),
+                        "Resultado": st.column_config.SelectboxColumn("Resultado", options=["Compatível", "Incompatível"], required=True)
                     },
                     use_container_width=True,
                     height=400,
+                    column_order=COLUNAS_ESPERADAS["Resultados"],
                     on_change=lambda: st.session_state.edited_data.update({"resultados": True}),
-                    disabled=False,
-                    column_order=COLUNAS_ESPERADAS["Resultados"]
+                    disabled=False
                 )
                 
                 # Botão para salvar alterações
-                col_btn = st.container()
-                with col_btn:
-                    if st.button("Salvar Alterações", key="save_resultados", use_container_width=True):
-                        with st.spinner("Salvando dados..."):
-                            try:
-                                # Verificar se é um DataFrame
-                                if not isinstance(edited_df, pd.DataFrame):
-                                    st.error("Erro: Os dados editados não são um DataFrame válido")
-                                    st.stop()
-                                
-                                # Garantir que todas as colunas necessárias estejam presentes
-                                for col in COLUNAS_ESPERADAS["Resultados"]:
-                                    if col not in edited_df.columns:
-                                        st.error(f"Coluna obrigatória '{col}' não encontrada nos dados editados")
-                                        st.stop()
-                                
-                                # Remover linhas vazias
-                                edited_df = edited_df.dropna(subset=["Quimico", "Biologico"], how="all").reset_index(drop=True)
-                                
-                                # Verificar se há dados para salvar
-                                if edited_df.empty:
-                                    st.warning("Não há dados para salvar")
-                                    st.stop()
-                                
-                                # Atualizar dados na sessão
-                                st.session_state.local_data["resultados"] = edited_df
-                                
-                                df_completo = st.session_state.local_data["resultados"].copy()
-                                
-                                if filtro_quimico != "Todos" or filtro_biologico != "Todos":
-                                    mask = (df_completo["Quimico"] == filtro_quimico) | (df_completo["Biologico"] == filtro_biologico)
-                                    df_restante = df_completo[~mask]
-                                    df_final = pd.concat([df_restante, edited_df], ignore_index=True)
-                                else:
-                                    df_final = edited_df
-                                
-                                st.session_state.local_data["resultados"] = df_final
-                                
-                                if update_sheet(df_final, "Resultados"):
-                                    st.session_state.edited_data["resultados"] = False
-                                    st.success("Dados salvos com sucesso!")
-                                    st.experimental_rerun()
-                            except Exception as e:
-                                st.error(f"Erro ao salvar alterações: {str(e)}")
+                if st.button("Salvar Alterações", key="save_resultados", use_container_width=True):
+                    with st.spinner("Salvando dados..."):
+                        try:
+                            df_completo = st.session_state.local_data["resultados"].copy()
+                            
+                            if filtro_quimico != "Todos" or filtro_biologico != "Todos":
+                                mask = (
+                                    (df_completo["Quimico"] == filtro_quimico) |
+                                    (df_completo["Biologico"] == filtro_biologico)
+                                )
+                            else:
+                                mask = pd.Series([True]*len(df_completo), index=df_completo.index)
+                            
+                            df_completo = df_completo[~mask]
+                            df_final = pd.concat([df_completo, edited_df], ignore_index=True)
+                            df_final = df_final.drop_duplicates(subset=["Quimico", "Biologico"], keep="last")
+                            df_final = df_final.sort_values(by="Quimico").reset_index(drop=True)
+                            
+                            st.session_state.local_data["resultados"] = df_final
+                            if update_sheet(df_final, "Resultados"):
+                                st.session_state.edited_data["resultados"] = False
+                                st.success("Dados salvos com sucesso!")
+                                st.experimental_rerun()
+                        except Exception as e:
+                            st.error(f"Erro ao salvar alterações: {str(e)}")
     
     # Conteúdo da tab Solicitações
     elif aba_selecionada == "Solicitações":
@@ -1337,14 +1238,11 @@ def gerenciamento():
                 if filtro_biologico != "Todos":
                     df_filtrado = df_filtrado[df_filtrado["Biologico"] == filtro_biologico]
                 
-                # Garantir que apenas as colunas esperadas estejam presentes
+                # Garantir colunas esperadas
                 df_filtrado = df_filtrado[COLUNAS_ESPERADAS["Solicitacoes"]].copy()
                 
-                # Garantir que o DataFrame tenha pelo menos uma linha vazia para adição
                 if df_filtrado.empty:
-                    df_vazio = pd.DataFrame(columns=COLUNAS_ESPERADAS["Solicitacoes"])
-                    # Adicionar uma linha vazia para facilitar a adição de novos dados
-                    df_filtrado = df_vazio
+                    df_filtrado = pd.DataFrame(columns=COLUNAS_ESPERADAS["Solicitacoes"])
                 
                 # Garantir que a coluna Data seja do tipo correto
                 if 'Data' in df_filtrado.columns:
@@ -1359,82 +1257,49 @@ def gerenciamento():
                     df_filtrado,
                     hide_index=True,
                     num_rows="dynamic",
-                    key=f"solicitacoes_editor_{filtro_status}_{filtro_quimico}_{filtro_biologico}",
+                    key="solicitacoes_editor",
                     column_config={
                         "Data": st.column_config.TextColumn("Data da Solicitação", required=True),
                         "Solicitante": st.column_config.TextColumn("Solicitante", required=True),
-                        "Quimico": st.column_config.SelectboxColumn(
-                            "Produto Químico",
-                            options=sorted(dados["quimicos"]["Nome"].unique().tolist()),
-                            required=True
-                        ),
-                        "Biologico": st.column_config.SelectboxColumn(
-                            "Produto Biológico",
-                            options=sorted(dados["biologicos"]["Nome"].unique().tolist()),
-                            required=True
-                        ),
+                        "Quimico": st.column_config.SelectboxColumn("Produto Químico", options=sorted(dados["quimicos"]["Nome"].unique().tolist()), required=True),
+                        "Biologico": st.column_config.SelectboxColumn("Produto Biológico", options=sorted(dados["biologicos"]["Nome"].unique().tolist()), required=True),
                         "Observacoes": st.column_config.TextColumn("Observações", required=True),
-                        "Status": st.column_config.SelectboxColumn(
-                            "Status",
-                            options=["Pendente", "Em Análise", "Concluído", "Cancelado"]
-                        )
+                        "Status": st.column_config.SelectboxColumn("Status", options=["Pendente", "Em Análise", "Concluído", "Cancelado"])
                     },
                     use_container_width=True,
                     height=400,
+                    column_order=COLUNAS_ESPERADAS["Solicitacoes"],
                     on_change=lambda: st.session_state.edited_data.update({"solicitacoes": True}),
-                    disabled=False,
-                    column_order=COLUNAS_ESPERADAS["Solicitacoes"]
+                    disabled=False
                 )
                 
                 # Botão para salvar alterações
-                col_btn = st.container()
-                with col_btn:
-                    if st.button("Salvar Alterações", key="save_solicitacoes", use_container_width=True):
-                        with st.spinner("Salvando dados..."):
-                            try:
-                                # Verificar se é um DataFrame
-                                if not isinstance(edited_df, pd.DataFrame):
-                                    st.error("Erro: Os dados editados não são um DataFrame válido")
-                                    st.stop()
-                                
-                                # Garantir que todas as colunas necessárias estejam presentes
-                                for col in COLUNAS_ESPERADAS["Solicitacoes"]:
-                                    if col not in edited_df.columns:
-                                        st.error(f"Coluna obrigatória '{col}' não encontrada nos dados editados")
-                                        st.stop()
-                                
-                                # Remover linhas vazias
-                                edited_df = edited_df.dropna(subset=["Solicitante"], how="all").reset_index(drop=True)
-                                
-                                # Verificar se há dados para salvar
-                                if edited_df.empty and filtro_status == "Todos" and filtro_quimico == "Todos" and filtro_biologico == "Todos":
-                                    st.warning("Não há dados para salvar")
-                                    st.stop()
-                                
-                                # Atualizar dados na sessão
-                                st.session_state.local_data["solicitacoes"] = edited_df
-                                
-                                df_completo = st.session_state.local_data["solicitacoes"].copy()
-                                
-                                if filtro_status != "Todos" or filtro_quimico != "Todos" or filtro_biologico != "Todos":
-                                    mask = (
-                                        (df_completo["Status"] == filtro_status) |
-                                        (df_completo["Quimico"] == filtro_quimico) |
-                                        (df_completo["Biologico"] == filtro_biologico)
-                                    )
-                                    df_restante = df_completo[~mask]
-                                    df_final = pd.concat([df_restante, edited_df], ignore_index=True)
-                                else:
-                                    df_final = edited_df
-                                
-                                st.session_state.local_data["solicitacoes"] = df_final
-                                
-                                if update_sheet(df_final, "Solicitacoes"):
-                                    st.session_state.edited_data["solicitacoes"] = False
-                                    st.success("Dados salvos com sucesso!")
-                                    st.experimental_rerun()
-                            except Exception as e:
-                                st.error(f"Erro ao salvar dados: {str(e)}")
+                if st.button("Salvar Alterações", key="save_solicitacoes", use_container_width=True):
+                    with st.spinner("Salvando dados..."):
+                        try:
+                            df_completo = st.session_state.local_data["solicitacoes"].copy()
+                            
+                            if filtro_status != "Todos" or filtro_quimico != "Todos" or filtro_biologico != "Todos":
+                                mask = (
+                                    (df_completo["Status"] == filtro_status) |
+                                    (df_completo["Quimico"] == filtro_quimico) |
+                                    (df_completo["Biologico"] == filtro_biologico)
+                                )
+                            else:
+                                mask = pd.Series([True]*len(df_completo), index=df_completo.index)
+                            
+                            df_completo = df_completo[~mask]
+                            df_final = pd.concat([df_completo, edited_df], ignore_index=True)
+                            df_final = df_final.drop_duplicates(subset=["Solicitante"], keep="last")
+                            df_final = df_final.sort_values(by="Data").reset_index(drop=True)
+                            
+                            st.session_state.local_data["solicitacoes"] = df_final
+                            if update_sheet(df_final, "Solicitacoes"):
+                                st.session_state.edited_data["solicitacoes"] = False
+                                st.success("Dados salvos com sucesso!")
+                                st.experimental_rerun()
+                        except Exception as e:
+                            st.error(f"Erro ao salvar dados: {str(e)}")
 
     # Removendo o componente JavaScript para evitar conflitos
     def fix_table_buttons():
