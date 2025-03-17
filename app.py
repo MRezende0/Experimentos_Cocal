@@ -917,7 +917,7 @@ def gerenciamento():
                 )
                 
                 # Botão para salvar alterações
-                if st.button("Salvar Alterações", key="save_quimicos", use_container_width=True):
+                if st.form_submit_button("Salvar Alterações", key="save_quimicos", use_container_width=True):
                     with st.spinner("Salvando dados..."):
                         try:
                             df_completo = st.session_state.local_data["quimicos"].copy()
