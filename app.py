@@ -1016,7 +1016,7 @@ def gerenciamento():
                 # Mostrar mensagens de sucesso ou erro abaixo do formulário
                 if st.session_state.compatibilidade_form_submitted:
                     if st.session_state.compatibilidade_form_success:
-                        st.success(f"Compatibilidade entre {st.session_state.quimico_nome} e {st.session_state.biologico_nome} adicionada com sucesso!")
+                        st.success(f"Compatibilidade entre {st.session_state.resultado_quimico} e {st.session_state.resultado_biologico} adicionada com sucesso!")
                         st.session_state.compatibilidade_form_submitted = False
                         st.session_state.compatibilidade_form_success = False
                         st.session_state.compatibilidade_just_submitted = False
