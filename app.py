@@ -571,6 +571,10 @@ def mostrar_formulario_solicitacao(quimico=None, biologico=None):
 def gerenciamento():
     st.title("⚙️ Gerenciamento")
 
+    # Inicializar estado da aba de gerenciamento
+    if 'current_management_tab' not in st.session_state:
+        st.session_state.current_management_tab = "Quimicos"
+
     if 'edited_data' not in st.session_state:
         st.session_state.edited_data = {
             "quimicos": False,
@@ -586,7 +590,17 @@ def gerenciamento():
     # Usar dados da sessão em vez de recarregar a cada interação
     dados = st.session_state.local_data
     
-    tab1, tab2, tab3, tab4 = st.tabs(["Quimicos", "Biologicos", "Compatibilidades", "Solicitações"])
+    tabs = st.tabs(["Quimicos", "Biologicos", "Compatibilidades", "Solicitações"])
+    
+    # Atualizar estado quando uma tab é clicada
+    for i, tab in enumerate(tabs):
+        with tab:
+            if tab == tabs[i]:
+                st.session_state.current_management_tab = ["Quimicos", "Biologicos", "Compatibilidades", "Solicitações"][i]
+    
+    # Usar índice correto para a tab ativa
+    tab_index = ["Quimicos", "Biologicos", "Compatibilidades", "Solicitações"].index(st.session_state.current_management_tab)
+    tab1, tab2, tab3, tab4 = tabs[tab_index], tabs[(tab_index+1)%4], tabs[(tab_index+2)%4], tabs[(tab_index+3)%4]
     
     with tab1:
         st.subheader("Produtos Químicos")
@@ -766,13 +780,17 @@ def gerenciamento():
                                 
                                 # Ordenar e resetar índice
                                 df_final = df_final.sort_values(by="Nome").reset_index(drop=True)
+
+                                # Salva a aba atual antes de recarregar
+                                previous_tab = st.session_state.current_management_tab
                                 
                                 # Atualizar dados e planilha
                                 st.session_state.local_data["quimicos"] = df_final
                                 if update_sheet(df_final, "Quimicos"):
                                     st.session_state.edited_data["quimicos"] = False
                                     st.success("Dados salvos com sucesso!")
-                                    st.rerun()
+                                    st.session_state.current_management_tab = previous_tab
+                                    st.experimental_rerun()
                                     
                             except Exception as e:
                                 st.error(f"Erro: {str(e)}")
@@ -952,11 +970,15 @@ def gerenciamento():
                                     df_final = edited_df
                                 
                                 st.session_state.local_data["biologicos"] = df_final
+
+                                # Salva a aba atual antes de recarregar
+                                previous_tab = st.session_state.current_management_tab
                                 
                                 if update_sheet(df_final, "Biologicos"):
                                     st.session_state.edited_data["biologicos"] = False
                                     st.success("Dados salvos com sucesso!")
-                                    st.rerun()
+                                    st.session_state.current_management_tab = previous_tab
+                                    st.experimental_rerun()
                             except Exception as e:
                                 st.error(f"Erro ao salvar alterações: {str(e)}")
     
@@ -1179,11 +1201,15 @@ def gerenciamento():
                                     df_final = edited_df
                                 
                                 st.session_state.local_data["resultados"] = df_final
+
+                                # Salva a aba atual antes de recarregar
+                                previous_tab = st.session_state.current_management_tab
                                 
                                 if update_sheet(df_final, "Resultados"):
                                     st.session_state.edited_data["resultados"] = False
                                     st.success("Dados salvos com sucesso!")
-                                    st.rerun()
+                                    st.session_state.current_management_tab = previous_tab
+                                    st.experimental_rerun()
                             except Exception as e:
                                 st.error(f"Erro ao salvar alterações: {str(e)}")
     
@@ -1405,11 +1431,15 @@ def gerenciamento():
                                     df_final = edited_df
                                 
                                 st.session_state.local_data["solicitacoes"] = df_final
+
+                                # Salva a aba atual antes de recarregar
+                                previous_tab = st.session_state.current_management_tab
                                 
                                 if update_sheet(df_final, "Solicitacoes"):
                                     st.session_state.edited_data["solicitacoes"] = False
                                     st.success("Dados salvos com sucesso!")
-                                    st.rerun()
+                                    st.session_state.current_management_tab = previous_tab
+                                    st.experimental_rerun()
                             except Exception as e:
                                 st.error(f"Erro ao salvar dados: {str(e)}")
 
