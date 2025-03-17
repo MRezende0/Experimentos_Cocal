@@ -535,7 +535,8 @@ def mostrar_formulario_solicitacao(quimico=None, biologico=None):
             st.session_state.last_submission = nova_solicitacao
         else:
             st.error("Erro ao enviar solicitação. Tente novamente.")
-        # Mostrar o formulário para entrada de dados
+    
+    # Mostrar o formulário para entrada de dados
     st.subheader("Solicitar Novo Teste")
     
     # Valores iniciais para os campos
@@ -545,20 +546,22 @@ def mostrar_formulario_solicitacao(quimico=None, biologico=None):
     # Usar st.form para evitar recarregamentos
     with st.form(key="solicitar_teste_form"):
         col1, col2 = st.columns(2)
+        
         with col1:
             st.date_input("Data da Solicitação", value=datetime.now(), key="data_solicitacao", format="DD/MM/YYYY")
             st.text_input("Nome do solicitante", key="solicitante")
         
         with col2:
             # Usar campos de texto para permitir novos produtos
-            st.text_input("Nome do Produto Químico", value=quimico if quimico else "", key="quimico_input")
-            st.text_input("Nome do Produto Biológico", value=biologico if biologico else "", key="biologico_input")
+            st.text_input("Nome do Produto Químico", value=default_quimico, key="quimico_input")
+            st.text_input("Nome do Produto Biológico", value=default_biologico, key="biologico_input")
         
         st.text_area("Observações", key="observacoes")
         
         col1, col2 = st.columns([1, 1])
         with col1:
-            submitted = st.form_submit_button("Enviar Solicitação")
+            if st.form_submit_button("Enviar Solicitação", on_click=submit_form):
+                st.session_state.form_submitted = True
         with col2:
             if st.form_submit_button("Cancelar"):
                 st.session_state.solicitar_novo_teste = False
@@ -576,7 +579,7 @@ def gerenciamento():
             "solicitacoes": False
         }
     
-    # Inicialização dos dados locais
+    # Inicializar dados locais
     if 'local_data' not in st.session_state:
         st.session_state.local_data = load_all_data()
     
