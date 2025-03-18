@@ -467,11 +467,15 @@ def convert_scientific_to_float(value):
 ########################################## COMPATIBILIDADE ##########################################
 
 def compatibilidade():
-    """Página para consulta de compatibilidade entre produtos biológicos e químicos"""
-    st.title("Compatibilidade de Produtos")
+    # As variáveis de sessão já são inicializadas pela função inicializar_sessao()
     
-    # Adicionar botão para solicitar novo teste
-    with st.container():
+    col1, col2 = st.columns([4, 1])  # 4:1 ratio para alinhamento direito
+
+    with col1:
+        st.title("🧪 Compatibilidade")
+
+    with col2:
+        # Container com alinhamento à direita
         st.markdown(
             """
             <div style='display: flex;
@@ -546,31 +550,39 @@ def compatibilidade():
     if biologico:
         try:
             # Verificar se a coluna "Biologico" existe no DataFrame
-            coluna_biologico = "Biologico"
             if "Biologico" not in dados["calculos"].columns:
+                st.error("Erro: A coluna 'Biologico' não foi encontrada na planilha de cálculos.")
+                # Tentar encontrar a coluna com nome similar (diferença de maiúsculas/minúsculas)
                 colunas_similares = [col for col in dados["calculos"].columns if col.lower() == "biologico"]
                 if colunas_similares:
                     coluna_biologico = colunas_similares[0]
                     st.info(f"Usando a coluna '{coluna_biologico}' como alternativa.")
+                    # Obter todos os químicos que já foram testados com este biológico
+                    calculos_biologico = dados["calculos"][
+                        dados["calculos"][coluna_biologico] == biologico
+                    ]
                 else:
-                    st.error("Erro: A coluna 'Biologico' não foi encontrada na planilha de cálculos.")
+                    st.warning("Nenhuma coluna similar a 'Biologico' foi encontrada. Verifique a estrutura da planilha.")
                     return
+            else:
+                # Obter todos os químicos que já foram testados com este biológico
+                calculos_biologico = dados["calculos"][
+                    dados["calculos"]["Biologico"] == biologico
+                ]
             
             # Verificar se a coluna "Quimico" existe
-            coluna_quimico = "Quimico"
             if "Quimico" not in dados["calculos"].columns:
+                st.error("Erro: A coluna 'Quimico' não foi encontrada na planilha de cálculos.")
+                # Tentar encontrar a coluna com nome similar
                 colunas_similares = [col for col in dados["calculos"].columns if col.lower() == "quimico"]
                 if colunas_similares:
                     coluna_quimico = colunas_similares[0]
                     st.info(f"Usando a coluna '{coluna_quimico}' como alternativa.")
                 else:
-                    st.error("Erro: A coluna 'Quimico' não foi encontrada na planilha de cálculos.")
+                    st.warning("Nenhuma coluna similar a 'Quimico' foi encontrada. Verifique a estrutura da planilha.")
                     return
-            
-            # Obter todos os químicos que já foram testados com este biológico
-            calculos_biologico = dados["calculos"][
-                dados["calculos"][coluna_biologico] == biologico
-            ]
+            else:
+                coluna_quimico = "Quimico"
             
             # Extrair todos os químicos das combinações (pode conter múltiplos químicos separados por +)
             quimicos_testados = []
@@ -635,19 +647,18 @@ def compatibilidade():
                 (dados["calculos"][coluna_quimico].str.contains(quimico, regex=False))
             ]
             
-            # Verificar se a coluna "Resultado" existe
-            coluna_resultado = "Resultado"
-            if "Resultado" not in dados["calculos"].columns:
-                colunas_similares = [col for col in dados["calculos"].columns if col.lower() == "resultado"]
-                if colunas_similares:
-                    coluna_resultado = colunas_similares[0]
-                else:
-                    st.error("Erro: Não foi possível encontrar a coluna 'Resultado' na planilha de cálculos.")
-                    return
-            
-            # Mostrar resultado de compatibilidade
             if not resultado_existente.empty:
-                # Obter o resultado de compatibilidade
+                # Verificar se a coluna "Resultado" existe
+                coluna_resultado = "Resultado"
+                if "Resultado" not in resultado_existente.columns:
+                    colunas_similares = [col for col in resultado_existente.columns if col.lower() == "resultado"]
+                    if colunas_similares:
+                        coluna_resultado = colunas_similares[0]
+                    else:
+                        st.error("Erro: Não foi possível encontrar a coluna 'Resultado' na planilha de cálculos.")
+                        return
+                
+                # Mostrar resultado de compatibilidade
                 compativel = resultado_existente.iloc[0][coluna_resultado] == "Compatível"
                 
                 if compativel:
@@ -696,37 +707,11 @@ def compatibilidade():
                             hide_index=True,
                             use_container_width=True
                         )
-                        
-                        # Adicionar informações adicionais sobre o teste
-                        st.write("**Informações Adicionais:**")
-                        
-                        # Verificar se as colunas existem antes de tentar acessá-las
-                        if "Razao" in detalhes_df.columns:
-                            razao = detalhes_df.iloc[0]["Razao"]
-                            st.write(f"• Razão de compatibilidade: {razao}")
-                        
-                        if "ConcObtida" in detalhes_df.columns and "ConcEsperada" in detalhes_df.columns:
-                            conc_obtida = detalhes_df.iloc[0]["ConcObtida"]
-                            conc_esperada = detalhes_df.iloc[0]["ConcEsperada"]
-                            st.write(f"• Concentração obtida: {conc_obtida}")
-                            st.write(f"• Concentração esperada: {conc_esperada}")
-                        
-                        # Adicionar recomendações com base no resultado
-                        st.write("**Recomendações:**")
-                        if compativel:
-                            st.success("✅ Estes produtos podem ser utilizados juntos na calda de pulverização.")
-                            st.write("• Siga as recomendações de dosagem de cada produto.")
-                            if "Razao" in detalhes_df.columns:
-                                st.write(f"• A razão de compatibilidade é {razao}, o que indica boa compatibilidade.")
-                        else:
-                            st.error("❌ Não é recomendado utilizar estes produtos juntos na calda de pulverização.")
-                            st.write("• Considere aplicar os produtos separadamente.")
-                            st.write("• Consulte um agrônomo para alternativas compatíveis.")
-                            if "Razao" in detalhes_df.columns:
-                                st.write(f"• A razão de compatibilidade é {razao}, o que indica incompatibilidade.")
                     else:
                         st.warning("Não foi possível encontrar colunas para exibir os detalhes do teste.")
             else:
+                st.warning(f"Não foi encontrado nenhum teste de compatibilidade entre {biologico} e {quimico}.")
+                
                 # Botão para solicitar novo teste
                 if st.button("Solicitar teste de compatibilidade", key="btn_solicitar_teste"):
                     st.session_state.solicitar_novo_teste = True
@@ -738,9 +723,6 @@ def compatibilidade():
             # Mostrar informações de debug
             if "calculos" in dados:
                 st.error(f"Colunas disponíveis na planilha de cálculos: {', '.join(dados['calculos'].columns.tolist())}")
-            # Mostrar o rastreamento completo do erro para facilitar a depuração
-            import traceback
-            st.error(f"Rastreamento do erro: {traceback.format_exc()}")
     
     # Exibir mensagem de sucesso se acabou de enviar uma solicitação
     if st.session_state.form_submitted_successfully:
@@ -748,7 +730,7 @@ def compatibilidade():
         time.sleep(3) # Aguarda 3 segundos antes de limpar a mensagem
         st.session_state.form_submitted_successfully = False  # Reseta o estado
 
-# Função auxiliar para mostrar o formulário de solicitação
+    # Função auxiliar para mostrar o formulário de solicitação
 def mostrar_formulario_solicitacao(quimico=None, biologico=None):
     # Inicializar variáveis de estado se não existirem
     if 'form_submitted' not in st.session_state:
