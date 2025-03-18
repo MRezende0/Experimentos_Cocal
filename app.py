@@ -257,6 +257,9 @@ def update_sheet(df: pd.DataFrame, sheet_name: str) -> bool:
         for col in df_copy.columns:
             if pd.api.types.is_datetime64_any_dtype(df_copy[col]):
                 df_copy[col] = df_copy[col].dt.strftime('%Y-%m-%d')
+        
+        # Substituir valores NaN por None para compatibilidade com JSON
+        df_copy = df_copy.replace({np.nan: None})
                 
         # Garantir a ordem das colunas
         df_copy = df_copy[COLUNAS_ESPERADAS[sheet_name]]
@@ -522,6 +525,7 @@ def compatibilidade():
     # Exibir mensagem de sucesso se acabou de enviar uma solicitação
     if st.session_state.form_submitted_successfully:
         st.success("Solicitação de novo teste enviada com sucesso!")
+        time.sleep(3) # Aguarda 3 segundos antes de limpar a mensagem
         st.session_state.form_submitted_successfully = False  # Reseta o estado
 
     # Função auxiliar para mostrar o formulário de solicitação
@@ -689,8 +693,8 @@ def gerenciamento():
                             # Atualizar dados locais
                             nova_linha = pd.DataFrame([novo_produto])
                             st.session_state.local_data["biologicos"] = pd.concat([st.session_state.local_data["biologicos"], nova_linha], ignore_index=True)
-                            st.success(f"Produto {nome} adicionado com sucesso!")
-                            st.experimental_rerun()
+                            st.session_state.biologico_form_success = True
+                            st.session_state.biologico_form_message = f"Produto {nome} adicionado com sucesso!"
                         else:
                             st.session_state.biologico_form_error = "Falha ao adicionar produto"
                             
@@ -716,7 +720,12 @@ def gerenciamento():
                     st.text_input("Fabricante", key="biologico_fabricante")
                     
                     submitted = st.form_submit_button("Adicionar Produto", on_click=submit_biologico_form)
-                
+
+                # Mostrar mensagens de sucesso ou erro abaixo do formulário
+                if "biologico_form_success" in st.session_state and st.session_state.biologico_form_success:
+                    st.success(st.session_state.biologico_form_message)
+                    st.session_state.biologico_form_success = False
+                    
                 if "biologico_form_error" in st.session_state and st.session_state.biologico_form_error:
                     st.error(st.session_state.biologico_form_error)
                     st.session_state.biologico_form_error = ""
@@ -891,7 +900,7 @@ def gerenciamento():
                                 
                                 st.session_state.quimico_form_submitted = True
                                 st.session_state.quimico_form_success = True
-                                st.session_state.quimico_form_error = ""
+                                st.session_state.quimico_form_message = f"Produto {nome} adicionado com sucesso!"
                             else:
                                 st.session_state.quimico_form_submitted = True
                                 st.session_state.quimico_form_success = False
@@ -913,13 +922,13 @@ def gerenciamento():
                     submitted = st.form_submit_button("Adicionar Produto", on_click=submit_quimico_form)
                 
                 # Mostrar mensagens de sucesso ou erro abaixo do formulário
-                if st.session_state.quimico_form_submitted:
-                    if st.session_state.quimico_form_success:
-                        st.success(f"Produto {st.session_state.quimico_nome} adicionado com sucesso!")
-                        st.session_state.quimico_form_submitted = False
-                        st.session_state.quimico_form_success = False
-                    else:
-                        st.error(st.session_state.quimico_form_error)
+                if "quimico_form_success" in st.session_state and st.session_state.quimico_form_success:
+                    st.success(st.session_state.quimico_form_message)
+                    st.session_state.quimico_form_success = False
+                    
+                if "quimico_form_error" in st.session_state and st.session_state.quimico_form_error:
+                    st.error(st.session_state.quimico_form_error)
+                    st.session_state.quimico_form_error = ""
             
             else:  # Visualizar produtos cadastrados
                 # Filtros para a tabela
@@ -1055,8 +1064,7 @@ def gerenciamento():
                                 
                                 st.session_state.compatibilidade_form_submitted = True
                                 st.session_state.compatibilidade_form_success = True
-                                st.session_state.compatibilidade_form_error = ""
-
+                                st.session_state.compatibilidade_form_message = f"Compatibilidade entre '{biologico}' e '{quimico}' adicionada com sucesso!"
                             else:
                                 st.session_state.compatibilidade_form_submitted = True
                                 st.session_state.compatibilidade_form_success = False
@@ -1084,42 +1092,15 @@ def gerenciamento():
                         st.number_input("Tempo máximo testado em calda (horas)", min_value=0, value=0, key="compatibilidade_tempo")
                     st.selectbox("Resultado", options=["Compatível", "Incompatível"], key="compatibilidade_status")
                     
-                    if st.form_submit_button("Adicionar Compatibilidade", use_container_width=True):
-                        biologico = st.session_state.compatibilidade_biologico
-                        quimico = st.session_state.compatibilidade_quimico
-                        data_teste = st.session_state.compatibilidade_data
-                        tempo = st.session_state.compatibilidade_tempo
-                        resultado = st.session_state.compatibilidade_status
-                        
-                        if quimico and biologico:
-                            nova_compatibilidade = {
-                                "Data": data_teste.strftime("%Y-%m-%d"),
-                                "Biologico": biologico,
-                                "Quimico": quimico,
-                                "Tempo": tempo,
-                                "Resultado": resultado
-                            }
-                            
-                            # Verificar se a combinação já existe
-                            combinacao_existente = dados["compatibilidades"][
-                                (dados["compatibilidades"]["Quimico"] == quimico) & 
-                                (dados["compatibilidades"]["Biologico"] == biologico)
-                            ]
-                            
-                            if not combinacao_existente.empty:
-                                st.error(f"Combinação {biologico} e {quimico} já existe!")
-                            else:
-                                # Adicionar à planilha
-                                if append_to_sheet(nova_compatibilidade, "Compatibilidades"):
-                                    # Atualizar dados locais
-                                    nova_linha = pd.DataFrame([nova_compatibilidade])
-                                    st.session_state.local_data["compatibilidades"] = pd.concat([st.session_state.local_data["compatibilidades"], nova_linha], ignore_index=True)
-                                    st.success(f"Compatibilidade entre '{biologico}' e '{quimico}' adicionada com sucesso!")
-                                    st.experimental_rerun()
-                                else:
-                                    st.error("Falha ao adicionar compatibilidade")
-                        else:
-                            st.error("Selecione os produtos biológico e químico")
+                    submitted = st.form_submit_button("Adicionar Compatibilidade", use_container_width=True, on_click=submit_compatibilidade_form)
+                
+                # Mostrar mensagens de sucesso ou erro abaixo do formulário
+                if "compatibilidade_form_success" in st.session_state and st.session_state.compatibilidade_form_success:
+                    st.success(st.session_state.compatibilidade_form_message)
+                    
+                if "compatibilidade_form_error" in st.session_state and st.session_state.compatibilidade_form_error:
+                    st.error(st.session_state.compatibilidade_form_error)
+                    st.session_state.compatibilidade_form_error = ""
             
             else:  # Visualizar compatibilidades cadastradas
                 # Filtros para a tabela
@@ -1186,8 +1167,8 @@ def gerenciamento():
                                 
                                 if filtro_quimico != "Todos" or filtro_biologico != "Todos":
                                     mask = (
-                                        (df_completo["Quimico"] == filtro_quimico) &
-                                        (df_completo["Biologico"] == filtro_biologico)
+                                        (df_completo["Quimico"] == filtro_quimico if filtro_quimico != "Todos" else True) &
+                                        (df_completo["Biologico"] == filtro_biologico if filtro_biologico != "Todos" else True)
                                     )
                                 else:
                                     mask = pd.Series([True]*len(df_completo), index=df_completo.index)
@@ -1369,16 +1350,16 @@ def gerenciamento():
                                 
                                 if filtro_status != "Todos" or filtro_quimico != "Todos" or filtro_biologico != "Todos":
                                     mask = (
-                                        (df_completo["Status"] == filtro_status) |
-                                        (df_completo["Quimico"] == filtro_quimico) |
-                                        (df_completo["Biologico"] == filtro_biologico)
+                                        (df_completo["Status"] == filtro_status if filtro_status != "Todos" else True) &
+                                        (df_completo["Quimico"] == filtro_quimico if filtro_quimico != "Todos" else True) &
+                                        (df_completo["Biologico"] == filtro_biologico if filtro_biologico != "Todos" else True)
                                     )
                                 else:
                                     mask = pd.Series([True]*len(df_completo), index=df_completo.index)
                                 
                                 df_completo = df_completo[~mask]
                                 df_final = pd.concat([df_completo, edited_df], ignore_index=True)
-                                df_final = df_final.drop_duplicates(subset=["Solicitante"], keep="last")
+                                df_final = df_final.drop_duplicates(subset=["Data", "Solicitante", "Biologico", "Quimico"], keep="last")
                                 df_final = df_final.sort_values(by="Data").reset_index(drop=True)
                                 
                                 st.session_state.local_data["solicitacoes"] = df_final
@@ -1422,7 +1403,7 @@ def calculos():
             options=sorted(st.session_state.local_data["biologicos"]["Nome"].unique()),
             key="calc_biologico"
         )
-        
+
         # Obter a dose registrada do biológico
         dose_registrada = st.session_state.local_data["biologicos"][
             st.session_state.local_data["biologicos"]["Nome"] == biologico_selecionado
@@ -1580,15 +1561,20 @@ def main():
     st.sidebar.image("imagens/logo-cocal.png")
     st.sidebar.title("Menu")
     
-    # Mostrar apenas Compatibilidade e Gerenciamento no menu
+    # Determinar o índice inicial com base na página atual
+    current_index = 0 if st.session_state.current_page == "Compatibilidade" else 1
+    
+    # Usar uma chave única para o radio button para evitar problemas de estado
     menu_option = st.sidebar.radio(
         "Selecione a funcionalidade:",
         ("Compatibilidade", "Gerenciamento"),
-        index=0 if st.session_state.current_page == "Compatibilidade" else 1
+        index=current_index,
+        key="menu_option"
     )
     
-    # Atualizar o estado da página atual
-    st.session_state.current_page = menu_option
+    # Atualizar o estado da página atual somente se houver mudança
+    if st.session_state.current_page != menu_option:
+        st.session_state.current_page = menu_option
 
     st.sidebar.markdown("---")
     
