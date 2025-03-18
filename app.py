@@ -602,8 +602,8 @@ def mostrar_formulario_solicitacao(quimico=None, biologico=None):
         
         col1, col2 = st.columns([1, 1])
         with col1:
-            if st.form_submit_button("Enviar Solicitação", on_click=submit_form):
-                st.session_state.form_submitted = True
+            if st.form_submit_button("Enviar Solicitação"):
+                submit_form()
         with col2:
             if st.form_submit_button("Cancelar"):
                 st.session_state.solicitar_novo_teste = False
@@ -710,17 +710,24 @@ def gerenciamento():
                         st.selectbox("Classe", options=["Bioestimulante", "Biofungicida", "Bionematicida", "Bioinseticida", "Inoculante"], key="classe_biologico")
                         st.text_input("Ingrediente Ativo", key="biologico_ingrediente")
                     with col2:
-                        st.selectbox("Formulação", options=["Suspensão concentrada", "Formulação em óleo", "Pó molhável", "Formulação em pó", "Granulado dispersível"], key="biologico_formulacao")
+                        st.selectbox(
+                            "Formulação", 
+                            options=["Suspensão concentrada", "Formulação em óleo", "Pó molhável", "Formulação em pó", "Granulado dispersível"],
+                            key="biologico_formulacao"
+                        )
                         st.number_input("Dose (kg/ha ou litro/ha)", value=0.0, step=1.0, key="biologico_dose")
                         st.text_input(
                             "Concentração em bula (UFC/g ou UFC/ml)", 
-                            help="Digite em notação científica (ex: 1e9)", 
+                            help="Digite em notação científica (ex: 1e9)",
                             key="biologico_concentracao"
                         )
                     st.text_input("Fabricante", key="biologico_fabricante")
                     
-                    submitted = st.form_submit_button("Adicionar Produto", on_click=submit_biologico_form)
-
+                    submitted = st.form_submit_button("Adicionar Produto")
+                    
+                    if submitted:
+                        submit_biologico_form()
+                
                 # Mostrar mensagens de sucesso ou erro abaixo do formulário
                 if "biologico_form_success" in st.session_state and st.session_state.biologico_form_success:
                     st.success(st.session_state.biologico_form_message)
@@ -849,9 +856,14 @@ def gerenciamento():
                                 st.session_state.local_data["biologicos"] = df_final
                                 if update_sheet(df_final, "Biologicos"):
                                     st.success("Dados salvos com sucesso!")
-                                    st.experimental_rerun()
+                                    st.session_state.biologicos_saved = True
                             except Exception as e:
                                 st.error(f"Erro ao salvar alterações: {str(e)}")
+                
+                # Mostrar mensagem de sucesso fora do formulário
+                if st.session_state.get("biologicos_saved", False):
+                    st.success("Dados salvos com sucesso!")
+                    st.session_state.biologicos_saved = False
 
     # Conteúdo da tab Quimicos
     elif aba_selecionada == "Quimicos":
@@ -917,9 +929,12 @@ def gerenciamento():
                         st.selectbox("Classe", options=["Herbicida", "Fungicida", "Inseticida", "Adjuvante", "Nutricional"], key="quimico_classe")
                     with col2:
                         st.number_input("Dose (kg/ha ou litro/ha)", value=0.0, step=1.0, key="quimico_dose")
-                        st.text_input("Fabricante", key="quimico_fabricante")
+                    st.text_input("Fabricante", key="quimico_fabricante")
                     
-                    submitted = st.form_submit_button("Adicionar Produto", on_click=submit_quimico_form)
+                    submitted = st.form_submit_button("Adicionar Produto")
+                    
+                    if submitted:
+                        submit_quimico_form()
                 
                 # Mostrar mensagens de sucesso ou erro abaixo do formulário
                 if "quimico_form_success" in st.session_state and st.session_state.quimico_form_success:
@@ -972,7 +987,7 @@ def gerenciamento():
                             "Nome": st.column_config.TextColumn("Nome do Produto"),
                             "Classe": st.column_config.SelectboxColumn("Classe", options=["Herbicida", "Fungicida", "Inseticida", "Adjuvante", "Nutricional"]),
                             "Fabricante": st.column_config.TextColumn("Fabricante"),
-                            "Dose": st.column_config.NumberColumn("Dose (kg/ha ou litro/ha)", min_value=0.0, step=1.0)
+                            "Dose": st.column_config.NumberColumn("Dose (kg/ha ou litro/ha)", min_value=0.0, step=0.1)
                         },
                         use_container_width=True,
                         height=400,
@@ -1003,10 +1018,14 @@ def gerenciamento():
                                 st.session_state.local_data["quimicos"] = df_final
                                 if update_sheet(df_final, "Quimicos"):
                                     st.session_state.edited_data["quimicos"] = False
-                                    st.success("Dados salvos com sucesso!")
-                                    st.experimental_rerun()
+                                    st.session_state.quimicos_saved = True
                             except Exception as e:
                                 st.error(f"Erro: {str(e)}")
+                
+                # Mostrar mensagem de sucesso fora do formulário
+                if st.session_state.get("quimicos_saved", False):
+                    st.success("Dados salvos com sucesso!")
+                    st.session_state.quimicos_saved = False
 
     # Conteúdo da tab Compatibilidades
     elif aba_selecionada == "Compatibilidades":
@@ -1092,7 +1111,10 @@ def gerenciamento():
                         st.number_input("Tempo máximo testado em calda (horas)", min_value=0, value=0, key="compatibilidade_tempo")
                     st.selectbox("Resultado", options=["Compatível", "Incompatível"], key="compatibilidade_status")
                     
-                    submitted = st.form_submit_button("Adicionar Compatibilidade", use_container_width=True, on_click=submit_compatibilidade_form)
+                    submitted = st.form_submit_button("Adicionar Compatibilidade", use_container_width=True)
+                    
+                    if submitted:
+                        submit_compatibilidade_form()
                 
                 # Mostrar mensagens de sucesso ou erro abaixo do formulário
                 if "compatibilidade_form_success" in st.session_state and st.session_state.compatibilidade_form_success:
@@ -1181,11 +1203,15 @@ def gerenciamento():
                                 st.session_state.local_data["compatibilidades"] = df_final
                                 if update_sheet(df_final, "Compatibilidades"):
                                     st.session_state.edited_data["compatibilidades"] = False
-                                    st.success("Dados salvos com sucesso!")
-                                    st.experimental_rerun()
+                                    st.session_state.compatibilidades_saved = True
                             except Exception as e:
                                 st.error(f"Erro ao salvar alterações: {str(e)}")
-    
+                
+                # Mostrar mensagem de sucesso fora do formulário
+                if st.session_state.get("compatibilidades_saved", False):
+                    st.success("Dados salvos com sucesso!")
+                    st.session_state.compatibilidades_saved = False
+
     # Conteúdo da tab Solicitações
     elif aba_selecionada == "Solicitações":
         st.subheader("Solicitações")
@@ -1365,10 +1391,14 @@ def gerenciamento():
                                 st.session_state.local_data["solicitacoes"] = df_final
                                 if update_sheet(df_final, "Solicitacoes"):
                                     st.session_state.edited_data["solicitacoes"] = False
-                                    st.success("Dados salvos com sucesso!")
-                                    st.experimental_rerun()
+                                    st.session_state.solicitacoes_saved = True
                             except Exception as e:
                                 st.error(f"Erro ao salvar dados: {str(e)}")
+                
+                # Mostrar mensagem de sucesso fora do formulário
+                if st.session_state.get("solicitacoes_saved", False):
+                    st.success("Dados salvos com sucesso!")
+                    st.session_state.solicitacoes_saved = False
 
     # Conteúdo da tab Cálculos
     elif aba_selecionada == "Cálculos":
@@ -1511,8 +1541,8 @@ def check_login():
         st.session_state.failed_attempts = 0
 
     if not st.session_state.authenticated:
-        st.title("🔒 Login Necessário")
-        st.write("Para acessar a página de gerenciamento, faça login:")
+        st.title("🔒 Login")
+        st.write("É necessário o login para acessar a página de gerenciamento.")
         
         with st.form("login_form"):
             username = st.text_input("Usuário")
@@ -1522,7 +1552,7 @@ def check_login():
             if submitted:
                 # Aqui você pode adicionar mais usuários e senhas conforme necessário
                 valid_credentials = {
-                    "adm": "cocal2024"
+                    "adm": "cocal"
                 }
                 
                 if username in valid_credentials and password == valid_credentials[username]:
@@ -1569,21 +1599,23 @@ def main():
         "Selecione a funcionalidade:",
         ("Compatibilidade", "Gerenciamento"),
         index=current_index,
-        key="menu_option"
+        key=f"menu_option_{int(time.time())}"  # Usar timestamp para garantir chave única a cada renderização
     )
     
     # Atualizar o estado da página atual somente se houver mudança
     if st.session_state.current_page != menu_option:
         st.session_state.current_page = menu_option
+        # Forçar recarregamento para aplicar a mudança imediatamente
+        st.rerun()
 
     st.sidebar.markdown("---")
     
     # Adicionar botão de logout se estiver autenticado
     if st.session_state.get('authenticated', False):
-        if st.sidebar.button("Sair"):
+        if st.sidebar.button("Sair", key="logout_button"):
             st.session_state.authenticated = False
             st.session_state.current_page = "Compatibilidade"
-            st.experimental_rerun()
+            st.rerun()
 
     if menu_option == "Compatibilidade":
         compatibilidade()
