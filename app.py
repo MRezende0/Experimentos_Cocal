@@ -399,6 +399,10 @@ def compatibilidade():
         st.session_state.success_message_time = None
     if 'form_submitted_successfully' not in st.session_state:
         st.session_state.form_submitted_successfully = False
+    if 'compatibilidade_biologico' not in st.session_state:
+        st.session_state.compatibilidade_biologico = None
+    if 'compatibilidade_quimico' not in st.session_state:
+        st.session_state.compatibilidade_quimico = None
 
     col1, col2 = st.columns([4, 1])  # 4:1 ratio para alinhamento direito
 
@@ -466,6 +470,10 @@ def compatibilidade():
     col1, col2 = st.columns([1, 1])
 
     with col1:
+        # Inicializar a chave compatibilidade_biologico se não existir
+        if "compatibilidade_biologico" not in st.session_state:
+            st.session_state.compatibilidade_biologico = None
+            
         biologico = st.selectbox(
             "Produto Biológico",
             options=sorted(dados["biologicos"]['Nome'].unique()) if not dados["biologicos"].empty and 'Nome' in dados["biologicos"].columns else [],
@@ -731,7 +739,7 @@ def gerenciamento():
     
     aba_selecionada = st.radio(
         "Selecione a aba:",
-        ["Biologicos", "Quimicos", "Calculos", "Solicitações"],
+        ["Biológicos", "Químicos", "Cálculos", "Solicitações"],
         key="management_tabs",
         horizontal=True,
         label_visibility="collapsed"
@@ -739,7 +747,7 @@ def gerenciamento():
     st.session_state.current_management_tab = aba_selecionada
 
     # Conteúdo da tab Biologicos
-    if aba_selecionada == "Biologicos":
+    if aba_selecionada == "Biológicos":
         st.subheader("Produtos Biológicos")
         if "biologicos" not in dados or dados["biologicos"].empty:
             st.error("Erro ao carregar dados dos produtos biológicos!")
@@ -963,8 +971,8 @@ def gerenciamento():
                     st.success("Dados salvos com sucesso!")
                     st.session_state.biologicos_saved = False
 
-    # Conteúdo da tab Quimicos
-    elif aba_selecionada == "Quimicos":
+    # Conteúdo da tab Químicos
+    elif aba_selecionada == "Químicos":
         st.subheader("Produtos Químicos")
         if "quimicos" not in dados or dados["quimicos"].empty:
             st.error("Erro ao carregar dados dos produtos químicos!")
@@ -1119,8 +1127,8 @@ def gerenciamento():
                     st.success("Dados salvos com sucesso!")
                     st.session_state.quimicos_saved = False
 
-    # Conteúdo da tab Compatibilidades
-    elif aba_selecionada == "Calculos":
+    # Conteúdo da tab Cálculos
+    elif aba_selecionada == "Cálculos":
         st.subheader("Cálculos de Compatibilidade")
         
         if "calculos" not in dados or dados["calculos"].empty:
@@ -1149,7 +1157,7 @@ def gerenciamento():
                     placa2 = st.session_state.calculo_placa2
                     placa3 = st.session_state.calculo_placa3
                     diluicao = st.session_state.calculo_diluicao
-                    dose = st.session_state.calculo_dose
+                    dose_registrada = st.session_state.calculo_dose
                     conc_ativo = st.session_state.calculo_conc_ativo
                     volume_calda = st.session_state.calculo_volume_calda
                     
@@ -1173,7 +1181,7 @@ def gerenciamento():
                     conc_obtida = media_placas * diluicao
                     
                     # Calcular concentração esperada
-                    conc_esperada = (dose * conc_ativo) / volume_calda
+                    conc_esperada = (conc_ativo * dose_registrada) / volume_calda
                     
                     # Calcular razão
                     razao = conc_obtida / conc_esperada if conc_esperada != 0 else 0
@@ -1190,7 +1198,7 @@ def gerenciamento():
                         "MédiaPlacas": media_placas,
                         "Diluicao": diluicao,
                         "ConcObtida": conc_obtida,
-                        "Dose": dose,
+                        "Dose": dose_registrada,
                         "ConcAtivo": conc_ativo,
                         "VolumeCalda": volume_calda,
                         "ConcEsperada": conc_esperada,
@@ -1265,8 +1273,6 @@ def gerenciamento():
                         st.error(st.session_state.calculo_form_error)
             
             else:  # Visualizar cálculos cadastrados
-                st.subheader("Cálculos Cadastrados")
-                
                 # Opções de filtro
                 col1, col2 = st.columns(2)
                 
@@ -1595,8 +1601,20 @@ def calculos():
         st.warning("O Volume de calda deve ser maior que 0 para calcular a Concentração Esperada.")
         return
     
-    concentracao_esperada = (conc_ativo * dose_registrada) / volume_calda
-    st.session_state.concentracao_esperada = concentracao_esperada
+    if biologico_selecionado and volume_calda > 0:
+        # Obter a dose registrada do produto biológico
+        dose_registrada = st.session_state.local_data["biologicos"][
+            st.session_state.local_data["biologicos"]["Nome"] == biologico_selecionado
+        ]["Dose"].values[0] if not st.session_state.local_data["biologicos"][
+            st.session_state.local_data["biologicos"]["Nome"] == biologico_selecionado
+        ].empty else 0
+        
+        # Calcular concentração esperada
+        concentracao_esperada = (conc_ativo * dose_registrada) / volume_calda
+        st.session_state.concentracao_esperada = concentracao_esperada
+    else:
+        concentracao_esperada = 0
+        st.session_state.concentracao_esperada = 0
     
     st.info(f"Concentração Esperada: {concentracao_esperada:.2e} UFC/mL")
     
@@ -1626,19 +1644,18 @@ def calculos():
         
         if 0.8 <= razao <= 1.5:
             st.success(f"✅ COMPATÍVEL - A razão está dentro do intervalo ideal (0,8 a 1,5)")
-            st.write(f"O produto {biologico_selecionado} é compatível com os produtos químicos selecionados:")
-            for quimico in quimicos_selecionados:
-                st.write(f"- {quimico}")
+            st.write("• Siga as recomendações de dosagem de cada produto.")
+            st.write(f"• A razão de compatibilidade é {razao}, o que indica boa compatibilidade.")
         elif razao > 1.5:
             st.warning(f"⚠️ ATENÇÃO - A razão está acima de 1,5")
-            st.write(f"Possível interação positiva entre {biologico_selecionado} e os produtos químicos:")
-            for quimico in quimicos_selecionados:
-                st.write(f"- {quimico}")
+            st.write("• Considere aplicar os produtos separadamente.")
+            st.write("• Consulte um agrônomo para alternativas compatíveis.")
+            st.write(f"• A razão de compatibilidade é {razao}, o que indica interação positiva.")
         else:
             st.error(f"❌ INCOMPATÍVEL - A razão está abaixo de 0,8")
-            st.write(f"O produto {biologico_selecionado} NÃO é compatível com os produtos químicos:")
-            for quimico in quimicos_selecionados:
-                st.write(f"- {quimico}")
+            st.write("• Considere aplicar os produtos separadamente.")
+            st.write("• Consulte um agrônomo para alternativas compatíveis.")
+            st.write(f"• A razão de compatibilidade é {razao}, o que indica incompatibilidade.")
     else:
         st.info("Preencha os valores acima para ver o resultado da compatibilidade.")
 
