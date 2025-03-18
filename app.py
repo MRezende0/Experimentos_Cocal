@@ -471,7 +471,7 @@ def compatibilidade():
             options=sorted(dados["biologicos"]['Nome'].unique()) if not dados["biologicos"].empty and 'Nome' in dados["biologicos"].columns else [],
             index=None,
             key="compatibilidade_biologico",
-            on_change=lambda: st.session_state.update({"compatibilidade_quimicos": None})
+            on_change=lambda: st.session_state.update({"compatibilidade_quimico": None})
         )
 
     # Filtrar os químicos que já foram testados com o biológico selecionado
@@ -487,7 +487,7 @@ def compatibilidade():
     with col2:
         quimico = st.selectbox(
             "Produto Químico",
-            options=quimicos_disponiveis,
+            options=quimicos_disponiveis if quimicos_disponiveis else [],
             index=None,
             key="compatibilidade_quimico",
             disabled=not biologico
@@ -497,7 +497,7 @@ def compatibilidade():
         # Procurar na planilha de Resultados usando os nomes
         resultado_existente = dados["compatibilidades"][
             (dados["compatibilidades"]["Biologico"] == biologico) & 
-            (dados["compatibilidades"]["Quimico"] == quimico)
+            (dados["compatibilidades"]["Quimico"].str.contains(quimico, regex=False))
         ]
         
         if not resultado_existente.empty:
@@ -1084,8 +1084,12 @@ def gerenciamento():
                         st.session_state.compatibilidade_form_error = "Selecione os produtos biológico e químico"
                         return
                     
-                    # Concatenar múltiplos químicos com "+"
-                    quimicos_str = " + ".join(quimicos)
+                    # Verificar se quimicos é uma lista ou um único valor
+                    if isinstance(quimicos, list):
+                        # Concatenar múltiplos químicos com "+"
+                        quimicos_str = " + ".join(quimicos)
+                    else:
+                        quimicos_str = quimicos
                     
                     nova_compatibilidade = {
                         "Data": data_teste.strftime("%Y-%m-%d"),
@@ -1098,7 +1102,7 @@ def gerenciamento():
                     # Verificar se a combinação já existe
                     combinacao_existente = dados["compatibilidades"][
                         (dados["compatibilidades"]["Biologico"] == biologico) & 
-                        (dados["compatibilidades"]["Quimico"] == quimicos_str)
+                        (dados["compatibilidades"]["Quimico"].str.contains(quimicos_str, regex=False))
                     ]
                     
                     if not combinacao_existente.empty:
@@ -1131,6 +1135,7 @@ def gerenciamento():
                         st.multiselect(
                             "Produtos Químicos",
                             options=sorted(dados["quimicos"]["Nome"].unique().tolist()),
+                            default=[],
                             key="compatibilidade_quimicos"
                         )
                         st.number_input("Tempo máximo testado em calda (horas)", min_value=0, value=0, key="compatibilidade_tempo")
@@ -1172,7 +1177,7 @@ def gerenciamento():
                 if filtro_biologico != "Todos":
                     df_filtrado = df_filtrado[df_filtrado["Biologico"] == filtro_biologico]
                 if filtro_quimico != "Todos":
-                    df_filtrado = df_filtrado[df_filtrado["Quimico"] == filtro_quimico]
+                    df_filtrado = df_filtrado[df_filtrado["Quimico"].str.contains(filtro_quimico, regex=False)]
                 
                 # Garantir colunas esperadas
                 df_filtrado = df_filtrado[COLUNAS_ESPERADAS["Compatibilidades"]].copy()
@@ -1213,7 +1218,7 @@ def gerenciamento():
                                 
                                 if filtro_quimico != "Todos" or filtro_biologico != "Todos":
                                     mask = (
-                                        (df_completo["Quimico"] == filtro_quimico if filtro_quimico != "Todos" else True) &
+                                        (df_completo["Quimico"].str.contains(filtro_quimico, regex=False) if filtro_quimico != "Todos" else True) &
                                         (df_completo["Biologico"] == filtro_biologico if filtro_biologico != "Todos" else True)
                                     )
                                 else:
@@ -1353,7 +1358,7 @@ def gerenciamento():
                 if filtro_biologico != "Todos":
                     df_filtrado = df_filtrado[df_filtrado["Biologico"] == filtro_biologico]
                 if filtro_quimico != "Todos":
-                    df_filtrado = df_filtrado[df_filtrado["Quimico"] == filtro_quimico]
+                    df_filtrado = df_filtrado[df_filtrado["Quimico"].str.contains(filtro_quimico, regex=False)]
                 
                 # Garantir colunas esperadas
                 df_filtrado = df_filtrado[COLUNAS_ESPERADAS["Solicitacoes"]].copy()
@@ -1399,7 +1404,7 @@ def gerenciamento():
                                 if filtro_status != "Todos" or filtro_quimico != "Todos" or filtro_biologico != "Todos":
                                     mask = (
                                         (df_completo["Status"] == filtro_status if filtro_status != "Todos" else True) &
-                                        (df_completo["Quimico"] == filtro_quimico if filtro_quimico != "Todos" else True) &
+                                        (df_completo["Quimico"].str.contains(filtro_quimico, regex=False) if filtro_quimico != "Todos" else True) &
                                         (df_completo["Biologico"] == filtro_biologico if filtro_biologico != "Todos" else True)
                                     )
                                 else:
