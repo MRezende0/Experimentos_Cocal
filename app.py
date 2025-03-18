@@ -1595,7 +1595,7 @@ def main():
         "Selecione a funcionalidade:",
         ("Compatibilidade", "Gerenciamento"),
         index=current_index,
-        key=f"menu_option_{int(time.time())}"  # Usar timestamp para garantir chave única a cada renderização
+        key="menu_option_sidebar"
     )
     
     # Atualizar o estado da página atual somente se houver mudança
