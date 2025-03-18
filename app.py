@@ -928,7 +928,7 @@ def gerenciamento():
                         st.selectbox("Classe", options=["Herbicida", "Fungicida", "Inseticida", "Adjuvante", "Nutricional"], key="quimico_classe")
                     with col2:
                         st.number_input("Dose (kg/ha ou litro/ha)", value=0.0, step=1.0, key="quimico_dose")
-                    st.text_input("Fabricante", key="quimico_fabricante")
+                        st.text_input("Fabricante", key="quimico_fabricante")
                     
                     submitted = st.form_submit_button("Adicionar Produto")
                     
@@ -1198,7 +1198,6 @@ def gerenciamento():
                                 
                                 st.session_state.local_data["compatibilidades"] = df_final
                                 if update_sheet(df_final, "Compatibilidades"):
-                                    st.session_state.edited_data["compatibilidades"] = False
                                     st.session_state.compatibilidades_saved = True
                             except Exception as e:
                                 st.error(f"Erro ao salvar alterações: {str(e)}")
@@ -1385,7 +1384,6 @@ def gerenciamento():
                                 
                                 st.session_state.local_data["solicitacoes"] = df_final
                                 if update_sheet(df_final, "Solicitacoes"):
-                                    st.session_state.edited_data["solicitacoes"] = False
                                     st.session_state.solicitacoes_saved = True
                             except Exception as e:
                                 st.error(f"Erro ao salvar dados: {str(e)}")
@@ -1459,7 +1457,7 @@ def calculos():
         placa3 = st.number_input("Placa 3 (colônias)", min_value=0, step=1, value=st.session_state.get('placa3', 0), key="placa3")
     
     with col2:
-        diluicao = st.number_input("Diluição", min_value=0.0, format="%.2e", value=st.session_state.get('diluicao', 1e-6), key="diluicao")
+        diluicao = st.number_input("Diluição", min_value=0.0, format="%.2e", value=st.session_state.get('diluicao', 1e+6), key="diluicao")
         
     media_placas = (placa1 + placa2 + placa3) / 3
     concentracao_obtida = media_placas * diluicao * 10
@@ -1474,12 +1472,16 @@ def calculos():
     
     col1, col2 = st.columns(2)
     with col1:
-        conc_ativo = st.number_input("Concentração do ativo (UFC/mL)", min_value=0.0, format="%.2e", value=st.session_state.get('conc_ativo', 1e9), key="conc_ativo")
+        conc_ativo = st.number_input("Concentração do ativo (UFC/mL)", min_value=0.0, format="%.2e", value=st.session_state.get('conc_ativo', 1e+9), key="conc_ativo")
         # Usar a dose registrada do biológico
-        dose = st.number_input("Dose (L/ha ou kg/ha)", min_value=0.0, step=0.1, value=dose_registrada, key="dose", disabled=True)
+        dose = st.number_input("Dose (L/ha ou kg/ha)", min_value=0.0, step=1.0, value=dose_registrada, key="dose", disabled=True)
     
     with col2:
-        volume_calda = st.number_input("Volume de calda (L/ha)", min_value=0.1, step=1.0, value=st.session_state.get('volume_calda', 200.0), key="volume_calda")
+        volume_calda = st.number_input("Volume de calda (L/ha)", min_value=0.0, step=1.0, value=st.session_state.get('volume_calda', 0.0), key="volume_calda")
+    
+    if volume_calda == 0:
+        st.warning("O Volume de calda deve ser maior que 0 para calcular a Concentração Esperada.")
+        return
     
     concentracao_esperada = (conc_ativo * dose) / volume_calda
     st.session_state.concentracao_esperada = concentracao_esperada
