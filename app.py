@@ -470,15 +470,27 @@ def compatibilidade():
             "Produto Biológico",
             options=sorted(dados["biologicos"]['Nome'].unique()) if not dados["biologicos"].empty and 'Nome' in dados["biologicos"].columns else [],
             index=None,
-            key="compatibilidade_biologico"
+            key="compatibilidade_biologico",
+            on_change=lambda: st.session_state.update({"compatibilidade_quimicos": None})
         )
+
+    # Filtrar os químicos que já foram testados com o biológico selecionado
+    quimicos_disponiveis = []
+    if biologico:
+        # Obter todos os químicos que já foram testados com este biológico
+        quimicos_testados = dados["compatibilidades"][
+            dados["compatibilidades"]["Biologico"] == biologico
+        ]["Quimico"].unique().tolist()
+        
+        quimicos_disponiveis = sorted(quimicos_testados)
 
     with col2:
         quimico = st.selectbox(
             "Produto Químico",
-            options=sorted(dados["quimicos"]['Nome'].unique()) if not dados["quimicos"].empty and 'Nome' in dados["quimicos"].columns else [],
+            options=quimicos_disponiveis,
             index=None,
-            key="compatibilidade_quimico"
+            key="compatibilidade_quimico",
+            disabled=not biologico
         )
     
     if quimico and biologico:
@@ -544,16 +556,19 @@ def mostrar_formulario_solicitacao(quimico=None, biologico=None):
     if 'form_submitted_successfully' not in st.session_state:
         st.session_state.form_submitted_successfully = False
 
+    # Carregar dados
+    dados = load_all_data()
+
     # Função para processar o envio do formulário
     def submit_form():
         # Obter valores do formulário
         data = st.session_state.data_solicitacao
         solicitante = st.session_state.solicitante
-        quimico_input = st.session_state.quimico_input
+        quimicos_input = st.session_state.quimicos_input
         biologico_input = st.session_state.biologico_input
         observacoes = st.session_state.observacoes
         
-        if not all([solicitante, quimico_input, biologico_input]):
+        if not all([solicitante, quimicos_input, biologico_input]):
             st.error("""
             Por favor, preencha todos os campos obrigatórios:
             - Nome do solicitante
@@ -563,11 +578,14 @@ def mostrar_formulario_solicitacao(quimico=None, biologico=None):
             return
 
         # Preparar dados da solicitação
+        # Se houver múltiplos químicos, concatenar com "+"
+        quimicos_str = " + ".join(quimicos_input)
+        
         nova_solicitacao = {
             "Data": data.strftime("%Y-%m-%d"),
             "Solicitante": solicitante,
             "Biologico": biologico_input,
-            "Quimico": quimico_input,
+            "Quimico": quimicos_str,
             "Observacoes": observacoes,
             "Status": "Pendente"
         }
@@ -583,7 +601,7 @@ def mostrar_formulario_solicitacao(quimico=None, biologico=None):
     st.subheader("Solicitar Novo Teste")
     
     # Valores iniciais para os campos
-    default_quimico = quimico if quimico else ""
+    default_quimico = quimico if quimico else None
     default_biologico = biologico if biologico else ""
     
     # Usar st.form para evitar recarregamentos
@@ -595,7 +613,13 @@ def mostrar_formulario_solicitacao(quimico=None, biologico=None):
             st.text_input("Nome do solicitante", key="solicitante")
         
         with col2:
-            st.text_input("Nome do Produto Químico", value=default_quimico, key="quimico_input")
+            # Substituir o campo de texto por um multiselect para químicos
+            st.multiselect(
+                "Selecione os Produtos Químicos",
+                options=sorted(dados["quimicos"]['Nome'].unique().tolist()),
+                default=default_quimico,
+                key="quimicos_input"
+            )
             st.date_input("Data da Solicitação", value=datetime.now(), key="data_solicitacao", format="DD/MM/YYYY")
             
         st.text_area("Observações", key="observacoes")
@@ -607,6 +631,14 @@ def mostrar_formulario_solicitacao(quimico=None, biologico=None):
         with col2:
             if st.form_submit_button("Cancelar"):
                 st.session_state.solicitar_novo_teste = False
+
+                    # Mostrar mensagens de sucesso ou erro abaixo do formulário
+                if "compatibilidade_form_success" in st.session_state and st.session_state.compatibilidade_form_success:
+                    st.success(st.session_state.compatibilidade_form_message)
+                    
+                if "compatibilidade_form_error" in st.session_state and st.session_state.compatibilidade_form_error:
+                    st.error(st.session_state.compatibilidade_form_error)
+                    st.session_state.compatibilidade_form_error = ""
 
 ########################################## GERENCIAMENTO ##########################################
 
@@ -1041,45 +1073,49 @@ def gerenciamento():
                 def submit_compatibilidade_form():
                     # Obter valores do formulário
                     biologico = st.session_state.compatibilidade_biologico
-                    quimico = st.session_state.compatibilidade_quimico
+                    quimicos = st.session_state.compatibilidade_quimicos
                     data_teste = st.session_state.compatibilidade_data
                     tempo = st.session_state.compatibilidade_tempo
                     resultado = st.session_state.compatibilidade_status
                     
-                    if quimico and biologico:
-                        nova_compatibilidade = {
-                            "Data": data_teste.strftime("%Y-%m-%d"),
-                            "Biologico": biologico,
-                            "Quimico": quimico,
-                            "Tempo": tempo,
-                            "Resultado": resultado
-                        }
-                        
-                        # Verificar se a combinação já existe
-                        combinacao_existente = dados["compatibilidades"][
-                            (dados["compatibilidades"]["Biologico"] == biologico) & 
-                            (dados["compatibilidades"]["Quimico"] == quimico)
-                        ]
-                        
-                        if not combinacao_existente.empty:
-                            st.session_state.compatibilidade_form_submitted = True
-                            st.session_state.compatibilidade_form_success = False
-                            st.session_state.compatibilidade_form_error = f"Combinação {biologico} e {quimico} já existe!"
-                        else:
-                            # Adicionar à planilha
-                            if append_to_sheet(nova_compatibilidade, "Compatibilidades"):
-                                # Não precisamos adicionar novamente aos dados locais, pois isso já é feito em append_to_sheet
-                                st.session_state.compatibilidade_form_submitted = True
-                                st.session_state.compatibilidade_form_success = True
-                                st.session_state.compatibilidade_form_message = f"Compatibilidade entre '{biologico}' e '{quimico}' adicionada com sucesso!"
-                            else:
-                                st.session_state.compatibilidade_form_submitted = True
-                                st.session_state.compatibilidade_form_success = False
-                                st.session_state.compatibilidade_form_error = "Falha ao adicionar compatibilidade"
-                    else:
+                    if not quimicos or not biologico:
                         st.session_state.compatibilidade_form_submitted = True
                         st.session_state.compatibilidade_form_success = False
                         st.session_state.compatibilidade_form_error = "Selecione os produtos biológico e químico"
+                        return
+                    
+                    # Concatenar múltiplos químicos com "+"
+                    quimicos_str = " + ".join(quimicos)
+                    
+                    nova_compatibilidade = {
+                        "Data": data_teste.strftime("%Y-%m-%d"),
+                        "Biologico": biologico,
+                        "Quimico": quimicos_str,
+                        "Tempo": tempo,
+                        "Resultado": resultado
+                    }
+                    
+                    # Verificar se a combinação já existe
+                    combinacao_existente = dados["compatibilidades"][
+                        (dados["compatibilidades"]["Biologico"] == biologico) & 
+                        (dados["compatibilidades"]["Quimico"] == quimicos_str)
+                    ]
+                    
+                    if not combinacao_existente.empty:
+                        st.session_state.compatibilidade_form_submitted = True
+                        st.session_state.compatibilidade_form_success = False
+                        st.session_state.compatibilidade_form_error = f"Combinação {biologico} e {quimicos_str} já existe!"
+                    else:
+                        # Adicionar à planilha
+                        if append_to_sheet(nova_compatibilidade, "Compatibilidades"):
+                            # Não precisamos adicionar novamente aos dados locais, pois isso já é feito em append_to_sheet
+                            st.session_state.compatibilidade_form_submitted = True
+                            st.session_state.compatibilidade_form_success = True
+                            st.session_state.compatibilidade_form_message = f"Compatibilidade entre '{biologico}' e '{quimicos_str}' adicionada com sucesso!"
+                        else:
+                            st.session_state.compatibilidade_form_submitted = True
+                            st.session_state.compatibilidade_form_success = False
+                            st.session_state.compatibilidade_form_error = "Falha ao adicionar compatibilidade"
                 
                 with st.form("nova_compatibilidade_form"):
                     col1, col2 = st.columns(2)
@@ -1091,10 +1127,11 @@ def gerenciamento():
                         )
                         st.date_input("Data do Teste", key="compatibilidade_data", format="DD/MM/YYYY")
                     with col2:
-                        st.selectbox(
-                            "Produto Químico",
+                        # Substituir selectbox por multiselect para permitir múltiplos químicos
+                        st.multiselect(
+                            "Produtos Químicos",
                             options=sorted(dados["quimicos"]["Nome"].unique().tolist()),
-                            key="compatibilidade_quimico"
+                            key="compatibilidade_quimicos"
                         )
                         st.number_input("Tempo máximo testado em calda (horas)", min_value=0, value=0, key="compatibilidade_tempo")
                     st.selectbox("Resultado", options=["Compatível", "Incompatível"], key="compatibilidade_status")
