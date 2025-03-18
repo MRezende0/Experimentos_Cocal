@@ -435,19 +435,9 @@ def compatibilidade():
             
         st.markdown("</div>", unsafe_allow_html=True)
     
+    # Carregar dados
     dados = load_all_data()
     
-    # Verificação detalhada dos dados
-    if dados["quimicos"].empty:
-        st.warning("""
-            **Nenhum produto químico cadastrado!**
-            Por favor:
-            1. Verifique a planilha 'Quimicos' no Google Sheets
-            2. Confira se há dados na planilha
-            3. Verifique as permissões de acesso
-        """)
-        return
-
     if dados["biologicos"].empty:
         st.warning("""
             **Nenhum produto biológico cadastrado!**
@@ -470,37 +460,53 @@ def compatibilidade():
     col1, col2 = st.columns([1, 1])
 
     with col1:
-        # Inicializar a chave compatibilidade_biologico se não existir
+        # Garantir que a chave compatibilidade_biologico esteja inicializada
         if "compatibilidade_biologico" not in st.session_state:
             st.session_state.compatibilidade_biologico = None
             
+        # Verificar se a coluna 'Nome' existe no DataFrame
+        if 'Nome' not in dados["biologicos"].columns:
+            st.error("Erro: A coluna 'Nome' não foi encontrada na planilha de produtos biológicos.")
+            return
+            
         biologico = st.selectbox(
             "Produto Biológico",
-            options=sorted(dados["biologicos"]['Nome'].unique()) if not dados["biologicos"].empty and 'Nome' in dados["biologicos"].columns else [],
+            options=sorted(dados["biologicos"]['Nome'].unique().tolist()) if not dados["biologicos"].empty else [],
             index=None,
-            key="compatibilidade_biologico",
-            on_change=lambda: st.session_state.update({"compatibilidade_quimico": None})
+            key="compatibilidade_biologico"
         )
+        
+        # Atualizar o estado após a seleção
+        if biologico is not None:
+            st.session_state.compatibilidade_quimico = None
 
     # Filtrar os químicos que já foram testados com o biológico selecionado
     quimicos_disponiveis = []
     if biologico:
-        # Obter todos os químicos que já foram testados com este biológico
-        calculos_biologico = dados["calculos"][
-            dados["calculos"]["Biologico"] == biologico
-        ]
-        
-        # Extrair todos os químicos das combinações (pode conter múltiplos químicos separados por +)
-        quimicos_testados = []
-        for quimico_combinado in calculos_biologico["Quimico"].unique():
-            # Dividir cada entrada que pode conter múltiplos químicos
-            for quimico_individual in quimico_combinado.split(" + "):
-                if quimico_individual.strip() not in quimicos_testados:
-                    quimicos_testados.append(quimico_individual.strip())
-        
-        quimicos_disponiveis = sorted(quimicos_testados)
+        try:
+            # Obter todos os químicos que já foram testados com este biológico
+            calculos_biologico = dados["calculos"][
+                dados["calculos"]["Biologico"] == biologico
+            ]
+            
+            # Extrair todos os químicos das combinações (pode conter múltiplos químicos separados por +)
+            quimicos_testados = []
+            for quimico_combinado in calculos_biologico["Quimico"].unique():
+                # Dividir cada entrada que pode conter múltiplos químicos
+                for quimico_individual in quimico_combinado.split(" + "):
+                    if quimico_individual.strip() not in quimicos_testados:
+                        quimicos_testados.append(quimico_individual.strip())
+            
+            quimicos_disponiveis = sorted(quimicos_testados)
+        except Exception as e:
+            st.error(f"Erro ao filtrar químicos: {str(e)}")
+            quimicos_disponiveis = []
 
     with col2:
+        # Garantir que a chave compatibilidade_quimico esteja inicializada
+        if "compatibilidade_quimico" not in st.session_state:
+            st.session_state.compatibilidade_quimico = None
+            
         quimico = st.selectbox(
             "Produto Químico",
             options=quimicos_disponiveis if quimicos_disponiveis else [],
