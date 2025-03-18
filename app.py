@@ -66,6 +66,83 @@ def local_css():
 
 local_css()
 
+# Inicialização das variáveis de sessão
+def inicializar_sessao():
+    """Inicializa todas as variáveis de sessão necessárias para o funcionamento do aplicativo"""
+    # Variáveis para controle de formulários
+    if 'solicitar_novo_teste' not in st.session_state:
+        st.session_state.solicitar_novo_teste = False
+    if 'pre_selecionado_quimico' not in st.session_state:
+        st.session_state.pre_selecionado_quimico = None
+    if 'pre_selecionado_biologico' not in st.session_state:
+        st.session_state.pre_selecionado_biologico = None
+    if 'just_submitted' not in st.session_state:
+        st.session_state.just_submitted = False
+    if 'last_submission' not in st.session_state:
+        st.session_state.last_submission = None
+    if 'success_message_time' not in st.session_state:
+        st.session_state.success_message_time = None
+    if 'form_submitted_successfully' not in st.session_state:
+        st.session_state.form_submitted_successfully = False
+        
+    # Variáveis para a página de compatibilidade
+    if 'compatibilidade_biologico' not in st.session_state:
+        st.session_state.compatibilidade_biologico = None
+    if 'compatibilidade_quimico' not in st.session_state:
+        st.session_state.compatibilidade_quimico = None
+        
+    # Variáveis para a página de cálculos
+    if 'calculo_biologico' not in st.session_state:
+        st.session_state.calculo_biologico = None
+    if 'calculo_quimicos' not in st.session_state:
+        st.session_state.calculo_quimicos = []
+    if 'calculo_volume_calda' not in st.session_state:
+        st.session_state.calculo_volume_calda = 100.0
+        
+    # Variáveis para a aba ativa no gerenciamento
+    if 'aba_ativa' not in st.session_state:
+        st.session_state.aba_ativa = "Biologicos"
+        
+    # Variáveis para cache de dados
+    if 'data_timestamp' not in st.session_state:
+        st.session_state.data_timestamp = None
+    if 'local_data' not in st.session_state:
+        st.session_state.local_data = {}
+        
+    # Variáveis para controle de formulários no gerenciamento
+    if 'biologico_form_submitted' not in st.session_state:
+        st.session_state.biologico_form_submitted = False
+    if 'biologico_form_success' not in st.session_state:
+        st.session_state.biologico_form_success = False
+    if 'biologico_form_error' not in st.session_state:
+        st.session_state.biologico_form_error = ""
+        
+    if 'quimico_form_submitted' not in st.session_state:
+        st.session_state.quimico_form_submitted = False
+    if 'quimico_form_success' not in st.session_state:
+        st.session_state.quimico_form_success = False
+    if 'quimico_form_error' not in st.session_state:
+        st.session_state.quimico_form_error = ""
+        
+    if 'calculo_form_submitted' not in st.session_state:
+        st.session_state.calculo_form_submitted = False
+    if 'calculo_form_success' not in st.session_state:
+        st.session_state.calculo_form_success = False
+    if 'calculo_form_error' not in st.session_state:
+        st.session_state.calculo_form_error = ""
+        
+    if 'gerenciamento_form_submitted' not in st.session_state:
+        st.session_state.gerenciamento_form_submitted = False
+        
+    if 'biologicos_saved' not in st.session_state:
+        st.session_state.biologicos_saved = False
+    if 'quimicos_saved' not in st.session_state:
+        st.session_state.quimicos_saved = False
+    if 'solicitacoes_saved' not in st.session_state:
+        st.session_state.solicitacoes_saved = False
+
+inicializar_sessao()
+
 # Inicialização dos dados locais
 if 'local_data' not in st.session_state:
     st.session_state.local_data = {
@@ -326,7 +403,7 @@ def _load_and_validate_sheet(sheet_name):
         
         # Verificar coluna Nome
         if sheet_name in ["Biologicos", "Quimicos"] and "Nome" not in df.columns:
-            st.error(f"Coluna 'Nome' não encontrada em {sheet_name}")
+            st.error("Erro: A coluna 'Nome' não foi encontrada na planilha de produtos biológicos.")
             return pd.DataFrame()
             
         # Remover linhas com Nome vazio para planilhas que exigem Nome
@@ -384,26 +461,8 @@ def convert_scientific_to_float(value):
 ########################################## COMPATIBILIDADE ##########################################
 
 def compatibilidade():
-    # Inicializar variável de estado para controle do formulário
-    if 'solicitar_novo_teste' not in st.session_state:
-        st.session_state.solicitar_novo_teste = False
-    if 'pre_selecionado_quimico' not in st.session_state:
-        st.session_state.pre_selecionado_quimico = None
-    if 'pre_selecionado_biologico' not in st.session_state:
-        st.session_state.pre_selecionado_biologico = None
-    if 'just_submitted' not in st.session_state:
-        st.session_state.just_submitted = False
-    if 'last_submission' not in st.session_state:
-        st.session_state.last_submission = None
-    if 'success_message_time' not in st.session_state:
-        st.session_state.success_message_time = None
-    if 'form_submitted_successfully' not in st.session_state:
-        st.session_state.form_submitted_successfully = False
-    if 'compatibilidade_biologico' not in st.session_state:
-        st.session_state.compatibilidade_biologico = None
-    if 'compatibilidade_quimico' not in st.session_state:
-        st.session_state.compatibilidade_quimico = None
-
+    # As variáveis de sessão já são inicializadas pela função inicializar_sessao()
+    
     col1, col2 = st.columns([4, 1])  # 4:1 ratio para alinhamento direito
 
     with col1:
@@ -484,24 +543,64 @@ def compatibilidade():
     quimicos_disponiveis = []
     if biologico:
         try:
-            # Obter todos os químicos que já foram testados com este biológico
-            calculos_biologico = dados["calculos"][
-                dados["calculos"]["Biologico"] == biologico
-            ]
+            # Verificar se a coluna "Biologico" existe no DataFrame
+            if "Biologico" not in dados["calculos"].columns:
+                st.error("Erro: A coluna 'Biologico' não foi encontrada na planilha de cálculos.")
+                # Tentar encontrar a coluna com nome similar (diferença de maiúsculas/minúsculas)
+                colunas_similares = [col for col in dados["calculos"].columns if col.lower() == "biologico"]
+                if colunas_similares:
+                    coluna_biologico = colunas_similares[0]
+                    st.info(f"Usando a coluna '{coluna_biologico}' como alternativa.")
+                    # Obter todos os químicos que já foram testados com este biológico
+                    calculos_biologico = dados["calculos"][
+                        dados["calculos"][coluna_biologico] == biologico
+                    ]
+                else:
+                    st.warning("Nenhuma coluna similar a 'Biologico' foi encontrada. Verifique a estrutura da planilha.")
+                    return
+            else:
+                # Obter todos os químicos que já foram testados com este biológico
+                calculos_biologico = dados["calculos"][
+                    dados["calculos"]["Biologico"] == biologico
+                ]
+            
+            # Verificar se a coluna "Quimico" existe
+            if "Quimico" not in dados["calculos"].columns:
+                st.error("Erro: A coluna 'Quimico' não foi encontrada na planilha de cálculos.")
+                # Tentar encontrar a coluna com nome similar
+                colunas_similares = [col for col in dados["calculos"].columns if col.lower() == "quimico"]
+                if colunas_similares:
+                    coluna_quimico = colunas_similares[0]
+                    st.info(f"Usando a coluna '{coluna_quimico}' como alternativa.")
+                else:
+                    st.warning("Nenhuma coluna similar a 'Quimico' foi encontrada. Verifique a estrutura da planilha.")
+                    return
+            else:
+                coluna_quimico = "Quimico"
             
             # Extrair todos os químicos das combinações (pode conter múltiplos químicos separados por +)
             quimicos_testados = []
-            for quimico_combinado in calculos_biologico["Quimico"].unique():
-                # Dividir cada entrada que pode conter múltiplos químicos
-                for quimico_individual in quimico_combinado.split(" + "):
-                    if quimico_individual.strip() not in quimicos_testados:
-                        quimicos_testados.append(quimico_individual.strip())
+            for quimico_combinado in calculos_biologico[coluna_quimico].unique():
+                if quimico_combinado and isinstance(quimico_combinado, str):
+                    # Dividir cada entrada que pode conter múltiplos químicos
+                    for quimico_individual in quimico_combinado.split(" + "):
+                        if quimico_individual.strip() not in quimicos_testados:
+                            quimicos_testados.append(quimico_individual.strip())
             
             quimicos_disponiveis = sorted(quimicos_testados)
+            
+            # Mostrar informação sobre químicos encontrados
+            if not quimicos_disponiveis:
+                st.info(f"Nenhum produto químico encontrado para o biológico '{biologico}'.")
+                
         except Exception as e:
             st.error(f"Erro ao filtrar químicos: {str(e)}")
+            # Mostrar informações de debug para ajudar na resolução do problema
+            st.error("Detalhes do erro:")
+            if "calculos" in dados:
+                st.error(f"Colunas disponíveis na planilha de cálculos: {', '.join(dados['calculos'].columns.tolist())}")
             quimicos_disponiveis = []
-
+    
     with col2:
         # Garantir que a chave compatibilidade_quimico esteja inicializada
         if "compatibilidade_quimico" not in st.session_state:
@@ -516,83 +615,108 @@ def compatibilidade():
         )
     
     if quimico and biologico:
-        # Procurar na planilha de Cálculos usando os nomes
-        resultado_existente = dados["calculos"][
-            (dados["calculos"]["Biologico"] == biologico) & 
-            (dados["calculos"]["Quimico"].str.contains(quimico, regex=False))
-        ]
-        
-        if not resultado_existente.empty:
-            # Mostrar resultado de compatibilidade
-            compativel = resultado_existente.iloc[0]["Resultado"] == "Compatível"
-            
-            if compativel:
-                st.markdown("""
-                    <div class="resultado compativel">
-                    Compatível
-                </div>
-                """, unsafe_allow_html=True)
-            else:
-                st.markdown("""
-                    <div class="resultado incompativel">
-                    Incompatível
-                </div>
-                """, unsafe_allow_html=True)
-            
-            # Mostrar detalhes do teste
-            with st.expander("Ver detalhes do teste", expanded=True):
-                # Criar uma tabela para mostrar os detalhes de forma mais organizada
-                colunas_exibir = ["Biologico", "Quimico", "MédiaPlacas", "Diluicao", "ConcObtida", 
-                                 "Dose", "ConcAtivo", "VolumeCalda", "ConcEsperada", "Razao", "Resultado"]
-                
-                # Verificar quais colunas existem no DataFrame
-                colunas_disponiveis = [col for col in colunas_exibir if col in resultado_existente.columns]
-                
-                detalhes_df = resultado_existente[colunas_disponiveis].copy()
-                
-                # Formatar a tabela para melhor visualização
-                st.dataframe(
-                    detalhes_df,
-                    hide_index=True,
-                    use_container_width=True
-                )
-                
-                # Adicionar informações adicionais sobre o teste
-                st.write("**Informações Adicionais:**")
-                
-                # Verificar se as colunas existem antes de tentar acessá-las
-                if "Razao" in resultado_existente.columns:
-                    razao = resultado_existente.iloc[0]["Razao"]
-                    st.write(f"• Razão de compatibilidade: {razao}")
-                
-                if "ConcObtida" in resultado_existente.columns and "ConcEsperada" in resultado_existente.columns:
-                    conc_obtida = resultado_existente.iloc[0]["ConcObtida"]
-                    conc_esperada = resultado_existente.iloc[0]["ConcEsperada"]
-                    st.write(f"• Concentração obtida: {conc_obtida}")
-                    st.write(f"• Concentração esperada: {conc_esperada}")
-                
-                # Adicionar recomendações com base no resultado
-                st.write("**Recomendações:**")
-                if compativel:
-                    st.success("✅ Estes produtos podem ser utilizados juntos na calda de pulverização.")
-                    st.write("• Siga as recomendações de dosagem de cada produto.")
-                    if "Razao" in resultado_existente.columns:
-                        st.write(f"• A razão de compatibilidade é {razao}, o que indica boa compatibilidade.")
+        try:
+            # Determinar quais colunas usar (considerando possíveis diferenças de maiúsculas/minúsculas)
+            coluna_biologico = "Biologico"
+            if "Biologico" not in dados["calculos"].columns:
+                colunas_similares = [col for col in dados["calculos"].columns if col.lower() == "biologico"]
+                if colunas_similares:
+                    coluna_biologico = colunas_similares[0]
                 else:
-                    st.error("❌ Não é recomendado utilizar estes produtos juntos na calda de pulverização.")
-                    st.write("• Considere aplicar os produtos separadamente.")
-                    st.write("• Consulte um agrônomo para alternativas compatíveis.")
-                    if "Razao" in resultado_existente.columns:
-                        st.write(f"• A razão de compatibilidade é {razao}, o que indica incompatibilidade.")
-        
-        else:
-            # Mostrar aviso de que não existe compatibilidade cadastrada
-            st.markdown("""
-                    <div class="resultado naotestado">
-                    Teste não realizado!
-                    Solicite um novo teste.
-                </div>
-                """, unsafe_allow_html=True)
+                    st.error("Erro: Não foi possível encontrar a coluna 'Biologico' na planilha de cálculos.")
+                    return
+                    
+            coluna_quimico = "Quimico"
+            if "Quimico" not in dados["calculos"].columns:
+                colunas_similares = [col for col in dados["calculos"].columns if col.lower() == "quimico"]
+                if colunas_similares:
+                    coluna_quimico = colunas_similares[0]
+                else:
+                    st.error("Erro: Não foi possível encontrar a coluna 'Quimico' na planilha de cálculos.")
+                    return
+            
+            # Procurar na planilha de Cálculos usando os nomes
+            resultado_existente = dados["calculos"][
+                (dados["calculos"][coluna_biologico] == biologico) & 
+                (dados["calculos"][coluna_quimico].str.contains(quimico, regex=False))
+            ]
+            
+            if not resultado_existente.empty:
+                # Verificar se a coluna "Resultado" existe
+                coluna_resultado = "Resultado"
+                if "Resultado" not in resultado_existente.columns:
+                    colunas_similares = [col for col in resultado_existente.columns if col.lower() == "resultado"]
+                    if colunas_similares:
+                        coluna_resultado = colunas_similares[0]
+                    else:
+                        st.error("Erro: Não foi possível encontrar a coluna 'Resultado' na planilha de cálculos.")
+                        return
+                
+                # Mostrar resultado de compatibilidade
+                compativel = resultado_existente.iloc[0][coluna_resultado] == "Compatível"
+                
+                if compativel:
+                    st.markdown("""
+                        <div class="resultado compativel">
+                        Compatível
+                    </div>
+                    """, unsafe_allow_html=True)
+                else:
+                    st.markdown("""
+                        <div class="resultado incompativel">
+                        Incompatível
+                    </div>
+                    """, unsafe_allow_html=True)
+                
+                # Mostrar detalhes do teste
+                with st.expander("Ver detalhes do teste", expanded=True):
+                    # Criar uma tabela para mostrar os detalhes de forma mais organizada
+                    colunas_exibir = ["Biologico", "Quimico", "MédiaPlacas", "Diluicao", "ConcObtida", 
+                                    "Dose", "ConcAtivo", "VolumeCalda", "ConcEsperada", "Razao", "Resultado"]
+                    
+                    # Mapear os nomes de colunas para os nomes reais no DataFrame
+                    colunas_mapeadas = {}
+                    for col in colunas_exibir:
+                        if col in resultado_existente.columns:
+                            colunas_mapeadas[col] = col
+                        else:
+                            # Tentar encontrar coluna com nome similar
+                            colunas_similares = [c for c in resultado_existente.columns if c.lower() == col.lower()]
+                            if colunas_similares:
+                                colunas_mapeadas[col] = colunas_similares[0]
+                    
+                    # Verificar quais colunas existem no DataFrame
+                    colunas_disponiveis = list(colunas_mapeadas.values())
+                    
+                    if colunas_disponiveis:
+                        detalhes_df = resultado_existente[colunas_disponiveis].copy()
+                        
+                        # Renomear colunas para exibição
+                        colunas_renomeadas = {v: k for k, v in colunas_mapeadas.items()}
+                        detalhes_df = detalhes_df.rename(columns=colunas_renomeadas)
+                        
+                        # Formatar a tabela para melhor visualização
+                        st.dataframe(
+                            detalhes_df,
+                            hide_index=True,
+                            use_container_width=True
+                        )
+                    else:
+                        st.warning("Não foi possível encontrar colunas para exibir os detalhes do teste.")
+            else:
+                st.warning(f"Não foi encontrado nenhum teste de compatibilidade entre {biologico} e {quimico}.")
+                
+                # Botão para solicitar novo teste
+                if st.button("Solicitar teste de compatibilidade", key="btn_solicitar_teste"):
+                    st.session_state.solicitar_novo_teste = True
+                    st.session_state.pre_selecionado_biologico = biologico
+                    st.session_state.pre_selecionado_quimico = quimico
+                    st.rerun()
+        except Exception as e:
+            st.error(f"Erro ao buscar resultados de compatibilidade: {str(e)}")
+            # Mostrar informações de debug
+            if "calculos" in dados:
+                st.error(f"Colunas disponíveis na planilha de cálculos: {', '.join(dados['calculos'].columns.tolist())}")
     
     # Exibir mensagem de sucesso se acabou de enviar uma solicitação
     if st.session_state.form_submitted_successfully:
