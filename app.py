@@ -478,9 +478,17 @@ def compatibilidade():
     quimicos_disponiveis = []
     if biologico:
         # Obter todos os químicos que já foram testados com este biológico
-        quimicos_testados = dados["compatibilidades"][
+        compatibilidades_biologico = dados["compatibilidades"][
             dados["compatibilidades"]["Biologico"] == biologico
-        ]["Quimico"].unique().tolist()
+        ]
+        
+        # Extrair todos os químicos das combinações (pode conter múltiplos químicos separados por +)
+        quimicos_testados = []
+        for quimico_combinado in compatibilidades_biologico["Quimico"].unique():
+            # Dividir cada entrada que pode conter múltiplos químicos
+            for quimico_individual in quimico_combinado.split(" + "):
+                if quimico_individual.strip() not in quimicos_testados:
+                    quimicos_testados.append(quimico_individual.strip())
         
         quimicos_disponiveis = sorted(quimicos_testados)
 
@@ -518,12 +526,32 @@ def compatibilidade():
                 """, unsafe_allow_html=True)
             
             # Mostrar detalhes do teste
-            with st.expander("Ver detalhes do teste"):
-                st.write(f"**Data:** {resultado_existente.iloc[0]['Data']}")
-                st.write(f"**Biologico:** {resultado_existente.iloc[0]['Biologico']}")
-                st.write(f"**Quimico:** {resultado_existente.iloc[0]['Quimico']}")
-                st.write(f"**Tempo:** {resultado_existente.iloc[0]['Tempo']} horas")
-                st.write(f"**Resultado:** {resultado_existente.iloc[0]['Resultado']}")
+            with st.expander("Ver detalhes do teste", expanded=True):
+                # Criar uma tabela para mostrar os detalhes de forma mais organizada
+                detalhes_df = resultado_existente[["Data", "Biologico", "Quimico", "Tempo", "Resultado"]].copy()
+                
+                # Formatar a tabela para melhor visualização
+                st.dataframe(
+                    detalhes_df,
+                    hide_index=True,
+                    use_container_width=True
+                )
+                
+                # Adicionar informações adicionais sobre o teste
+                st.write("**Informações Adicionais:**")
+                st.write(f"• Este teste foi realizado em {resultado_existente.iloc[0]['Data']}")
+                st.write(f"• O tempo máximo testado em calda foi de {resultado_existente.iloc[0]['Tempo']} horas")
+                
+                # Adicionar recomendações com base no resultado
+                st.write("**Recomendações:**")
+                if compativel:
+                    st.success("✅ Estes produtos podem ser utilizados juntos na calda de pulverização.")
+                    st.write("• Siga as recomendações de dosagem de cada produto.")
+                    st.write("• Observe o tempo máximo testado para garantir a eficácia da aplicação.")
+                else:
+                    st.error("❌ Não é recomendado utilizar estes produtos juntos na calda de pulverização.")
+                    st.write("• Considere aplicar os produtos separadamente.")
+                    st.write("• Consulte um agrônomo para alternativas compatíveis.")
         
         else:
             # Mostrar aviso de que não existe compatibilidade cadastrada
@@ -1068,6 +1096,8 @@ def gerenciamento():
                     st.session_state.compatibilidade_form_success = False
                 if 'compatibilidade_form_error' not in st.session_state:
                     st.session_state.compatibilidade_form_error = ""
+                if 'compatibilidade_quimicos' not in st.session_state:
+                    st.session_state.compatibilidade_quimicos = []
                 
                 # Função para processar o envio do formulário
                 def submit_compatibilidade_form():
@@ -1126,7 +1156,7 @@ def gerenciamento():
                     with col1:
                         st.selectbox(
                             "Produto Biológico",
-                            options=sorted(dados["biologicos"]["Nome"].unique().tolist()),
+                            options=sorted(dados["biologicos"]['Nome'].unique().tolist()),
                             key="compatibilidade_biologico"
                         )
                         st.date_input("Data do Teste", key="compatibilidade_data", format="DD/MM/YYYY")
@@ -1134,13 +1164,14 @@ def gerenciamento():
                         # Substituir selectbox por multiselect para permitir múltiplos químicos
                         st.multiselect(
                             "Produtos Químicos",
-                            options=sorted(dados["quimicos"]["Nome"].unique().tolist()),
+                            options=sorted(dados["quimicos"]['Nome'].unique().tolist()),
                             default=[],
                             key="compatibilidade_quimicos"
                         )
                         st.number_input("Tempo máximo testado em calda (horas)", min_value=0, value=0, key="compatibilidade_tempo")
                     st.selectbox("Resultado", options=["Compatível", "Incompatível"], key="compatibilidade_status")
                     
+                    # Botão de envio do formulário
                     submitted = st.form_submit_button("Adicionar Compatibilidade", use_container_width=True)
                     
                     if submitted:
