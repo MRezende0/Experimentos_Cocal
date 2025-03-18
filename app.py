@@ -88,7 +88,7 @@ SHEET_GIDS = {
 COLUNAS_ESPERADAS = {
     "Biologicos": ["Nome", "Classe", "IngredienteAtivo", "Formulacao", "Dose", "Concentracao", "Fabricante"],
     "Quimicos": ["Nome", "Classe", "Fabricante", "Dose"],
-    "Compatibilidades": ["Data", "Quimico", "Biologico", "Tempo", "Resultado"],
+    "Compatibilidades": ["Data", "Biologico", "Quimico", "Tempo", "Resultado"],
     "Solicitacoes": ["Data", "Solicitante", "Quimico", "Biologico", "Observacoes", "Status"]
 }
 
@@ -229,7 +229,7 @@ def load_sheet_data(sheet_name: str) -> pd.DataFrame:
             required_columns = {
                 "Biologicos": ["Nome", "Classe"],
                 "Quimicos": ["Nome", "Classe"],
-                "Compatibilidades": ["Quimico", "Biologico"],
+                "Compatibilidades": ["Biologico", "Quimico"],
                 "Solicitacoes": ["Quimico", "Biologico"]
             }
             
@@ -484,8 +484,8 @@ def compatibilidade():
     if quimico and biologico:
         # Procurar na planilha de Resultados usando os nomes
         resultado_existente = dados["compatibilidades"][
-            (dados["compatibilidades"]["Quimico"] == quimico) & 
-            (dados["compatibilidades"]["Biologico"] == biologico)
+            (dados["compatibilidades"]["Biologico"] == biologico) & 
+            (dados["compatibilidades"]["Quimico"] == quimico)
         ]
         
         if not resultado_existente.empty:
@@ -508,8 +508,8 @@ def compatibilidade():
             # Mostrar detalhes do teste
             with st.expander("Ver detalhes do teste"):
                 st.write(f"**Data:** {resultado_existente.iloc[0]['Data']}")
-                st.write(f"**Quimico:** {resultado_existente.iloc[0]['Quimico']}")
                 st.write(f"**Biologico:** {resultado_existente.iloc[0]['Biologico']}")
+                st.write(f"**Quimico:** {resultado_existente.iloc[0]['Quimico']}")
                 st.write(f"**Tempo:** {resultado_existente.iloc[0]['Tempo']} horas")
                 st.write(f"**Resultado:** {resultado_existente.iloc[0]['Resultado']}")
         
@@ -690,9 +690,7 @@ def gerenciamento():
                             
                         # Adicionar à planilha
                         if append_to_sheet(novo_produto, "Biologicos"):
-                            # Atualizar dados locais
-                            nova_linha = pd.DataFrame([novo_produto])
-                            st.session_state.local_data["biologicos"] = pd.concat([st.session_state.local_data["biologicos"], nova_linha], ignore_index=True)
+                            # Não precisamos adicionar novamente aos dados locais, pois isso já é feito em append_to_sheet
                             st.session_state.biologico_form_success = True
                             st.session_state.biologico_form_message = f"Produto {nome} adicionado com sucesso!"
                         else:
@@ -905,11 +903,7 @@ def gerenciamento():
                         else:
                             # Adicionar à planilha
                             if append_to_sheet(novo_produto, "Quimicos"):
-                                # Atualizar dados locais
-                                nova_linha = pd.DataFrame([novo_produto])
-                                st.session_state.local_data["quimicos"] = pd.concat([st.session_state.local_data["quimicos"], nova_linha], ignore_index=True)
-                                
-                                st.session_state.quimico_form_submitted = True
+                                # Não precisamos adicionar novamente aos dados locais, pois isso já é feito em append_to_sheet
                                 st.session_state.quimico_form_success = True
                                 st.session_state.quimico_form_message = f"Produto {nome} adicionado com sucesso!"
                             else:
@@ -1063,8 +1057,8 @@ def gerenciamento():
                         
                         # Verificar se a combinação já existe
                         combinacao_existente = dados["compatibilidades"][
-                            (dados["compatibilidades"]["Quimico"] == quimico) & 
-                            (dados["compatibilidades"]["Biologico"] == biologico)
+                            (dados["compatibilidades"]["Biologico"] == biologico) & 
+                            (dados["compatibilidades"]["Quimico"] == quimico)
                         ]
                         
                         if not combinacao_existente.empty:
@@ -1074,10 +1068,7 @@ def gerenciamento():
                         else:
                             # Adicionar à planilha
                             if append_to_sheet(nova_compatibilidade, "Compatibilidades"):
-                                # Atualizar dados locais
-                                nova_linha = pd.DataFrame([nova_compatibilidade])
-                                st.session_state.local_data["compatibilidades"] = pd.concat([st.session_state.local_data["compatibilidades"], nova_linha], ignore_index=True)
-                                
+                                # Não precisamos adicionar novamente aos dados locais, pois isso já é feito em append_to_sheet
                                 st.session_state.compatibilidade_form_submitted = True
                                 st.session_state.compatibilidade_form_success = True
                                 st.session_state.compatibilidade_form_message = f"Compatibilidade entre '{biologico}' e '{quimico}' adicionada com sucesso!"
@@ -1173,7 +1164,7 @@ def gerenciamento():
                         },
                         use_container_width=True,
                         height=400,
-                        column_order=COLUNAS_ESPERADAS["Compatibilidades"],
+                        column_order=["Data", "Biologico", "Quimico", "Tempo", "Resultado"],
                         disabled=False
                     )
                     
