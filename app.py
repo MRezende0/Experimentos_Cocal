@@ -105,7 +105,7 @@ def inicializar_sessao():
         
     # Variáveis para cache de dados
     if 'data_timestamp' not in st.session_state:
-        st.session_state.data_timestamp = None
+        st.session_state.data_timestamp = datetime.now()  # Inicializar com o datetime atual
     if 'local_data' not in st.session_state:
         st.session_state.local_data = {}
         
@@ -363,10 +363,16 @@ def load_all_data():
     """
     # Verificar se os dados já estão na sessão e se foram carregados há menos de 5 minutos
     if 'data_timestamp' in st.session_state and 'local_data' in st.session_state:
-        elapsed_time = (datetime.now() - st.session_state.data_timestamp).total_seconds()
-        # Usar dados em cache se foram carregados há menos de 5 minutos
-        if elapsed_time < 300:  # 5 minutos em segundos
-            return st.session_state.local_data
+        # Verificar se data_timestamp não é None antes de tentar calcular o tempo decorrido
+        if st.session_state.data_timestamp is not None:
+            try:
+                elapsed_time = (datetime.now() - st.session_state.data_timestamp).total_seconds()
+                # Usar dados em cache se foram carregados há menos de 5 minutos
+                if elapsed_time < 300:  # 5 minutos em segundos
+                    return st.session_state.local_data
+            except Exception as e:
+                st.error(f"Erro ao calcular tempo decorrido: {str(e)}")
+                # Continuar com o carregamento de dados em caso de erro
     
     # Carregar dados com paralelismo para melhorar a performance
     with st.spinner("Carregando dados..."):
