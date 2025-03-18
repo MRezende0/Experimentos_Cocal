@@ -1452,12 +1452,12 @@ def calculos():
     
     col1, col2 = st.columns(2)
     with col1:
-        placa1 = st.number_input("Placa 1 (colônias)", min_value=0, step=1, value=st.session_state.get('placa1', 0), key="placa1")
-        placa2 = st.number_input("Placa 2 (colônias)", min_value=0, step=1, value=st.session_state.get('placa2', 0), key="placa2")
-        placa3 = st.number_input("Placa 3 (colônias)", min_value=0, step=1, value=st.session_state.get('placa3', 0), key="placa3")
+        placa1 = st.number_input("Placa 1 (colônias)", min_value=0.0, step=1.0, value=float(st.session_state.get('placa1', 0)), key="placa1")
+        placa2 = st.number_input("Placa 2 (colônias)", min_value=0.0, step=1.0, value=float(st.session_state.get('placa2', 0)), key="placa2")
+        placa3 = st.number_input("Placa 3 (colônias)", min_value=0.0, step=1.0, value=float(st.session_state.get('placa3', 0)), key="placa3")
     
     with col2:
-        diluicao = st.number_input("Diluição", min_value=0.0, format="%.2e", value=st.session_state.get('diluicao', 1e+6), key="diluicao")
+        diluicao = st.number_input("Diluição", min_value=0.0, format="%.2e", value=float(st.session_state.get('diluicao', 1e+6)), key="diluicao")
         
     media_placas = (placa1 + placa2 + placa3) / 3
     concentracao_obtida = media_placas * diluicao * 10
@@ -1472,14 +1472,14 @@ def calculos():
     
     col1, col2 = st.columns(2)
     with col1:
-        conc_ativo = st.number_input("Concentração do ativo (UFC/mL)", min_value=0.0, format="%.2e", value=st.session_state.get('conc_ativo', 1e+9), key="conc_ativo")
+        conc_ativo = st.number_input("Concentração do ativo (UFC/mL)", min_value=0.0, format="%.2e", value=float(st.session_state.get('conc_ativo', 1e+9)), key="conc_ativo")
         # Usar a dose registrada do biológico
-        dose = st.number_input("Dose (L/ha ou kg/ha)", min_value=0.0, step=1.0, value=dose_registrada, key="dose", disabled=True)
+        dose = st.number_input("Dose (L/ha ou kg/ha)", min_value=0.0, step=1.0, value=float(dose_registrada), key="dose", disabled=True)
     
     with col2:
-        volume_calda = st.number_input("Volume de calda (L/ha)", min_value=0.0, step=1.0, value=st.session_state.get('volume_calda', 0.0), key="volume_calda")
+        volume_calda = st.number_input("Volume de calda (L/ha)", min_value=0.1, step=1.0, value=float(st.session_state.get('volume_calda', 200.0)), key="volume_calda")
     
-    if volume_calda == 0:
+    if volume_calda <= 0:
         st.warning("O Volume de calda deve ser maior que 0 para calcular a Concentração Esperada.")
         return
     
