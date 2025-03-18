@@ -1461,6 +1461,7 @@ def calculos():
         
     media_placas = (placa1 + placa2 + placa3) / 3
     concentracao_obtida = media_placas * diluicao * 10
+    
     st.session_state.concentracao_obtida = concentracao_obtida
     
     st.info(f"Concentração Obtida: {concentracao_obtida:.2e} UFC/mL")
@@ -1473,17 +1474,15 @@ def calculos():
     col1, col2 = st.columns(2)
     with col1:
         conc_ativo = st.number_input("Concentração do ativo (UFC/mL)", min_value=0.0, format="%.2e", value=float(st.session_state.get('conc_ativo', 1e+9)), key="conc_ativo")
-        # Usar a dose registrada do biológico
-        dose = st.number_input("Dose (L/ha ou kg/ha)", min_value=0.0, step=1.0, value=float(dose_registrada), key="dose", disabled=True)
     
     with col2:
-        volume_calda = st.number_input("Volume de calda (L/ha)", min_value=0.1, step=1.0, value=float(st.session_state.get('volume_calda', 200.0)), key="volume_calda")
+        volume_calda = st.number_input("Volume de calda (L/ha)", min_value=0.1, step=1.0, value=float(st.session_state.get('volume_calda', 100.0)), key="volume_calda")
     
     if volume_calda <= 0:
         st.warning("O Volume de calda deve ser maior que 0 para calcular a Concentração Esperada.")
         return
     
-    concentracao_esperada = (conc_ativo * dose) / volume_calda
+    concentracao_esperada = (conc_ativo * dose_registrada) / volume_calda
     st.session_state.concentracao_esperada = concentracao_esperada
     
     st.info(f"Concentração Esperada: {concentracao_esperada:.2e} UFC/mL")
