@@ -855,7 +855,6 @@ def gerenciamento():
                                 
                                 st.session_state.local_data["biologicos"] = df_final
                                 if update_sheet(df_final, "Biologicos"):
-                                    st.success("Dados salvos com sucesso!")
                                     st.session_state.biologicos_saved = True
                             except Exception as e:
                                 st.error(f"Erro ao salvar alterações: {str(e)}")
@@ -1016,7 +1015,6 @@ def gerenciamento():
                                 
                                 st.session_state.local_data["quimicos"] = df_final
                                 if update_sheet(df_final, "Quimicos"):
-                                    st.session_state.edited_data["quimicos"] = False
                                     st.session_state.quimicos_saved = True
                             except Exception as e:
                                 st.error(f"Erro: {str(e)}")
