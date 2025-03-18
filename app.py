@@ -992,7 +992,6 @@ def gerenciamento():
                         use_container_width=True,
                         height=400,
                         column_order=COLUNAS_ESPERADAS["Quimicos"],
-                        on_change=lambda: st.session_state.edited_data.update({"quimicos": True}),
                         disabled=False
                     )
                     
@@ -1177,7 +1176,6 @@ def gerenciamento():
                         use_container_width=True,
                         height=400,
                         column_order=COLUNAS_ESPERADAS["Compatibilidades"],
-                        on_change=lambda: st.session_state.edited_data.update({"compatibilidades": True}),
                         disabled=False
                     )
                     
@@ -1364,7 +1362,6 @@ def gerenciamento():
                         use_container_width=True,
                         height=400,
                         column_order=COLUNAS_ESPERADAS["Solicitacoes"],
-                        on_change=lambda: st.session_state.edited_data.update({"solicitacoes": True}),
                         disabled=False
                     )
                     
