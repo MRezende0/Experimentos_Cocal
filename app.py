@@ -644,8 +644,20 @@ def compatibilidade():
             # Procurar na planilha de Cálculos usando os nomes
             resultado_existente = dados["calculos"][
                 (dados["calculos"][coluna_biologico] == biologico) & 
-                (dados["calculos"][coluna_quimico].str.contains(quimico, regex=False))
+                (dados["calculos"][coluna_quimico].str.contains(quimico, case=False, na=False))
             ]
+            
+            # Se não encontrou resultados, tentar uma busca mais flexível
+            if resultado_existente.empty:
+                # Tentar encontrar o químico como parte de uma combinação
+                for idx, row in dados["calculos"].iterrows():
+                    if row[coluna_biologico] == biologico and isinstance(row[coluna_quimico], str):
+                        # Dividir a combinação de químicos
+                        quimicos_combinados = [q.strip() for q in row[coluna_quimico].split("+")]
+                        # Verificar se o químico selecionado está na lista
+                        if any(q == quimico for q in quimicos_combinados):
+                            resultado_existente = dados["calculos"].iloc[[idx]]
+                            break
             
             if not resultado_existente.empty:
                 # Verificar se a coluna "Resultado" existe
