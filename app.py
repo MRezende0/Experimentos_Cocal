@@ -189,8 +189,12 @@ def get_google_sheets_client():
         creds = ServiceAccountCredentials.from_json_keyfile_dict(credentials_dict, scope)
         client = gspread.authorize(creds)
         
+        # Desabilitar verificação SSL para contornar possíveis problemas de rede corporativa
         if hasattr(client, 'session'):
             client.session.verify = False
+            
+        # Configurar o contexto SSL para ignorar verificações
+        ssl._create_default_https_context = ssl._create_unverified_context
             
         return client
     except Exception as e:
@@ -258,37 +262,44 @@ def append_to_sheet(data_dict, sheet_name):
     Returns:
         bool: True se a operação foi bem-sucedida, False caso contrário
     """
-    def _append(data_dict=data_dict, sheet_name=sheet_name):
-        try:
-            # Obter a planilha
-            sheet = get_sheet(sheet_name)
-            if not sheet:
-                st.error(f"Planilha '{sheet_name}' não encontrada.")
-                return False
+    try:
+        # Obter a planilha
+        sheet = retry_with_backoff(lambda: get_sheet(sheet_name))
+        if not sheet:
+            st.error(f"Não foi possível acessar a planilha {sheet_name}")
+            return False
             
-            # Verificar se há dados para adicionar
-            if not data_dict:
-                st.error("Nenhum dado para adicionar.")
-                return False
+        # Verificar se as colunas esperadas existem
+        if sheet_name in COLUNAS_ESPERADAS:
+            colunas_esperadas = COLUNAS_ESPERADAS[sheet_name]
             
-            # Adicionar os dados à planilha
-            sheet.append_row(list(data_dict.values()))
+            # Verificar se todas as colunas esperadas estão no dicionário
+            for col in colunas_esperadas:
+                if col not in data_dict:
+                    data_dict[col] = None  # Preencher com None se não existir
             
-            # Atualizar os dados locais também
-            nova_linha = pd.DataFrame([data_dict])
-            if sheet_name.lower() in st.session_state.local_data:
+            # Ordenar o dicionário conforme as colunas esperadas
+            data_ordenado = [data_dict.get(col, None) for col in colunas_esperadas]
+            
+            # Adicionar a nova linha
+            sheet.append_row(data_ordenado)
+            
+            # Atualizar os dados na sessão para evitar recarregamento
+            if 'local_data' in st.session_state and sheet_name.lower() in st.session_state.local_data:
+                # Converter para DataFrame e concatenar
+                novo_df = pd.DataFrame([data_dict])
                 st.session_state.local_data[sheet_name.lower()] = pd.concat(
-                    [st.session_state.local_data[sheet_name.lower()], nova_linha], 
+                    [st.session_state.local_data[sheet_name.lower()], novo_df], 
                     ignore_index=True
                 )
             
             return True
-            
-        except Exception as e:
-            st.error(f"Erro ao adicionar dados: {str(e)}")
+        else:
+            st.error(f"Configuração de colunas não encontrada para {sheet_name}")
             return False
-            
-    return retry_with_backoff(_append, max_retries=5, initial_delay=2)
+    except Exception as e:
+        st.error(f"Erro ao adicionar dados à planilha {sheet_name}: {str(e)}")
+        return False
 
 def load_sheet_data(sheet_name: str) -> pd.DataFrame:
     def _load(sheet_name=sheet_name):
@@ -299,17 +310,23 @@ def load_sheet_data(sheet_name: str) -> pd.DataFrame:
                 return pd.DataFrame()
             
             try:
-                data = worksheet.get_all_records()
-                if not data:
-                    st.warning(f"A planilha {sheet_name} está vazia")
+                # Obter todos os dados, incluindo o cabeçalho
+                all_values = worksheet.get_all_values()
+                if not all_values or len(all_values) <= 1:  # Verificar se há pelo menos cabeçalho + 1 linha
+                    st.warning(f"A planilha {sheet_name} está vazia ou contém apenas o cabeçalho")
                     return pd.DataFrame()
+                
+                # Separar cabeçalho e dados
+                header = all_values[0]
+                data = all_values[1:]
+                
+                # Criar DataFrame com os dados
+                df = pd.DataFrame(data, columns=header)
+                
             except gspread.exceptions.APIError as e:
                 st.error(f"Erro na API: {str(e)}")
                 return pd.DataFrame()
 
-            # Converter para DataFrame com tratamento de erros
-            df = pd.DataFrame(data)
-            
             # Verificar colunas essenciais
             required_columns = {
                 "Biologicos": ["Nome", "Classe"],
@@ -319,12 +336,23 @@ def load_sheet_data(sheet_name: str) -> pd.DataFrame:
             }
             
             if sheet_name in required_columns:
-                for col in required_columns[sheet_name]:
-                    if col not in df.columns:
-                        st.error(f"Coluna obrigatória '{col}' não encontrada em {sheet_name}")
+                missing_cols = [col for col in required_columns[sheet_name] if col not in df.columns]
+                
+                if missing_cols:
+                    # Tentar encontrar colunas com nomes similares
+                    for col in missing_cols[:]:
+                        similar_cols = [c for c in df.columns if c.lower() == col.lower()]
+                        if similar_cols:
+                            # Renomear a coluna para o nome esperado
+                            df = df.rename(columns={similar_cols[0]: col})
+                            missing_cols.remove(col)
+                    
+                    if missing_cols:
+                        st.error(f"Colunas obrigatórias não encontradas na planilha {sheet_name}: {', '.join(missing_cols)}")
                         return pd.DataFrame()
+        
             return df
-
+        
         except Exception as e:
             st.error(f"Erro crítico ao carregar {sheet_name}: {str(e)}")
             return pd.DataFrame()
@@ -366,72 +394,111 @@ def update_sheet(df: pd.DataFrame, sheet_name: str) -> bool:
 
 def load_all_data():
     """
-    Carrega todos os dados das planilhas e armazena na session_state
-    Usa cache de sessão para minimizar requisições ao Google Sheets
+    Carrega todos os dados necessários das planilhas.
+    
+    Returns:
+        dict: Dicionário com todos os dados carregados
     """
-    # Verificar se os dados já estão na sessão e se foram carregados há menos de 5 minutos
-    if 'data_timestamp' in st.session_state and 'local_data' in st.session_state:
-        # Verificar se data_timestamp não é None antes de tentar calcular o tempo decorrido
-        if st.session_state.data_timestamp is not None:
-            try:
-                elapsed_time = (datetime.now() - st.session_state.data_timestamp).total_seconds()
-                # Usar dados em cache se foram carregados há menos de 5 minutos
-                if elapsed_time < 300:  # 5 minutos em segundos
-                    return st.session_state.local_data
-            except Exception as e:
-                st.error(f"Erro ao calcular tempo decorrido: {str(e)}")
-                # Continuar com o carregamento de dados em caso de erro
+    # Verificar se já temos dados na sessão que ainda são válidos
+    if ('local_data' in st.session_state and 
+        'data_timestamp' in st.session_state and 
+        (datetime.now() - st.session_state.data_timestamp).total_seconds() < 300):  # 5 minutos
+        return st.session_state.local_data
     
-    # Carregar dados com paralelismo para melhorar a performance
-    with st.spinner("Carregando dados..."):
-        # Inicializar dicionário de dados
-        dados = {}
-        
-        # Definir função para carregar uma planilha específica
-        def load_sheet(sheet_name):
-            return sheet_name, _load_and_validate_sheet(sheet_name)
-        
-        # Usar threads para carregar as planilhas em paralelo
-        import concurrent.futures
-        with concurrent.futures.ThreadPoolExecutor(max_workers=4) as executor:
-            # Submeter tarefas para carregar cada planilha
-            futures = {executor.submit(load_sheet, name): name for name in ["Biologicos", "Quimicos", "Calculos", "Solicitacoes"]}
-            
-            # Coletar resultados à medida que ficam disponíveis
-            for future in concurrent.futures.as_completed(futures):
-                sheet_name, df = future.result()
-                dados[sheet_name.lower()] = df
+    # Inicializar dicionário para armazenar os dados
+    dados = {}
     
-    # Armazenar dados na sessão com timestamp
+    # Tentar carregar cada planilha com tratamento de erro
+    try:
+        dados["biologicos"] = load_sheet_data("Biologicos")
+        if dados["biologicos"].empty:
+            st.warning("A planilha de Biológicos está vazia.")
+    except Exception as e:
+        st.error(f"Erro ao carregar dados de Biológicos: {str(e)}")
+        dados["biologicos"] = pd.DataFrame()
+    
+    try:
+        dados["quimicos"] = load_sheet_data("Quimicos")
+        if dados["quimicos"].empty:
+            st.warning("A planilha de Químicos está vazia.")
+    except Exception as e:
+        st.error(f"Erro ao carregar dados de Químicos: {str(e)}")
+        dados["quimicos"] = pd.DataFrame()
+    
+    try:
+        dados["calculos"] = load_sheet_data("Calculos")
+        # Não mostrar aviso se a planilha de cálculos estiver vazia, pois isso é normal no início
+    except Exception as e:
+        st.error(f"Erro ao carregar dados de Cálculos: {str(e)}")
+        dados["calculos"] = pd.DataFrame()
+    
+    try:
+        dados["solicitacoes"] = load_sheet_data("Solicitacoes")
+        # Não mostrar aviso se a planilha de solicitações estiver vazia
+    except Exception as e:
+        st.error(f"Erro ao carregar dados de Solicitações: {str(e)}")
+        dados["solicitacoes"] = pd.DataFrame()
+    
+    # Atualizar a sessão
     st.session_state.local_data = dados
     st.session_state.data_timestamp = datetime.now()
     
     return dados
 
-def _load_and_validate_sheet(sheet_name):
+def _load_and_validate_sheet(sheet_name: str) -> pd.DataFrame:
+    """
+    Carrega e valida os dados de uma planilha específica
+    """
     try:
         df = load_sheet_data(sheet_name)
         
+        # Verificar se o DataFrame está vazio
         if df.empty:
-            return pd.DataFrame()
-        
-        # Verificar coluna Nome
-        if sheet_name in ["Biologicos", "Quimicos"] and "Nome" not in df.columns:
-            st.error("Erro: A coluna 'Nome' não foi encontrada na planilha de produtos biológicos.")
+            st.warning(f"A planilha {sheet_name} está vazia ou não foi carregada corretamente.")
             return pd.DataFrame()
             
-        # Remover linhas com Nome vazio para planilhas que exigem Nome
-        if sheet_name in ["Biologicos", "Quimicos"] and "Nome" in df.columns:
-            df = df[df["Nome"].notna()]
-        
-        # Converter colunas de data
-        if sheet_name in ["Calculos", "Solicitacoes"] and "Data" in df.columns:
-            df["Data"] = pd.to_datetime(df["Data"], errors='coerce')
+        # Validações específicas para cada tipo de planilha
+        if sheet_name == "Biologicos":
+            if "Nome" not in df.columns:
+                st.error(f"Coluna 'Nome' não encontrada na planilha {sheet_name}")
+                return pd.DataFrame()
+                
+            # Verificar se há dados na coluna Nome
+            if df["Nome"].isna().all() or (df["Nome"] == "").all():
+                st.warning(f"Nenhum produto biológico cadastrado na planilha {sheet_name}")
+                return pd.DataFrame()
+                
+        elif sheet_name == "Quimicos":
+            if "Nome" not in df.columns:
+                st.error(f"Coluna 'Nome' não encontrada na planilha {sheet_name}")
+                return pd.DataFrame()
+                
+            # Verificar se há dados na coluna Nome
+            if df["Nome"].isna().all() or (df["Nome"] == "").all():
+                st.warning(f"Nenhum produto químico cadastrado na planilha {sheet_name}")
+                return pd.DataFrame()
+                
+        elif sheet_name == "Calculos":
+            required_cols = ["Biologico", "Quimico", "Resultado"]
+            missing_cols = [col for col in required_cols if col not in df.columns]
+            
+            if missing_cols:
+                # Tentar encontrar colunas com nomes similares
+                for col in missing_cols[:]:
+                    similar_cols = [c for c in df.columns if c.lower() == col.lower()]
+                    if similar_cols:
+                        # Renomear a coluna para o nome esperado
+                        df = df.rename(columns={similar_cols[0]: col})
+                        missing_cols.remove(col)
+                
+                if missing_cols:
+                    st.error(f"Colunas obrigatórias não encontradas na planilha {sheet_name}: {', '.join(missing_cols)}")
+                    return pd.DataFrame()
         
         return df
         
     except Exception as e:
-        st.error(f"Falha crítica ao carregar {sheet_name}: {str(e)}")
+        st.error(f"Erro ao carregar e validar a planilha {sheet_name}: {str(e)}")
         return pd.DataFrame()
 
 def convert_scientific_to_float(value):
@@ -510,7 +577,11 @@ def compatibilidade():
     
     # Carregar dados
     try:
-        dados = load_all_data()
+        # Usar dados da sessão em vez de recarregar a cada interação
+        if 'local_data' not in st.session_state or not st.session_state.local_data:
+            dados = load_all_data()
+        else:
+            dados = st.session_state.local_data
     except Exception as e:
         st.error(f"Erro ao carregar dados: {str(e)}")
         return
@@ -524,6 +595,16 @@ def compatibilidade():
             2. Confira se há dados na planilha
             3. Verifique as permissões de acesso
         """)
+        
+        # Forçar recarregamento dos dados
+        if st.button("Recarregar dados", key="btn_reload_data"):
+            # Limpar o cache de dados
+            if 'data_timestamp' in st.session_state:
+                st.session_state.data_timestamp = None
+            if 'local_data' in st.session_state:
+                st.session_state.local_data = {}
+            st.rerun()
+            
         return
     
     # Verificar se o botão de novo teste foi pressionado
@@ -576,12 +657,11 @@ def compatibilidade():
                 colunas_similares = [col for col in dados["calculos"].columns if col.lower() == "biologico"]
                 if colunas_similares:
                     coluna_biologico = colunas_similares[0]
-                    st.info(f"Usando a coluna '{coluna_biologico}' como alternativa.")
                 else:
                     st.error("Erro: Não foi possível encontrar a coluna 'Biologico' na planilha de cálculos.")
                     return
-                    
-            coluna_biologico = "Biologico"
+            else:
+                coluna_biologico = "Biologico"
             
             # Obter todos os químicos que já foram testados com este biológico
             calculos_biologico = dados["calculos"][
@@ -593,21 +673,21 @@ def compatibilidade():
                 colunas_similares = [col for col in dados["calculos"].columns if col.lower() == "quimico"]
                 if colunas_similares:
                     coluna_quimico = colunas_similares[0]
-                    st.info(f"Usando a coluna '{coluna_quimico}' como alternativa.")
                 else:
                     st.error("Erro: Não foi possível encontrar a coluna 'Quimico' na planilha de cálculos.")
                     return
-            
-            coluna_quimico = "Quimico"
+            else:
+                coluna_quimico = "Quimico"
             
             # Extrair todos os químicos das combinações (pode conter múltiplos químicos separados por +)
             quimicos_testados = []
             for quimico_combinado in calculos_biologico[coluna_quimico].unique():
                 if quimico_combinado and isinstance(quimico_combinado, str):
                     # Dividir cada entrada que pode conter múltiplos químicos
-                    for quimico_individual in quimico_combinado.split(" + "):
-                        if quimico_individual.strip() not in quimicos_testados:
-                            quimicos_testados.append(quimico_individual.strip())
+                    for quimico_individual in quimico_combinado.split("+"):
+                        quimico_individual = quimico_individual.strip()
+                        if quimico_individual and quimico_individual not in quimicos_testados:
+                            quimicos_testados.append(quimico_individual)
             
             quimicos_disponiveis = sorted(quimicos_testados)
             
@@ -618,7 +698,6 @@ def compatibilidade():
         except Exception as e:
             st.error(f"Erro ao filtrar químicos: {str(e)}")
             # Mostrar informações de debug para ajudar na resolução do problema
-            st.error("Detalhes do erro:")
             if "calculos" in dados:
                 st.error(f"Colunas disponíveis na planilha de cálculos: {', '.join(dados['calculos'].columns.tolist())}")
             quimicos_disponiveis = []
@@ -660,7 +739,9 @@ def compatibilidade():
             # Procurar na planilha de Cálculos usando os nomes
             resultado_existente = dados["calculos"][
                 (dados["calculos"][coluna_biologico] == biologico) & 
-                (dados["calculos"][coluna_quimico].str.contains(quimico, case=False, na=False))
+                (dados["calculos"][coluna_quimico].apply(
+                    lambda x: quimico in [q.strip() for q in str(x).split("+")] if isinstance(x, str) else False
+                ))
             ]
             
             # Se não encontrou resultados, tentar uma busca mais flexível
@@ -669,9 +750,9 @@ def compatibilidade():
                 for idx, row in dados["calculos"].iterrows():
                     if row[coluna_biologico] == biologico and isinstance(row[coluna_quimico], str):
                         # Dividir a combinação de químicos
-                        quimicos_combinados = [q.strip() for q in row[coluna_quimico].split("+")]
+                        quimicos_combinados = [q.strip() for q in str(row[coluna_quimico]).split("+")]
                         # Verificar se o químico selecionado está na lista
-                        if any(q.strip() == quimico.strip() for q in quimicos_combinados):
+                        if quimico.strip() in quimicos_combinados:
                             resultado_existente = dados["calculos"].iloc[[idx]]
                             break
             
@@ -687,20 +768,20 @@ def compatibilidade():
                         return
                 
                 # Mostrar resultado de compatibilidade
-                compativel = resultado_existente.iloc[0][coluna_resultado] == "Compatível"
+                compativel = resultado_existente.iloc[0][coluna_resultado].lower() == "compatível"
                 
                 if compativel:
                     st.markdown("""
                         <div class="resultado compativel">
-                        Compatível
-                    </div>
-                    """, unsafe_allow_html=True)
+                        ✅ Compatível
+                        </div>
+                        """, unsafe_allow_html=True)
                 else:
                     st.markdown("""
                         <div class="resultado incompativel">
-                        Incompatível
-                    </div>
-                    """, unsafe_allow_html=True)
+                        ❌ Incompatível
+                        </div>
+                        """, unsafe_allow_html=True)
                 
                 # Mostrar detalhes do teste
                 with st.expander("Ver detalhes do teste", expanded=True):
@@ -775,8 +856,16 @@ def mostrar_formulario_solicitacao(quimico=None, biologico=None):
         st.session_state.form_submitted_successfully = False
 
     # Carregar dados
-    dados = load_all_data()
-
+    try:
+        # Usar dados da sessão em vez de recarregar a cada interação
+        if 'local_data' not in st.session_state or not st.session_state.local_data:
+            dados = load_all_data()
+        else:
+            dados = st.session_state.local_data
+    except Exception as e:
+        st.error(f"Erro ao carregar dados: {str(e)}")
+        return
+    
     # Função para processar o envio do formulário
     def submit_form():
         # Obter valores do formulário
@@ -887,7 +976,7 @@ def gerenciamento():
     st.title("⚙️ Gerenciamento")
 
     # Inicialização dos dados locais
-    if 'local_data' not in st.session_state:
+    if 'local_data' not in st.session_state or not st.session_state.local_data:
         st.session_state.local_data = load_all_data()
     
     if 'edited_data' not in st.session_state:
@@ -1062,7 +1151,7 @@ def gerenciamento():
                             "Concentracao": st.column_config.TextColumn(
                                 "Concentração em bula (UFC/g ou UFC/ml)",
                                 help="Digite em notação científica (ex: 1e9)",
-                                validate="^[0-9]+\.?[0-9]*[eE][-+]?[0-9]+$"
+                                validate=r"^[0-9]+\.?[0-9]*[eE][-+]?[0-9]+$"
                             ),
                             "Fabricante": st.column_config.TextColumn("Fabricante")
                         },
@@ -1373,7 +1462,7 @@ def gerenciamento():
                     # Verificar se a combinação já existe
                     combinacao_existente = dados["calculos"][
                         (dados["calculos"]["Biologico"] == biologico) & 
-                        (dados["calculos"]["Quimico"].str.contains(quimicos_str, regex=False))
+                        (dados["calculos"]["Quimico"].str.contains(quimicos_str, regex=False, na=False))
                     ]
                     
                     if not combinacao_existente.empty:
@@ -1383,7 +1472,11 @@ def gerenciamento():
                     else:
                         # Adicionar à planilha
                         if append_to_sheet(novo_calculo, "Calculos"):
-                            # Não precisamos adicionar novamente aos dados locais, pois isso já é feito em append_to_sheet
+                            # Adicionar aos dados locais para evitar recarregamento
+                            if "calculos" in st.session_state.local_data:
+                                novo_df = pd.DataFrame([novo_calculo])
+                                st.session_state.local_data["calculos"] = pd.concat([st.session_state.local_data["calculos"], novo_df], ignore_index=True)
+                            
                             st.session_state.calculo_form_submitted = True
                             st.session_state.calculo_form_success = True
                             st.session_state.calculo_form_message = f"Cálculo para '{biologico}' e '{quimicos_str}' adicionado com sucesso!"
