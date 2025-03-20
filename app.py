@@ -14,6 +14,14 @@ from oauth2client.service_account import ServiceAccountCredentials
 from google.oauth2 import service_account
 import streamlit.components.v1 as components
 
+# Constantes para colunas esperadas em cada planilha
+COLUNAS_ESPERADAS = {
+    "Biologicos": ["Nome", "Classe", "IngredienteAtivo", "Formulacao", "Dose", "Concentracao", "Fabricante"],
+    "Quimicos": ["Nome", "Classe", "Fabricante", "Dose"],
+    "Calculos": ["Biologico", "Quimico", "Placa1", "Placa2", "Placa3", "MédiaPlacas", "Diluicao", "ConcObtida", "Dose", "ConcAtivo", "VolumeCalda", "ConcEsperada", "Razao", "Resultado", "Compatibilidade", "Observacoes", "Data", "Responsavel"],
+    "Solicitacoes": ["Data", "Solicitante", "Biologico", "Quimico", "Observacoes", "Status"]
+}
+
 # Configurações iniciais
 st.set_page_config(
     page_title="Experimentos",
@@ -119,7 +127,6 @@ def inicializar_sessao():
         st.session_state.data_timestamp = None
     
     # Inicialização dos dados locais
-# Inicialização dos dados locais
 if 'local_data' not in st.session_state:
     # Inicializar com DataFrames vazios com as colunas esperadas
     st.session_state.local_data = {
@@ -179,13 +186,6 @@ SHEET_GIDS = {
     "Biologicos": "1440941690",
     "Quimicos": "885876195",
     "Solicitacoes": "1408097520",
-}
-
-COLUNAS_ESPERADAS = {
-    "Biologicos": ["Nome", "Classe", "IngredienteAtivo", "Formulacao", "Dose", "Concentracao", "Fabricante"],
-    "Quimicos": ["Nome", "Classe", "Fabricante", "Dose"],
-    "Solicitacoes": ["Data", "Solicitante", "Biologico", "Quimico", "Observacoes", "Status"],
-    "Calculos": ["Biologico", "Quimico", "Placa1", "Placa2", "Placa3", "MédiaPlacas", "Diluicao", "ConcObtida", "Dose", "ConcAtivo", "VolumeCalda", "ConcEsperada", "Razao", "Resultado"]
 }
 
 @st.cache_resource
@@ -638,50 +638,49 @@ def compatibilidade():
             if "calculos" not in dados or dados["calculos"].empty:
                 st.info(f"Nenhum cálculo encontrado para o biológico '{biologico}'.")
                 quimicos_disponiveis = []
-                return
-            
-            # Verificar se a coluna "Biologico" existe no DataFrame
-            if "Biologico" not in dados["calculos"].columns:
-                colunas_similares = [col for col in dados["calculos"].columns if col.lower() == "biologico"]
-                if colunas_similares:
-                    coluna_biologico = colunas_similares[0]
-                else:
-                    st.error("Erro: Não foi possível encontrar a coluna 'Biologico' na planilha de cálculos.")
-                    return
             else:
-                coluna_biologico = "Biologico"
-            
-            # Obter todos os químicos que já foram testados com este biológico
-            calculos_biologico = dados["calculos"][
-                dados["calculos"][coluna_biologico] == biologico
-            ]
-            
-            # Verificar se a coluna "Quimico" existe
-            if "Quimico" not in dados["calculos"].columns:
-                colunas_similares = [col for col in dados["calculos"].columns if col.lower() == "quimico"]
-                if colunas_similares:
-                    coluna_quimico = colunas_similares[0]
+                # Verificar se a coluna "Biologico" existe no DataFrame
+                if "Biologico" not in dados["calculos"].columns:
+                    colunas_similares = [col for col in dados["calculos"].columns if col.lower() == "biologico"]
+                    if colunas_similares:
+                        coluna_biologico = colunas_similares[0]
+                    else:
+                        st.error("Erro: Não foi possível encontrar a coluna 'Biologico' na planilha de cálculos.")
+                        return
                 else:
-                    st.error("Erro: Não foi possível encontrar a coluna 'Quimico' na planilha de cálculos.")
-                    return
-            else:
-                coluna_quimico = "Quimico"
-            
-            # Extrair todos os químicos das combinações (pode conter múltiplos químicos separados por +)
-            quimicos_testados = []
-            for quimico_combinado in calculos_biologico[coluna_quimico].unique():
-                if quimico_combinado and isinstance(quimico_combinado, str):
-                    # Dividir cada entrada que pode conter múltiplos químicos
-                    for quimico_individual in quimico_combinado.split("+"):
-                        quimico_individual = quimico_individual.strip()
-                        if quimico_individual and quimico_individual not in quimicos_testados:
-                            quimicos_testados.append(quimico_individual)
-            
-            quimicos_disponiveis = sorted(quimicos_testados)
-            
-            # Mostrar informação sobre químicos encontrados
-            if not quimicos_disponiveis:
-                st.info(f"Nenhum produto químico encontrado para o biológico '{biologico}'.")
+                    coluna_biologico = "Biologico"
+                
+                # Obter todos os químicos que já foram testados com este biológico
+                calculos_biologico = dados["calculos"][
+                    dados["calculos"][coluna_biologico] == biologico
+                ]
+                
+                # Verificar se a coluna "Quimico" existe
+                if "Quimico" not in dados["calculos"].columns:
+                    colunas_similares = [col for col in dados["calculos"].columns if col.lower() == "quimico"]
+                    if colunas_similares:
+                        coluna_quimico = colunas_similares[0]
+                    else:
+                        st.error("Erro: Não foi possível encontrar a coluna 'Quimico' na planilha de cálculos.")
+                        return
+                else:
+                    coluna_quimico = "Quimico"
+                
+                # Extrair todos os químicos das combinações (pode conter múltiplos químicos separados por +)
+                quimicos_testados = []
+                for quimico_combinado in calculos_biologico[coluna_quimico].unique():
+                    if quimico_combinado and isinstance(quimico_combinado, str):
+                        # Dividir cada entrada que pode conter múltiplos químicos
+                        for quimico_individual in quimico_combinado.split("+"):
+                            quimico_individual = quimico_individual.strip()
+                            if quimico_individual and quimico_individual not in quimicos_testados:
+                                quimicos_testados.append(quimico_individual)
+                
+                quimicos_disponiveis = sorted(quimicos_testados)
+                
+                # Mostrar informação sobre químicos encontrados
+                if not quimicos_disponiveis:
+                    st.info(f"Nenhum produto químico encontrado para o biológico '{biologico}'.")
                 
         except Exception as e:
             st.error(f"Erro ao filtrar químicos: {str(e)}")
