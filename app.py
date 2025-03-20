@@ -72,7 +72,8 @@ if 'local_data' not in st.session_state:
         "quimicos": pd.DataFrame(),
         "biologicos": pd.DataFrame(),
         "resultados": pd.DataFrame(),
-        "solicitacoes": pd.DataFrame()
+        "solicitacoes": pd.DataFrame(),
+        "calculos": pd.DataFrame()
     }
 
 ########################################## CONEXÃO GOOGLE SHEETS ##########################################
@@ -82,14 +83,16 @@ SHEET_GIDS = {
     "Compatibilidades": "0",
     "Biologicos": "1440941690",
     "Quimicos": "885876195",
-    "Solicitacoes": "1408097520"
+    "Solicitacoes": "1408097520",
+    "Calculos": "1234567890" # Adicione o ID da planilha "Calculos"
 }
 
 COLUNAS_ESPERADAS = {
     "Biologicos": ["Nome", "Classe", "IngredienteAtivo", "Formulacao", "Dose", "Concentracao", "Fabricante"],
     "Quimicos": ["Nome", "Classe", "Fabricante", "Dose"],
     "Compatibilidades": ["Data", "Biologico", "Quimico", "Tempo", "Resultado"],
-    "Solicitacoes": ["Data", "Solicitante", "Quimico", "Biologico", "Observacoes", "Status"]
+    "Solicitacoes": ["Data", "Solicitante", "Quimico", "Biologico", "Observacoes", "Status"],
+    "Calculos": ["Data", "Biologico", "Quimico", "Placa1", "Placa2", "Placa3", "Tempo", "Resultado"]
 }
 
 @st.cache_resource
@@ -230,7 +233,8 @@ def load_sheet_data(sheet_name: str) -> pd.DataFrame:
                 "Biologicos": ["Nome", "Classe"],
                 "Quimicos": ["Nome", "Classe"],
                 "Compatibilidades": ["Biologico", "Quimico"],
-                "Solicitacoes": ["Quimico", "Biologico"]
+                "Solicitacoes": ["Quimico", "Biologico"],
+                "Calculos": ["Biologico", "Quimico"]
             }
             
             if sheet_name in required_columns:
@@ -302,9 +306,9 @@ def load_all_data():
         
         # Usar threads para carregar as planilhas em paralelo
         import concurrent.futures
-        with concurrent.futures.ThreadPoolExecutor(max_workers=4) as executor:
+        with concurrent.futures.ThreadPoolExecutor(max_workers=5) as executor:
             # Submeter tarefas para carregar cada planilha
-            futures = {executor.submit(load_sheet, name): name for name in ["Quimicos", "Biologicos", "Compatibilidades", "Solicitacoes"]}
+            futures = {executor.submit(load_sheet, name): name for name in ["Quimicos", "Biologicos", "Compatibilidades", "Solicitacoes", "Calculos"]}
             
             # Coletar resultados à medida que ficam disponíveis
             for future in concurrent.futures.as_completed(futures):
@@ -334,7 +338,7 @@ def _load_and_validate_sheet(sheet_name):
             df = df[df["Nome"].notna()]
         
         # Converter colunas de data
-        if sheet_name in ["Compatibilidades", "Solicitacoes"] and "Data" in df.columns:
+        if sheet_name in ["Compatibilidades", "Solicitacoes", "Calculos"] and "Data" in df.columns:
             df["Data"] = pd.to_datetime(df["Data"], errors='coerce')
         
         return df
@@ -465,59 +469,106 @@ def compatibilidade():
     # Interface de consulta de compatibilidade
     col1, col2 = st.columns([1, 1])
 
+    # Obter dados da planilha de cálculos
+    biologicos_unicos = []
+    quimicos_por_biologico = {}
+    
+    # Verificar se a planilha de cálculos tem dados
+    if "calculos" in dados and not dados["calculos"].empty:
+        # Verificar se a coluna "Biologico" existe
+        if "Biologico" in dados["calculos"].columns:
+            # Obter lista de biológicos únicos
+            biologicos_unicos = sorted(dados["calculos"]["Biologico"].unique())
+            
+            # Para cada biológico, obter os químicos testados
+            for bio in biologicos_unicos:
+                # Filtrar os resultados de cálculos para o biológico selecionado
+                resultados_bio = dados["calculos"][
+                    dados["calculos"]["Biologico"] == bio
+                ]
+                
+                # Extrair todos os químicos testados com este biológico
+                if not resultados_bio.empty and "Quimico" in resultados_bio.columns:
+                    quimicos_testados = []
+                    for quimico_entry in resultados_bio["Quimico"]:
+                        # Lidar com entradas que podem ter formato "quimico1 + quimico2"
+                        if isinstance(quimico_entry, str):
+                            quimicos_testados.append(quimico_entry)
+                    
+                    # Remover duplicatas e ordenar
+                    quimicos_por_biologico[bio] = sorted(set(quimicos_testados))
+
     with col1:
         biologico = st.selectbox(
             "Produto Biológico",
-            options=sorted(dados["biologicos"]['Nome'].unique()) if not dados["biologicos"].empty and 'Nome' in dados["biologicos"].columns else [],
+            options=biologicos_unicos if biologicos_unicos else sorted(dados["biologicos"]['Nome'].unique()),
             index=None,
             key="compatibilidade_biologico"
         )
 
+    # Filtrar químicos com base no biológico selecionado
+    quimicos_disponiveis = []
+    if biologico and biologico in quimicos_por_biologico:
+        quimicos_disponiveis = quimicos_por_biologico[biologico]
+    
     with col2:
         quimico = st.selectbox(
             "Produto Químico",
-            options=sorted(dados["quimicos"]['Nome'].unique()) if not dados["quimicos"].empty and 'Nome' in dados["quimicos"].columns else [],
+            options=quimicos_disponiveis if biologico and quimicos_disponiveis else [],
             index=None,
             key="compatibilidade_quimico"
         )
     
-    if quimico and biologico:
-        # Procurar na planilha de Resultados usando os nomes
-        resultado_existente = dados["compatibilidades"][
-            (dados["compatibilidades"]["Biologico"] == biologico) & 
-            (dados["compatibilidades"]["Quimico"] == quimico)
-        ]
-        
-        if not resultado_existente.empty:
-            # Mostrar resultado de compatibilidade
-            compativel = resultado_existente.iloc[0]["Resultado"] == "Compatível"
+    if biologico and quimico:
+        # Verificar se a planilha de cálculos tem dados
+        if "calculos" in dados and not dados["calculos"].empty and "Biologico" in dados["calculos"].columns and "Quimico" in dados["calculos"].columns:
+            # Procurar na planilha de Resultados usando os nomes
+            resultado_existente = dados["calculos"][
+                (dados["calculos"]["Biologico"] == biologico) & 
+                (dados["calculos"]["Quimico"] == quimico)
+            ]
             
-            if compativel:
-                st.markdown("""
-                    <div class="resultado compativel">
-                    Compatível
-                </div>
-                """, unsafe_allow_html=True)
+            if not resultado_existente.empty:
+                # Mostrar todos os resultados encontrados
+                for i, resultado in resultado_existente.iterrows():
+                    st.subheader(f"Resultado: {resultado['Biologico']} + {resultado['Quimico']}")
+                    
+                    compativel = "Compatível" in str(resultado["Resultado"])
+                    
+                    if compativel:
+                        st.markdown(f"""
+                            <div class="resultado compativel">
+                            {resultado["Resultado"]}
+                            </div>
+                            """, unsafe_allow_html=True)
+                    else:
+                        st.markdown(f"""
+                            <div class="resultado incompativel">
+                            {resultado["Resultado"]}
+                            </div>
+                            """, unsafe_allow_html=True)
+                    
+                    # Mostrar detalhes do teste
+                    with st.expander("Ver detalhes do teste"):
+                        st.write(f"**Data:** {resultado['Data']}")
+                        st.write(f"**Biologico:** {resultado['Biologico']}")
+                        st.write(f"**Quimico:** {resultado['Quimico']}")
+                        st.write(f"**Tempo:** {resultado['Tempo']} horas")
+                        st.write(f"**Resultado:** {resultado['Resultado']}")
+            
             else:
+                # Mostrar aviso de que não existe compatibilidade cadastrada
                 st.markdown("""
-                    <div class="resultado incompativel">
-                    Incompatível
-                </div>
-                """, unsafe_allow_html=True)
-            
-            # Mostrar detalhes do teste
-            with st.expander("Ver detalhes do teste"):
-                st.write(f"**Data:** {resultado_existente.iloc[0]['Data']}")
-                st.write(f"**Biologico:** {resultado_existente.iloc[0]['Biologico']}")
-                st.write(f"**Quimico:** {resultado_existente.iloc[0]['Quimico']}")
-                st.write(f"**Tempo:** {resultado_existente.iloc[0]['Tempo']} horas")
-                st.write(f"**Resultado:** {resultado_existente.iloc[0]['Resultado']}")
-        
+                        <div class="resultado naotestado">
+                        Teste não realizado!
+                        Solicite um novo teste.
+                    </div>
+                    """, unsafe_allow_html=True)
         else:
-            # Mostrar aviso de que não existe compatibilidade cadastrada
+            # Mostrar aviso de que não existem dados de compatibilidade
             st.markdown("""
                     <div class="resultado naotestado">
-                    Teste não realizado!
+                    Não há dados de compatibilidade disponíveis.
                     Solicite um novo teste.
                 </div>
                 """, unsafe_allow_html=True)
@@ -630,7 +681,7 @@ def gerenciamento():
     
     aba_selecionada = st.radio(
         "Selecione a aba:",
-        ["Biologicos", "Quimicos", "Compatibilidades", "Solicitações", "Cálculos"],
+        ["Biologicos", "Quimicos", "Compatibilidades", "Solicitações", "Consultar Compatibilidade", "Cálculos"],
         key="management_tabs",
         horizontal=True,
         label_visibility="collapsed"
@@ -1086,14 +1137,14 @@ def gerenciamento():
                     with col1:
                         st.selectbox(
                             "Produto Biológico",
-                            options=sorted(dados["biologicos"]["Nome"].unique().tolist()),
+                            options=sorted(dados["biologicos"]["Nome"].unique()),
                             key="compatibilidade_biologico"
                         )
                         st.date_input("Data do Teste", key="compatibilidade_data", format="DD/MM/YYYY")
                     with col2:
                         st.selectbox(
                             "Produto Químico",
-                            options=sorted(dados["quimicos"]["Nome"].unique().tolist()),
+                            options=sorted(dados["quimicos"]["Nome"].unique()),
                             key="compatibilidade_quimico"
                         )
                         st.number_input("Tempo máximo testado em calda (horas)", min_value=0, value=0, key="compatibilidade_tempo")
@@ -1384,6 +1435,105 @@ def gerenciamento():
                     st.success("Dados salvos com sucesso!")
                     st.session_state.solicitacoes_saved = False
 
+    # Conteúdo da tab Consultar Compatibilidade
+    elif aba_selecionada == "Consultar Compatibilidade":
+        st.subheader("Consulta de Compatibilidade")
+        
+        # Verificar se existem dados de compatibilidade
+        if dados["compatibilidades"].empty:
+            st.warning("Não há registros de compatibilidade disponíveis. Realize testes na aba Cálculos primeiro.")
+            return
+            
+        # Selecionar o produto biológico
+        biologicos_com_testes = sorted(dados["compatibilidades"]["Biologico"].unique())
+        if not biologicos_com_testes:
+            st.warning("Não há produtos biológicos com testes registrados.")
+            return
+            
+        biologico_selecionado = st.selectbox(
+            "Selecione o Produto Biológico",
+            options=biologicos_com_testes,
+            key="consulta_biologico"
+        )
+
+        if biologico_selecionado:
+            # Filtrar resultados para o biológico selecionado
+            resultados_biologico = dados["compatibilidades"][
+                dados["compatibilidades"]["Biologico"] == biologico_selecionado
+            ]
+            
+            # Extrair todos os químicos testados com este biológico
+            quimicos_testados = []
+            for quimico_entry in resultados_biologico["Quimico"]:
+                # Lidar com entradas que podem ter formato "quimico1 + quimico2"
+                if " + " in quimico_entry:
+                    quimicos_testados.append(quimico_entry)  # Manter a combinação inteira
+                    quimicos_testados.extend(quimico_entry.split(" + "))  # Adicionar também os componentes individuais
+                else:
+                    quimicos_testados.append(quimico_entry)
+            
+            # Remover duplicatas e ordenar
+            quimicos_disponiveis = sorted(set(quimicos_testados))
+            
+            if not quimicos_disponiveis:
+                st.warning(f"Não há produtos químicos testados com {biologico_selecionado}.")
+                return
+                
+            # Selecionar o produto químico
+            quimico_selecionado = st.selectbox(
+                "Selecione o Produto Químico",
+                options=quimicos_disponiveis,
+                key="consulta_quimico"
+            )
+            
+            if quimico_selecionado:
+                # Procurar na planilha de Resultados usando os nomes
+                # Precisamos verificar tanto entradas exatas quanto combinações
+                resultados_exatos = dados["compatibilidades"][
+                    (dados["compatibilidades"]["Biologico"] == biologico_selecionado) & 
+                    (dados["compatibilidades"]["Quimico"] == quimico_selecionado)
+                ]
+                
+                # Verificar também combinações que incluem este químico
+                resultados_combinados = dados["compatibilidades"][
+                    (dados["compatibilidades"]["Biologico"] == biologico_selecionado) & 
+                    (dados["compatibilidades"]["Quimico"].str.contains(quimico_selecionado))
+                ]
+                
+                # Mesclar resultados
+                resultado_existente = pd.concat([resultados_exatos, resultados_combinados]).drop_duplicates()
+                
+                if not resultado_existente.empty:
+                    # Exibir os resultados encontrados
+                    st.subheader("Resultados de Compatibilidade")
+                    
+                    for i, resultado in resultado_existente.iterrows():
+                        st.markdown(f"### Teste: {resultado['Biologico']} + {resultado['Quimico']}")
+                        
+                        # Exibir o resultado com formatação visual
+                        if "Compatível" in resultado["Resultado"]:
+                            st.markdown(f"""
+                                <div class="resultado compativel">
+                                {resultado["Resultado"]}
+                                </div>
+                                """, unsafe_allow_html=True)
+                        else:
+                            st.markdown(f"""
+                                <div class="resultado incompativel">
+                                {resultado["Resultado"]}
+                                </div>
+                                """, unsafe_allow_html=True)
+                        
+                        # Detalhes do teste
+                        with st.expander("Ver detalhes do teste"):
+                            st.write(f"**Data:** {resultado['Data']}")
+                            st.write(f"**Biologico:** {resultado['Biologico']}")
+                            st.write(f"**Quimico:** {resultado['Quimico']}")
+                            st.write(f"**Tempo:** {resultado['Tempo']} horas")
+                            st.write(f"**Resultado:** {resultado['Resultado']}")
+                else:
+                    st.warning(f"Não foram encontrados resultados para a combinação {biologico_selecionado} + {quimico_selecionado}.")
+    
     # Conteúdo da tab Cálculos
     elif aba_selecionada == "Cálculos":
         calculos()
@@ -1398,14 +1548,15 @@ def calculos():
     st.title("🧮 Cálculos de Concentração")
     
     # Carregar dados se não estiverem na session_state
-    if 'local_data' not in st.session_state:
-        st.session_state.local_data = load_all_data()
+    dados = load_all_data()
     
     # Inicializar variáveis de estado
     if 'concentracao_obtida' not in st.session_state:
         st.session_state.concentracao_obtida = 0.0
     if 'concentracao_esperada' not in st.session_state:
         st.session_state.concentracao_esperada = 0.0
+    if 'calculo_resultado' not in st.session_state:
+        st.session_state.calculo_resultado = None
     
     # Seleção de produtos
     st.header("Seleção de Produtos")
@@ -1414,27 +1565,41 @@ def calculos():
     with col1:
         biologico_selecionado = st.selectbox(
             "Selecione o Produto Biológico",
-            options=sorted(st.session_state.local_data["biologicos"]["Nome"].unique()),
+            options=sorted(dados["biologicos"]["Nome"].unique()),
             key="calc_biologico"
         )
 
         # Obter a dose registrada do biológico
-        dose_registrada = st.session_state.local_data["biologicos"][
-            st.session_state.local_data["biologicos"]["Nome"] == biologico_selecionado
+        dose_registrada = dados["biologicos"][
+            dados["biologicos"]["Nome"] == biologico_selecionado
         ]["Dose"].iloc[0]
         
         st.info(f"Dose registrada: {dose_registrada} L/ha ou kg/ha")
     
     with col2:
+        # Limitar a seleção a no máximo 2 produtos químicos
         quimicos_selecionados = st.multiselect(
-            "Selecione os Produtos Químicos",
-            options=sorted(st.session_state.local_data["quimicos"]["Nome"].unique()),
-            key="calc_quimicos"
+            "Selecione os Produtos Químicos (máximo 2)",
+            options=sorted(dados["quimicos"]["Nome"].unique()),
+            key="calc_quimicos",
+            max_selections=2
         )
     
     if not quimicos_selecionados:
         st.warning("Selecione pelo menos um produto químico para continuar")
         return
+    
+    if len(quimicos_selecionados) > 2:
+        st.warning("Selecione no máximo 2 produtos químicos")
+        return
+    
+    # Exibir os produtos selecionados
+    st.markdown("---")
+    st.subheader("Produtos Selecionados")
+    st.write(f"**Biológico:** {biologico_selecionado}")
+    
+    quimicos_texto = " + ".join(quimicos_selecionados)
+    st.write(f"**Químico(s):** {quimicos_texto}")
     
     st.markdown("---")
     
@@ -1449,6 +1614,7 @@ def calculos():
     
     with col2:
         diluicao = st.number_input("Diluição", min_value=0.0, format="%.2e", value=float(st.session_state.get('diluicao', 1e+6)), key="diluicao")
+        tempo_exposicao = st.number_input("Tempo de Exposição (horas)", min_value=0, step=1, value=int(st.session_state.get('tempo_exposicao', 24)), key="tempo_exposicao")
         
     media_placas = (placa1 + placa2 + placa3) / 3
     concentracao_obtida = media_placas * diluicao * 10
@@ -1473,7 +1639,7 @@ def calculos():
         st.warning("O Volume de calda deve ser maior que 0 para calcular a Concentração Esperada.")
         return
     
-    concentracao_esperada = (conc_ativo * dose_registrada) / volume_calda
+    concentracao_esperada = (conc_ativo * float(dose_registrada)) / volume_calda
     st.session_state.concentracao_esperada = concentracao_esperada
     
     st.info(f"Concentração Esperada: {concentracao_esperada:.2e} UFC/mL")
@@ -1494,29 +1660,58 @@ def calculos():
         
         **2. Concentração Esperada**
         - Concentração do ativo = {conc_ativo:.2e} UFC/mL
-        - Dose = {dose:.1f} L/ha (registrada para {biologico_selecionado})
+        - Dose = {dose_registrada} L/ha (registrada para {biologico_selecionado})
         - Volume de calda = {volume_calda:.1f} L/ha
-        - Concentração Esperada = ({conc_ativo:.2e} × {dose:.1f}) ÷ {volume_calda:.1f} = {concentracao_esperada:.2e} UFC/mL
+        - Concentração Esperada = ({conc_ativo:.2e} × {dose_registrada}) ÷ {volume_calda:.1f} = {concentracao_esperada:.2e} UFC/mL
         
         **3. Compatibilidade**
         - Razão (Obtida/Esperada) = {concentracao_obtida:.2e} ÷ {concentracao_esperada:.2e} = {razao:.2f}
         """)
         
+        resultado_texto = ""
         if 0.8 <= razao <= 1.5:
+            resultado_texto = "Compatível"
             st.success(f"✅ COMPATÍVEL - A razão está dentro do intervalo ideal (0,8 a 1,5)")
             st.write(f"O produto {biologico_selecionado} é compatível com os produtos químicos selecionados:")
             for quimico in quimicos_selecionados:
                 st.write(f"- {quimico}")
         elif razao > 1.5:
+            resultado_texto = "Compatível (Interação Positiva)"
             st.warning(f"⚠️ ATENÇÃO - A razão está acima de 1,5")
             st.write(f"Possível interação positiva entre {biologico_selecionado} e os produtos químicos:")
             for quimico in quimicos_selecionados:
                 st.write(f"- {quimico}")
         else:
+            resultado_texto = "Incompatível"
             st.error(f"❌ INCOMPATÍVEL - A razão está abaixo de 0,8")
             st.write(f"O produto {biologico_selecionado} NÃO é compatível com os produtos químicos:")
             for quimico in quimicos_selecionados:
                 st.write(f"- {quimico}")
+        
+        st.session_state.calculo_resultado = resultado_texto
+        
+        # Botão para registrar o resultado na planilha
+        if st.button("Registrar Resultado na Planilha", key="registrar_resultado"):
+            data_atual = datetime.now().strftime("%d/%m/%Y")
+            
+            # Registrar na planilha de cálculos
+            novo_registro = {
+                "Data": data_atual,
+                "Biologico": biologico_selecionado,
+                "Quimico": quimicos_texto,  # Formato "quimico1 + quimico2"
+                "Tempo": tempo_exposicao,
+                "Resultado": resultado_texto
+            }
+            
+            # Adicionar à planilha
+            sucesso = append_to_sheet(novo_registro, "Calculos")
+            
+            if sucesso:
+                st.success("Resultado registrado com sucesso na planilha de cálculos!")
+                # Recarregar dados para atualizar a interface
+                load_all_data()
+            else:
+                st.error("Erro ao registrar o resultado. Tente novamente.")
     else:
         st.info("Preencha os valores acima para ver o resultado da compatibilidade.")
 
@@ -1568,7 +1763,8 @@ def main():
             "quimicos": pd.DataFrame(),
             "biologicos": pd.DataFrame(),
             "resultados": pd.DataFrame(),
-            "solicitacoes": pd.DataFrame()
+            "solicitacoes": pd.DataFrame(),
+            "calculos": pd.DataFrame()
         }
     
     # Inicializar a página atual se não existir
