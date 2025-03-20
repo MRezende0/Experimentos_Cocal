@@ -69,77 +69,85 @@ local_css()
 # Inicialização das variáveis de sessão
 def inicializar_sessao():
     """Inicializa todas as variáveis de sessão necessárias para o funcionamento do aplicativo"""
-    # Variáveis para controle de formulários
-    if 'solicitar_novo_teste' not in st.session_state:
-        st.session_state.solicitar_novo_teste = False
-    if 'pre_selecionado_quimico' not in st.session_state:
-        st.session_state.pre_selecionado_quimico = None
-    if 'pre_selecionado_biologico' not in st.session_state:
-        st.session_state.pre_selecionado_biologico = None
-    if 'just_submitted' not in st.session_state:
-        st.session_state.just_submitted = False
-    if 'last_submission' not in st.session_state:
-        st.session_state.last_submission = None
-    if 'success_message_time' not in st.session_state:
-        st.session_state.success_message_time = None
-    if 'form_submitted_successfully' not in st.session_state:
-        st.session_state.form_submitted_successfully = False
-        
-    # Variáveis para a página de compatibilidade
-    if 'compatibilidade_biologico' not in st.session_state:
-        st.session_state.compatibilidade_biologico = None
-    if 'compatibilidade_quimico' not in st.session_state:
-        st.session_state.compatibilidade_quimico = None
-        
-    # Variáveis para a página de cálculos
-    if 'calculo_biologico' not in st.session_state:
-        st.session_state.calculo_biologico = None
-    if 'calculo_quimicos' not in st.session_state:
-        st.session_state.calculo_quimicos = []
-    if 'calculo_volume_calda' not in st.session_state:
-        st.session_state.calculo_volume_calda = 100.0
-        
-    # Variáveis para a aba ativa no gerenciamento
-    if 'aba_ativa' not in st.session_state:
-        st.session_state.aba_ativa = "Biologicos"
-        
-    # Variáveis para cache de dados
-    if 'data_timestamp' not in st.session_state:
-        st.session_state.data_timestamp = datetime.now()  # Inicializar com o datetime atual
-    if 'local_data' not in st.session_state:
-        st.session_state.local_data = {}
-        
-    # Variáveis para controle de formulários no gerenciamento
-    if 'biologico_form_submitted' not in st.session_state:
-        st.session_state.biologico_form_submitted = False
-    if 'biologico_form_success' not in st.session_state:
-        st.session_state.biologico_form_success = False
-    if 'biologico_form_error' not in st.session_state:
-        st.session_state.biologico_form_error = ""
-        
-    if 'quimico_form_submitted' not in st.session_state:
-        st.session_state.quimico_form_submitted = False
-    if 'quimico_form_success' not in st.session_state:
-        st.session_state.quimico_form_success = False
-    if 'quimico_form_error' not in st.session_state:
-        st.session_state.quimico_form_error = ""
-        
-    if 'calculo_form_submitted' not in st.session_state:
-        st.session_state.calculo_form_submitted = False
-    if 'calculo_form_success' not in st.session_state:
-        st.session_state.calculo_form_success = False
-    if 'calculo_form_error' not in st.session_state:
-        st.session_state.calculo_form_error = ""
-        
-    if 'gerenciamento_form_submitted' not in st.session_state:
-        st.session_state.gerenciamento_form_submitted = False
-        
-    if 'biologicos_saved' not in st.session_state:
-        st.session_state.biologicos_saved = False
-    if 'quimicos_saved' not in st.session_state:
-        st.session_state.quimicos_saved = False
-    if 'solicitacoes_saved' not in st.session_state:
-        st.session_state.solicitacoes_saved = False
+    try:
+        # Variáveis para controle de formulários
+        if 'solicitar_novo_teste' not in st.session_state:
+            st.session_state.solicitar_novo_teste = False
+        if 'pre_selecionado_quimico' not in st.session_state:
+            st.session_state.pre_selecionado_quimico = None
+        if 'pre_selecionado_biologico' not in st.session_state:
+            st.session_state.pre_selecionado_biologico = None
+        if 'just_submitted' not in st.session_state:
+            st.session_state.just_submitted = False
+        if 'last_submission' not in st.session_state:
+            st.session_state.last_submission = None
+        if 'success_message_time' not in st.session_state:
+            st.session_state.success_message_time = None
+        if 'form_submitted_successfully' not in st.session_state:
+            st.session_state.form_submitted_successfully = False
+            
+        # Variáveis para a página de compatibilidade
+        if 'compatibilidade_biologico' not in st.session_state:
+            st.session_state.compatibilidade_biologico = None
+        if 'compatibilidade_quimico' not in st.session_state:
+            st.session_state.compatibilidade_quimico = None
+            
+        # Variáveis para a página de cálculos
+        if 'calculo_biologico' not in st.session_state:
+            st.session_state.calculo_biologico = None
+        if 'calculo_quimicos' not in st.session_state:
+            st.session_state.calculo_quimicos = []
+        if 'calculo_volume_calda' not in st.session_state:
+            st.session_state.calculo_volume_calda = 100.0
+            
+        # Variáveis para a aba ativa no gerenciamento
+        if 'aba_ativa' not in st.session_state:
+            st.session_state.aba_ativa = "Biologicos"
+            
+        # Variáveis para cache de dados
+        if 'data_timestamp' not in st.session_state:
+            st.session_state.data_timestamp = datetime.now()  # Inicializar com o datetime atual
+        if 'local_data' not in st.session_state:
+            st.session_state.local_data = {
+                "quimicos": pd.DataFrame(),
+                "biologicos": pd.DataFrame(),
+                "calculos": pd.DataFrame(),
+                "solicitacoes": pd.DataFrame()
+            }
+            
+        # Variáveis para controle de formulários no gerenciamento
+        if 'biologico_form_submitted' not in st.session_state:
+            st.session_state.biologico_form_submitted = False
+        if 'biologico_form_success' not in st.session_state:
+            st.session_state.biologico_form_success = False
+        if 'biologico_form_error' not in st.session_state:
+            st.session_state.biologico_form_error = ""
+            
+        if 'quimico_form_submitted' not in st.session_state:
+            st.session_state.quimico_form_submitted = False
+        if 'quimico_form_success' not in st.session_state:
+            st.session_state.quimico_form_success = False
+        if 'quimico_form_error' not in st.session_state:
+            st.session_state.quimico_form_error = ""
+            
+        if 'calculo_form_submitted' not in st.session_state:
+            st.session_state.calculo_form_submitted = False
+        if 'calculo_form_success' not in st.session_state:
+            st.session_state.calculo_form_success = False
+        if 'calculo_form_error' not in st.session_state:
+            st.session_state.calculo_form_error = ""
+            
+        if 'gerenciamento_form_submitted' not in st.session_state:
+            st.session_state.gerenciamento_form_submitted = False
+            
+        if 'biologicos_saved' not in st.session_state:
+            st.session_state.biologicos_saved = False
+        if 'quimicos_saved' not in st.session_state:
+            st.session_state.quimicos_saved = False
+        if 'solicitacoes_saved' not in st.session_state:
+            st.session_state.solicitacoes_saved = False
+    except Exception as e:
+        st.error(f"Erro ao iniciar a sessão: {str(e)}")
 
 inicializar_sessao()
 
@@ -501,9 +509,14 @@ def compatibilidade():
         st.markdown("</div>", unsafe_allow_html=True)
     
     # Carregar dados
-    dados = load_all_data()
+    try:
+        dados = load_all_data()
+    except Exception as e:
+        st.error(f"Erro ao carregar dados: {str(e)}")
+        return
     
-    if dados["biologicos"].empty:
+    # Verificar se a chave 'biologicos' existe no dicionário de dados
+    if "biologicos" not in dados or dados["biologicos"].empty:
         st.warning("""
             **Nenhum produto biológico cadastrado!**
             Por favor:
@@ -529,7 +542,11 @@ def compatibilidade():
         if "compatibilidade_biologico" not in st.session_state:
             st.session_state.compatibilidade_biologico = None
             
-        # Verificar se a coluna 'Nome' existe no DataFrame
+        # Verificar se a chave 'biologicos' existe e se a coluna 'Nome' existe no DataFrame
+        if "biologicos" not in dados:
+            st.error("Erro: Não foi possível carregar os dados de produtos biológicos.")
+            return
+            
         if 'Nome' not in dados["biologicos"].columns:
             st.error("Erro: A coluna 'Nome' não foi encontrada na planilha de produtos biológicos.")
             return
@@ -549,40 +566,39 @@ def compatibilidade():
     quimicos_disponiveis = []
     if biologico:
         try:
+            # Verificar se a chave 'calculos' existe
+            if "calculos" not in dados:
+                st.error("Erro: Não foi possível carregar os dados de cálculos.")
+                return
+                
             # Verificar se a coluna "Biologico" existe no DataFrame
             if "Biologico" not in dados["calculos"].columns:
-                st.error("Erro: A coluna 'Biologico' não foi encontrada na planilha de cálculos.")
-                # Tentar encontrar a coluna com nome similar (diferença de maiúsculas/minúsculas)
                 colunas_similares = [col for col in dados["calculos"].columns if col.lower() == "biologico"]
                 if colunas_similares:
                     coluna_biologico = colunas_similares[0]
                     st.info(f"Usando a coluna '{coluna_biologico}' como alternativa.")
-                    # Obter todos os químicos que já foram testados com este biológico
-                    calculos_biologico = dados["calculos"][
-                        dados["calculos"][coluna_biologico] == biologico
-                    ]
                 else:
-                    st.warning("Nenhuma coluna similar a 'Biologico' foi encontrada. Verifique a estrutura da planilha.")
+                    st.error("Erro: Não foi possível encontrar a coluna 'Biologico' na planilha de cálculos.")
                     return
-            else:
-                # Obter todos os químicos que já foram testados com este biológico
-                calculos_biologico = dados["calculos"][
-                    dados["calculos"]["Biologico"] == biologico
-                ]
+                    
+            coluna_biologico = "Biologico"
+            
+            # Obter todos os químicos que já foram testados com este biológico
+            calculos_biologico = dados["calculos"][
+                dados["calculos"][coluna_biologico] == biologico
+            ]
             
             # Verificar se a coluna "Quimico" existe
             if "Quimico" not in dados["calculos"].columns:
-                st.error("Erro: A coluna 'Quimico' não foi encontrada na planilha de cálculos.")
-                # Tentar encontrar a coluna com nome similar
                 colunas_similares = [col for col in dados["calculos"].columns if col.lower() == "quimico"]
                 if colunas_similares:
                     coluna_quimico = colunas_similares[0]
                     st.info(f"Usando a coluna '{coluna_quimico}' como alternativa.")
                 else:
-                    st.warning("Nenhuma coluna similar a 'Quimico' foi encontrada. Verifique a estrutura da planilha.")
+                    st.error("Erro: Não foi possível encontrar a coluna 'Quimico' na planilha de cálculos.")
                     return
-            else:
-                coluna_quimico = "Quimico"
+            
+            coluna_quimico = "Quimico"
             
             # Extrair todos os químicos das combinações (pode conter múltiplos químicos separados por +)
             quimicos_testados = []
@@ -655,7 +671,7 @@ def compatibilidade():
                         # Dividir a combinação de químicos
                         quimicos_combinados = [q.strip() for q in row[coluna_quimico].split("+")]
                         # Verificar se o químico selecionado está na lista
-                        if any(q == quimico for q in quimicos_combinados):
+                        if any(q.strip() == quimico.strip() for q in quimicos_combinados):
                             resultado_existente = dados["calculos"].iloc[[idx]]
                             break
             
