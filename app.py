@@ -531,8 +531,6 @@ def compatibilidade():
             if not resultado_existente.empty:
                 # Mostrar todos os resultados encontrados
                 for i, resultado in resultado_existente.iterrows():
-                    st.subheader(f"Resultado: {resultado['Biologico']} + {resultado['Quimico']}")
-                    
                     compativel = "Compatível" in str(resultado["Resultado"])
                     
                     if compativel:
@@ -1526,10 +1524,8 @@ def gerenciamento():
                         
                         # Detalhes do teste
                         with st.expander("Ver detalhes do teste"):
-                            st.write(f"**Data:** {resultado['Data']}")
                             st.write(f"**Biologico:** {resultado['Biologico']}")
                             st.write(f"**Quimico:** {resultado['Quimico']}")
-                            st.write(f"**Tempo:** {resultado['Tempo']} horas")
                             st.write(f"**Resultado:** {resultado['Resultado']}")
                 else:
                     st.warning(f"Não foram encontrados resultados para a combinação {biologico_selecionado} + {quimico_selecionado}.")
