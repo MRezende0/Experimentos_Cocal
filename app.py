@@ -589,13 +589,13 @@ def compatibilidade():
                 if compativel:
                     st.markdown(f"""
                         <div class="resultado compativel">
-                        {resultado["Resultado"]} (Teste realizado em {resultado["Data"].strftime('%d/%m/%Y')})
+                        {resultado["Resultado"]}
                         </div>
                         """, unsafe_allow_html=True)
                 else:
                     st.markdown(f"""
                         <div class="resultado incompativel">
-                        {resultado["Resultado"]} (Teste realizado em {resultado["Data"].strftime('%d/%m/%Y')})
+                        {resultado["Resultado"]}
                         </div>
                         """, unsafe_allow_html=True)
                 
