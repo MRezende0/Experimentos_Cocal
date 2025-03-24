@@ -1581,9 +1581,9 @@ def calculos():
     
     col1, col2 = st.columns(2)
     with col1:
-        placa1 = st.number_input("Placa 1 (colônias)", min_value=0.0, step=1.0, value=float(st.session_state.get('placa1', 0)), key="placa1")
-        placa2 = st.number_input("Placa 2 (colônias)", min_value=0.0, step=1.0, value=float(st.session_state.get('placa2', 0)), key="placa2")
-        placa3 = st.number_input("Placa 3 (colônias)", min_value=0.0, step=1.0, value=float(st.session_state.get('placa3', 0)), key="placa3")
+        placa1 = st.number_input("Placa 1 (colônias)", min_value=0, step=1, value=int(st.session_state.get('placa1', 0)), key="placa1")
+        placa2 = st.number_input("Placa 2 (colônias)", min_value=0, step=1, value=int(st.session_state.get('placa2', 0)), key="placa2")
+        placa3 = st.number_input("Placa 3 (colônias)", min_value=0, step=1, value=int(st.session_state.get('placa3', 0)), key="placa3")
     
     with col2:
         diluicao = st.number_input("Diluição", min_value=0.0, format="%.2e", value=float(st.session_state.get('diluicao', 1e+6)), key="diluicao")
@@ -1605,7 +1605,7 @@ def calculos():
         conc_ativo = st.number_input("Concentração do ativo (UFC/mL)", min_value=0.0, format="%.2e", value=float(st.session_state.get('conc_ativo', 1e+9)), key="conc_ativo")
     
     with col2:
-        volume_calda = st.number_input("Volume de calda (L/ha)", min_value=0.1, step=1.0, value=float(st.session_state.get('volume_calda', 100.0)), key="volume_calda")
+        volume_calda = st.number_input("Volume de calda (L/ha)", min_value=0, step=1, value=int(st.session_state.get('volume_calda', 100)), key="volume_calda")
     
     if volume_calda <= 0:
         st.warning("O Volume de calda deve ser maior que 0 para calcular a Concentração Esperada.")
@@ -1623,6 +1623,8 @@ def calculos():
     if st.session_state.concentracao_obtida > 0 and st.session_state.concentracao_esperada > 0:
         razao = st.session_state.concentracao_obtida / st.session_state.concentracao_esperada
         
+        razao_formatada = round(razao, 2)  # Arredondar para 2 casas decimais
+        
         st.write("**Detalhamento dos Cálculos:**")
         st.write(f"""
         **1. Concentração Obtida**
@@ -1637,7 +1639,7 @@ def calculos():
         - Concentração Esperada = ({conc_ativo:.2e} × {dose_registrada}) ÷ {volume_calda:.1f} = {concentracao_esperada:.2e} UFC/mL
         
         **3. Compatibilidade**
-        - Razão (Obtida/Esperada) = {concentracao_obtida:.2e} ÷ {concentracao_esperada:.2e} = {razao:.2f}
+        - Razão (Obtida/Esperada) = {concentracao_obtida:.2e} ÷ {concentracao_esperada:.2e} = {razao_formatada:.2f}
         """)
         
         resultado_texto = ""
@@ -1670,23 +1672,42 @@ def calculos():
             # Formatar os químicos selecionados como uma string
             quimicos_texto = " + ".join(quimicos_selecionados)
             
+            # Verificar se já existe um registro com o mesmo biológico e químicos
+            calculos_existentes = dados["calculos"]
+            
+            # Filtrar por biológico e químico
+            if not calculos_existentes.empty:
+                filtro_biologico = calculos_existentes["Biologico"] == biologico_selecionado
+                filtro_quimico = calculos_existentes["Quimico"] == quimicos_texto
+                registros_duplicados = calculos_existentes[filtro_biologico & filtro_quimico]
+                
+                if not registros_duplicados.empty:
+                    st.warning(f"Já existe um registro para {biologico_selecionado} com os mesmos produtos químicos. Deseja substituir?")
+                    col1, col2 = st.columns(2)
+                    with col1:
+                        if not st.button("Sim, substituir", key="btn_substituir"):
+                            return
+                    with col2:
+                        if st.button("Não, cancelar", key="btn_cancelar"):
+                            return
+            
             # Registrar na planilha de cálculos
             novo_registro = {
                 "Data": data_formatada,
                 "Biologico": biologico_selecionado,
                 "Quimico": quimicos_texto,
-                "Tempo": str(tempo_exposicao),
-                "Placa1": float(placa1),
-                "Placa2": float(placa2),
-                "Placa3": float(placa3),
-                "MédiaPlacas": float(media_placas),
-                "Diluicao": float(diluicao),
-                "ConcObtida": float(concentracao_obtida),
-                "Dose": float(dose_registrada),
-                "ConcAtivo": float(conc_ativo),
-                "VolumeCalda": float(volume_calda),
-                "ConcEsperada": float(concentracao_esperada),
-                "Razao": float(razao),
+                "Tempo": int(tempo_exposicao),
+                "Placa1": int(placa1),
+                "Placa2": int(placa2),
+                "Placa3": int(placa3),
+                "MédiaPlacas": round(float(media_placas), 2),
+                "Diluicao": "{:.2e}".format(float(diluicao)),
+                "ConcObtida": "{:.2e}".format(float(concentracao_obtida)),
+                "Dose": round(float(dose_registrada), 2),
+                "ConcAtivo": "{:.2e}".format(float(conc_ativo)),
+                "VolumeCalda": int(volume_calda),
+                "ConcEsperada": "{:.2e}".format(float(concentracao_esperada)),
+                "Razao": round(float(razao), 2),
                 "Resultado": resultado_texto
             }
             
