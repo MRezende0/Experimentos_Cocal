@@ -601,31 +601,38 @@ def compatibilidade():
                         st.write(f"**Biologico:** {resultado['Biologico']}")
                         st.write(f"**Quimico:** {resultado['Quimico']}")
                         st.write(f"**Tempo:** {resultado['Tempo']} horas")
-                        
-                        # Adicionar todos os campos de cálculos
-                        if 'Placa1' in resultado and pd.notna(resultado['Placa1']):
-                            st.write(f"**Placa 1:** {resultado['Placa1']}")
-                        if 'Placa2' in resultado and pd.notna(resultado['Placa2']):
-                            st.write(f"**Placa 2:** {resultado['Placa2']}")
-                        if 'Placa3' in resultado and pd.notna(resultado['Placa3']):
-                            st.write(f"**Placa 3:** {resultado['Placa3']}")
-                        if 'MédiaPlacas' in resultado and pd.notna(resultado['MédiaPlacas']):
-                            st.write(f"**Média das Placas:** {resultado['MédiaPlacas']}")
-                        if 'Diluicao' in resultado and pd.notna(resultado['Diluicao']):
-                            st.write(f"**Diluição:** {resultado['Diluicao']}")
-                        if 'ConcObtida' in resultado and pd.notna(resultado['ConcObtida']):
-                            st.write(f"**Concentração Obtida:** {resultado['ConcObtida']}")
-                        if 'Dose' in resultado and pd.notna(resultado['Dose']):
-                            st.write(f"**Dose:** {resultado['Dose']}")
-                        if 'ConcAtivo' in resultado and pd.notna(resultado['ConcAtivo']):
-                            st.write(f"**Concentração do Ativo:** {resultado['ConcAtivo']}")
-                        if 'VolumeCalda' in resultado and pd.notna(resultado['VolumeCalda']):
-                            st.write(f"**Volume da Calda:** {resultado['VolumeCalda']}")
-                        if 'ConcEsperada' in resultado and pd.notna(resultado['ConcEsperada']):
-                            st.write(f"**Concentração Esperada:** {resultado['ConcEsperada']}")
-                        if 'Razao' in resultado and pd.notna(resultado['Razao']):
-                            st.write(f"**Razão:** {resultado['Razao']}")
-                        
+
+                        def formatar(valor, tipo="float"):
+                            if pd.isna(valor) or valor == "":
+                                return "-"
+                            try:
+                                valor = float(valor)  # Converte string para número, se necessário
+                            except ValueError:
+                                return valor  # Retorna o próprio valor se não for um número
+
+                            if tipo == "int":
+                                return f"{int(valor)}"
+                            elif tipo == "cientifico":
+                                return f"{valor:.2e}"
+                            return f"{valor:.2f}"
+
+                        # Campos inteiros
+                        campos_int = ["Placa1", "Placa2", "Placa3", "Dose", "Razao", "VolumeCalda"]
+                        for campo in campos_int:
+                            if campo in resultado:
+                                st.write(f"**{campo}:** {formatar(resultado[campo], 'int')}")
+
+                        # Média das placas como float
+                        if "MédiaPlacas" in resultado:
+                            st.write(f"**MédiaPlacas:** {formatar(resultado['MédiaPlacas'])}")
+
+                        # Campos em notação científica
+                        campos_cientificos = ["Diluicao", "ConcObtida", "ConcAtivo", "ConcEsperada"]
+                        for campo in campos_cientificos:
+                            if campo in resultado:
+                                st.write(f"**{campo}:** {formatar(resultado[campo], 'cientifico')}")
+
+                        # Resultado final
                         st.write(f"**Resultado:** {resultado['Resultado']}")
             
             else:
