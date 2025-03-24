@@ -1552,6 +1552,21 @@ def calculos():
         st.warning("Selecione no máximo 3 produtos químicos")
         return
     
+    # Verificar se já existe um cálculo com o mesmo biológico e químicos
+    calculos_existentes = dados["calculos"]
+    if not calculos_existentes.empty:
+        # Formatar os químicos selecionados como uma string para comparação
+        quimicos_texto = " + ".join(quimicos_selecionados)
+        
+        # Filtrar por biológico e químico
+        filtro_biologico = calculos_existentes["Biologico"] == biologico_selecionado
+        filtro_quimico = calculos_existentes["Quimico"] == quimicos_texto
+        registros_duplicados = calculos_existentes[filtro_biologico & filtro_quimico]
+        
+        if not registros_duplicados.empty:
+            st.error(f"Já existe um registro de cálculo para {biologico_selecionado} com os mesmos produtos químicos. Selecione outros produtos para continuar.")
+            return
+    
     # Adicionar campos de Data e Tempo
     st.markdown("---")
     st.subheader("Informações")
@@ -1671,25 +1686,6 @@ def calculos():
             
             # Formatar os químicos selecionados como uma string
             quimicos_texto = " + ".join(quimicos_selecionados)
-            
-            # Verificar se já existe um registro com o mesmo biológico e químicos
-            calculos_existentes = dados["calculos"]
-            
-            # Filtrar por biológico e químico
-            if not calculos_existentes.empty:
-                filtro_biologico = calculos_existentes["Biologico"] == biologico_selecionado
-                filtro_quimico = calculos_existentes["Quimico"] == quimicos_texto
-                registros_duplicados = calculos_existentes[filtro_biologico & filtro_quimico]
-                
-                if not registros_duplicados.empty:
-                    st.warning(f"Já existe um registro para {biologico_selecionado} com os mesmos produtos químicos. Deseja substituir?")
-                    col1, col2 = st.columns(2)
-                    with col1:
-                        if not st.button("Sim, substituir", key="btn_substituir"):
-                            return
-                    with col2:
-                        if st.button("Não, cancelar", key="btn_cancelar"):
-                            return
             
             # Registrar na planilha de cálculos
             novo_registro = {
