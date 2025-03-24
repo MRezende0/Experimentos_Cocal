@@ -1667,11 +1667,14 @@ def calculos():
             # Formatar a data no formato DD/MM/YYYY
             data_formatada = data_teste.strftime("%d/%m/%Y")
             
+            # Formatar os químicos selecionados como uma string
+            quimicos_texto = " + ".join(quimicos_selecionados)
+            
             # Registrar na planilha de cálculos
             novo_registro = {
                 "Data": data_formatada,
                 "Biologico": biologico_selecionado,
-                "Quimico": quimicos_texto,  # Formato "quimico1 + quimico2"
+                "Quimico": quimicos_texto,
                 "Tempo": str(tempo_exposicao),
                 "Placa1": placa1,
                 "Placa2": placa2,
