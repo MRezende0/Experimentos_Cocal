@@ -578,62 +578,66 @@ def compatibilidade():
             ]
             
             if not resultado_existente.empty:
-                # Mostrar todos os resultados encontrados
-                for i, resultado in resultado_existente.iterrows():
-                    compativel = "Compatível" in str(resultado["Resultado"])
-                    
-                    if compativel:
-                        st.markdown(f"""
-                            <div class="resultado compativel">
-                            {resultado["Resultado"]}
-                            </div>
-                            """, unsafe_allow_html=True)
-                    else:
-                        st.markdown(f"""
-                            <div class="resultado incompativel">
-                            {resultado["Resultado"]}
-                            </div>
-                            """, unsafe_allow_html=True)
-                    
-                    # Mostrar detalhes do teste
-                    with st.expander("Ver detalhes do teste"):
-                        st.write(f"**Data:** {resultado['Data']}")
-                        st.write(f"**Biologico:** {resultado['Biologico']}")
-                        st.write(f"**Quimico:** {resultado['Quimico']}")
-                        st.write(f"**Tempo:** {resultado['Tempo']} horas")
+                # Ordenar por data (mais recente primeiro)
+                resultado_existente['Data'] = pd.to_datetime(resultado_existente['Data'], format='%d/%m/%Y', errors='coerce')
+                resultado_existente = resultado_existente.sort_values('Data', ascending=False)
+                
+                # Mostrar apenas o resultado mais recente
+                resultado = resultado_existente.iloc[0]
+                compativel = "Compatível" in str(resultado["Resultado"])
+                
+                if compativel:
+                    st.markdown(f"""
+                        <div class="resultado compativel">
+                        {resultado["Resultado"]} (Teste realizado em {resultado["Data"].strftime('%d/%m/%Y')})
+                        </div>
+                        """, unsafe_allow_html=True)
+                else:
+                    st.markdown(f"""
+                        <div class="resultado incompativel">
+                        {resultado["Resultado"]} (Teste realizado em {resultado["Data"].strftime('%d/%m/%Y')})
+                        </div>
+                        """, unsafe_allow_html=True)
+                
+                # Mostrar detalhes do teste
+                with st.expander("Ver detalhes do teste"):
+                    st.write(f"**Data:** {resultado['Data'].strftime('%d/%m/%Y')}")
+                    st.write(f"**Biologico:** {resultado['Biologico']}")
+                    st.write(f"**Quimico:** {resultado['Quimico']}")
+                    st.write(f"**Tempo:** {resultado['Tempo']} horas")
 
-                        def formatar(valor, tipo="float"):
-                            if pd.isna(valor) or valor == "":
-                                return "-"
-                            try:
-                                valor = float(valor)  # Converte string para número, se necessário
-                            except ValueError:
-                                return valor  # Retorna o próprio valor se não for um número
+                    def formatar(valor, tipo="float"):
+                        if pd.isna(valor) or valor == "":
+                            return "-"
+                        try:
+                            valor = float(valor)  # Converte string para número, se necessário
+                        except ValueError:
+                            return valor  # Retorna o próprio valor se não for um número
 
-                            if tipo == "int":
-                                return f"{int(valor)}"
-                            elif tipo == "cientifico":
-                                return f"{valor:.2e}"
-                            return f"{valor:.2f}"
+                        if tipo == "int":
+                            return f"{int(valor)}"
+                        elif tipo == "cientifico":
+                            return f"{valor:.2e}"
+                        return f"{valor:.2f}"
 
-                        # Campos inteiros
-                        campos_int = ["Placa1", "Placa2", "Placa3", "Dose", "Razao", "VolumeCalda"]
-                        for campo in campos_int:
-                            if campo in resultado:
-                                st.write(f"**{campo}:** {formatar(resultado[campo], 'int')}")
+                    # Campos inteiros
+                    campos_int = ["Placa1", "Placa2", "Placa3", "Dose", "Razao", "VolumeCalda"]
+                    for campo in campos_int:
+                        if campo in resultado:
+                            st.write(f"**{campo}:** {formatar(resultado[campo], 'int')}")
 
-                        # Média das placas como float
-                        if "MédiaPlacas" in resultado:
-                            st.write(f"**MédiaPlacas:** {formatar(resultado['MédiaPlacas'])}")
+                    # Média das placas como float
+                    if "MédiaPlacas" in resultado:
+                        st.write(f"**MédiaPlacas:** {formatar(resultado['MédiaPlacas'])}")
 
-                        # Campos em notação científica
-                        campos_cientificos = ["Diluicao", "ConcObtida", "ConcAtivo", "ConcEsperada"]
-                        for campo in campos_cientificos:
-                            if campo in resultado:
-                                st.write(f"**{campo}:** {formatar(resultado[campo], 'cientifico')}")
+                    # Campos em notação científica
+                    campos_cientificos = ["Diluicao", "ConcObtida", "ConcAtivo", "ConcEsperada"]
+                    for campo in campos_cientificos:
+                        if campo in resultado:
+                            st.write(f"**{campo}:** {formatar(resultado[campo], 'cientifico')}")
 
-                        # Resultado final
-                        st.write(f"**Resultado:** {resultado['Resultado']}")
+                    # Resultado final
+                    st.write(f"**Resultado:** {resultado['Resultado']}")
             
             else:
                 # Mostrar aviso de que não existe compatibilidade cadastrada
