@@ -1222,12 +1222,6 @@ def gerenciamento():
                             # Adicionar à planilha
                             with st.spinner("Salvando nova solicitação..."):
                                 if append_to_sheet(nova_solicitacao, "Solicitacoes"):
-                                    # Atualizar dados locais
-                                    nova_linha = pd.DataFrame([nova_solicitacao])
-                                    st.session_state.local_data["solicitacoes"] = pd.concat(
-                                        [st.session_state.local_data["solicitacoes"], nova_linha], 
-                                        ignore_index=True
-                                    )
                                     st.session_state.gerenciamento_form_submitted = True
                                     st.session_state.gerenciamento_last_submission = nova_solicitacao
                                     st.rerun()
