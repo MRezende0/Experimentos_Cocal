@@ -601,11 +601,6 @@ def compatibilidade():
                 
                 # Mostrar detalhes do teste
                 with st.expander("Ver detalhes do teste"):
-                    st.write(f"**Data:** {resultado['Data'].strftime('%d/%m/%Y')}")
-                    st.write(f"**Biologico:** {resultado['Biologico']}")
-                    st.write(f"**Quimico:** {resultado['Quimico']}")
-                    st.write(f"**Tempo:** {resultado['Tempo']} horas")
-
                     def formatar(valor, tipo="float"):
                         if pd.isna(valor) or valor == "":
                             return "-"
@@ -619,26 +614,55 @@ def compatibilidade():
                         elif tipo == "cientifico":
                             return f"{valor:.2e}"
                         return f"{valor:.2f}"
-
-                    # Campos inteiros
-                    campos_int = ["Placa1", "Placa2", "Placa3", "Dose", "Razao", "VolumeCalda"]
-                    for campo in campos_int:
-                        if campo in resultado:
-                            st.write(f"**{campo}:** {formatar(resultado[campo], 'int')}")
-
-                    # Média das placas como float
+                    
+                    # Exibir campos na ordem especificada com unidades de medida
+                    st.write(f"**Data:** {resultado['Data'].strftime('%d/%m/%Y')}")
+                    st.write(f"**Biologico:** {resultado['Biologico']}")
+                    st.write(f"**Quimico:** {resultado['Quimico']}")
+                    st.write(f"**Tempo:** {resultado['Tempo']} horas")
+                    
+                    # Placas (UFC/mL)
+                    if "Placa1" in resultado:
+                        st.write(f"**Placa1:** {formatar(resultado['Placa1'], 'int')} unidades")
+                    if "Placa2" in resultado:
+                        st.write(f"**Placa2:** {formatar(resultado['Placa2'], 'int')} unidades")
+                    if "Placa3" in resultado:
+                        st.write(f"**Placa3:** {formatar(resultado['Placa3'], 'int')} unidades")
+                    
+                    # Média das placas
                     if "MédiaPlacas" in resultado:
-                        st.write(f"**MédiaPlacas:** {formatar(resultado['MédiaPlacas'])}")
-
-                    # Campos em notação científica
-                    campos_cientificos = ["Diluicao", "ConcObtida", "ConcAtivo", "ConcEsperada"]
-                    for campo in campos_cientificos:
-                        if campo in resultado:
-                            st.write(f"**{campo}:** {formatar(resultado[campo], 'cientifico')}")
-
+                        st.write(f"**MédiaPlacas:** {formatar(resultado['MédiaPlacas'])} unidades")
+                    
+                    # Diluição
+                    if "Diluicao" in resultado:
+                        st.write(f"**Diluicao:** {formatar(resultado['Diluicao'], 'cientifico')}")
+                    
+                    # Concentração obtida
+                    if "ConcObtida" in resultado:
+                        st.write(f"**ConcObtida:** {formatar(resultado['ConcObtida'], 'cientifico')} UFC/g ou UFC/mL")
+                    
+                    # Dose
+                    if "Dose" in resultado:
+                        st.write(f"**Dose:** {formatar(resultado['Dose'], 'int')} g/ha ou mL/ha")
+                    
+                    # Concentração do ativo
+                    if "ConcAtivo" in resultado:
+                        st.write(f"**ConcAtivo:** {formatar(resultado['ConcAtivo'], 'cientifico')} UFC/g ou UFC/mL")
+                    
+                    # Volume de calda
+                    if "VolumeCalda" in resultado:
+                        st.write(f"**VolumeCalda:** {formatar(resultado['VolumeCalda'], 'int')} mL/ha")
+                    
+                    # Concentração esperada
+                    if "ConcEsperada" in resultado:
+                        st.write(f"**ConcEsperada:** {formatar(resultado['ConcEsperada'], 'cientifico')} UFC/g ou UFC/mL")
+                    
+                    # Razão
+                    if "Razao" in resultado:
+                        st.write(f"**Razao:** {formatar(resultado['Razao'], 'int')} %")
+                    
                     # Resultado final
                     st.write(f"**Resultado:** {resultado['Resultado']}")
-            
             else:
                 # Mostrar aviso de que não existe compatibilidade cadastrada
                 st.markdown("""
