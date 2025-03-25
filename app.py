@@ -659,10 +659,10 @@ def compatibilidade():
                     
                     # Razão
                     if "Razao" in resultado:
-                        st.write(f"**Razao:** {formatar(resultado['Razao'], 'int')} %")
-                    
+                        st.write(f"**Razao:** {formatar(resultado['Razao'], 'float')}")                    
                     # Resultado final
                     st.write(f"**Resultado:** {resultado['Resultado']}")
+                    
             else:
                 # Mostrar aviso de que não existe compatibilidade cadastrada
                 st.markdown("""
