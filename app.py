@@ -1672,22 +1672,15 @@ def calculos():
         if 0.8 <= razao <= 1.5:
             resultado_texto = "Compatível"
             st.success(f"✅ COMPATÍVEL - A razão está dentro do intervalo ideal (0,8 a 1,5)")
-            st.write(f"O produto {biologico_selecionado} é compatível com os produtos químicos selecionados:")
-            for quimico in quimicos_selecionados:
-                st.write(f"- {quimico}")
+
         elif razao > 1.5:
-            resultado_texto = "Compatível (Interação Positiva)"
-            st.warning(f"⚠️ ATENÇÃO - A razão está acima de 1,5")
-            st.write(f"Possível interação positiva entre {biologico_selecionado} e os produtos químicos:")
-            for quimico in quimicos_selecionados:
-                st.write(f"- {quimico}")
+            resultado_texto = "Incompatível"
+            st.warning(f"⚠️ INCOMPATÍVEL - A razão está acima de 1,5")
+
         else:
             resultado_texto = "Incompatível"
             st.error(f"❌ INCOMPATÍVEL - A razão está abaixo de 0,8")
-            st.write(f"O produto {biologico_selecionado} NÃO é compatível com os produtos químicos:")
-            for quimico in quimicos_selecionados:
-                st.write(f"- {quimico}")
-        
+
         st.session_state.calculo_resultado = resultado_texto
         
         # Botão para registrar o resultado na planilha
