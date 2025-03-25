@@ -61,37 +61,6 @@ def local_css():
                 background-color: #fffce8;
                 color: #916c04;
             }
-            
-            /* Garantir que os botões de ação nas tabelas editáveis sejam visíveis */
-            button[kind="secondary"] {
-                opacity: 1 !important;
-                visibility: visible !important;
-                display: inline-flex !important;
-            }
-            
-            /* Melhorar a visibilidade dos botões de ação nas tabelas */
-            [data-testid="stDataFrameResizable"] button {
-                opacity: 1 !important;
-                visibility: visible !important;
-            }
-            
-            /* Garantir que os elementos de edição de tabela sejam visíveis */
-            [data-testid="StyledFullScreenFrame"] div[data-testid="stDataFrameResizable"] {
-                visibility: visible !important;
-                display: block !important;
-            }
-            
-            /* Melhorar a responsividade em telas menores */
-            @media (max-width: 768px) {
-                .card {
-                    padding: 10px;
-                    margin: 5px;
-                }
-                .resultado {
-                    padding: 15px;
-                    font-size: 20px;
-                }
-            }
         </style>
     """, unsafe_allow_html=True)
 
@@ -260,7 +229,8 @@ def load_sheet_data(sheet_name: str) -> pd.DataFrame:
             df = pd.DataFrame(data)
             
             # Tratamento específico para colunas de data
-            if sheet_name in ["Solicitacoes", "Calculos"] and "Data" in df.columns:
+            if 'Data' in df.columns and not df.empty:
+                # Tentar converter para o formato padrão DD/MM/YYYY
                 try:
                     # Primeiro verificar se já está no formato datetime
                     if pd.api.types.is_datetime64_any_dtype(df['Data']):
@@ -282,8 +252,9 @@ def load_sheet_data(sheet_name: str) -> pd.DataFrame:
             required_columns = {
                 "Biologicos": ["Nome", "Classe"],
                 "Quimicos": ["Nome", "Classe"],
-                "Solicitacoes": ["Data", "Solicitante", "Biologico", "Quimico", "Observacoes", "Status"],
-                "Calculos": ["Data", "Biologico", "Quimico", "Tempo", "Placa1", "Placa2", "Placa3", "MédiaPlacas", "Diluicao", "ConcObtida", "Dose", "ConcAtivo", "VolumeCalda", "ConcEsperada", "Razao", "Resultado"]
+                "Compatibilidades": ["Biologico", "Quimico"],
+                "Solicitacoes": ["Quimico", "Biologico"],
+                "Calculos": ["Biologico", "Quimico"]
             }
             
             if sheet_name in required_columns:
@@ -310,73 +281,75 @@ def load_sheet_data(sheet_name: str) -> pd.DataFrame:
     return retry_with_backoff(_load)
 
 def update_sheet(df: pd.DataFrame, sheet_name: str) -> bool:
-    """
-    Atualiza os dados de uma planilha no Google Sheets
-    
-    Args:
-        df: DataFrame com os dados a serem atualizados
-        sheet_name: Nome da planilha a ser atualizada
-        
-    Returns:
-        bool: True se a atualização foi bem-sucedida, False caso contrário
-    """
-    # Verificar se o DataFrame está vazio
-    if df.empty:
-        st.warning(f"Não há dados para atualizar na planilha {sheet_name}")
-        return False
-        
-    # Verificar se o sheet_name é válido
-    if sheet_name not in COLUNAS_ESPERADAS:
-        st.error(f"Nome de planilha inválido: {sheet_name}")
-        return False
-    
-    # Função interna para executar a atualização com retry
-    def _do_update():
-        try:
-            worksheet = get_sheet(sheet_name)
-            if worksheet is None:
-                return False
-                
-            # Converter todas as datas para string no formato DD/MM/YYYY
-            df_copy = df.copy()
-            for col in df_copy.columns:
-                if pd.api.types.is_datetime64_any_dtype(df_copy[col]):
-                    df_copy[col] = df_copy[col].dt.strftime('%d/%m/%Y')
-            
-            # Substituir valores NaN por string vazia para compatibilidade com Google Sheets
-            df_copy = df_copy.replace({np.nan: "", None: ""})
-                    
-            # Garantir a ordem das colunas conforme esperado
-            if set(COLUNAS_ESPERADAS[sheet_name]).issubset(set(df_copy.columns)):
-                df_copy = df_copy[COLUNAS_ESPERADAS[sheet_name]]
-            else:
-                # Se faltar alguma coluna, adicionar colunas vazias
-                for col in COLUNAS_ESPERADAS[sheet_name]:
-                    if col not in df_copy.columns:
-                        df_copy[col] = ""
-                df_copy = df_copy[COLUNAS_ESPERADAS[sheet_name]]
-            
-            # Atualizar toda a planilha
-            worksheet.clear()
-            worksheet.update(
-                [df_copy.columns.values.tolist()] + df_copy.values.tolist(),
-                value_input_option='USER_ENTERED'  # Preservar formatos
-            )
-            
-            # Atualizar cache local
-            st.session_state.local_data[sheet_name.lower()] = df
-            
-            # Atualizar timestamp para refletir a mudança nos dados
-            st.session_state.data_timestamp = datetime.now()
-            
-            return True
-            
-        except Exception as e:
-            st.error(f"Erro ao atualizar planilha {sheet_name}: {str(e)}")
+    try:
+        worksheet = get_sheet(sheet_name)
+        if worksheet is None:
             return False
+            
+        # Converter todas as datas para string ISO
+        df_copy = df.copy()
+        for col in df_copy.columns:
+            if pd.api.types.is_datetime64_any_dtype(df_copy[col]):
+                df_copy[col] = df_copy[col].dt.strftime('%Y-%m-%d')
+        
+        # Substituir valores NaN por None para compatibilidade com JSON
+        df_copy = df_copy.replace({np.nan: None})
+                
+        # Garantir a ordem das colunas
+        df_copy = df_copy[COLUNAS_ESPERADAS[sheet_name]]
+        
+        # Atualizar toda a planilha
+        worksheet.clear()
+        worksheet.update(
+            [df_copy.columns.values.tolist()] + df_copy.values.tolist(),
+            value_input_option='USER_ENTERED'  # Adicionado para preservar formatos
+        )
+        
+        # Atualizar cache local
+        st.session_state.local_data[sheet_name.lower()] = df
+        return True
+        
+    except Exception as e:
+        st.error(f"Erro ao atualizar planilha: {str(e)}")
+        return False
+
+def load_all_data():
+    """
+    Carrega todos os dados das planilhas e armazena na session_state
+    Usa cache de sessão para minimizar requisições ao Google Sheets
+    """
+    # Verificar se os dados já estão na sessão e se foram carregados há menos de 5 minutos
+    if 'data_timestamp' in st.session_state and 'local_data' in st.session_state:
+        elapsed_time = (datetime.now() - st.session_state.data_timestamp).total_seconds()
+        # Usar dados em cache se foram carregados há menos de 5 minutos
+        if elapsed_time < 300:  # 5 minutos em segundos
+            return st.session_state.local_data
     
-    # Usar retry com backoff para lidar com falhas temporárias
-    return retry_with_backoff(_do_update, max_retries=3, initial_delay=1)
+    # Carregar dados com paralelismo para melhorar a performance
+    with st.spinner("Carregando dados..."):
+        # Inicializar dicionário de dados
+        dados = {}
+        
+        # Definir função para carregar uma planilha específica
+        def load_sheet(sheet_name):
+            return sheet_name, _load_and_validate_sheet(sheet_name)
+        
+        # Usar threads para carregar as planilhas em paralelo
+        import concurrent.futures
+        with concurrent.futures.ThreadPoolExecutor(max_workers=5) as executor:
+            # Submeter tarefas para carregar cada planilha
+            futures = {executor.submit(load_sheet, name): name for name in ["Quimicos", "Biologicos", "Compatibilidades", "Solicitacoes", "Calculos"]}
+            
+            # Coletar resultados à medida que ficam disponíveis
+            for future in concurrent.futures.as_completed(futures):
+                sheet_name, df = future.result()
+                dados[sheet_name.lower()] = df
+    
+    # Armazenar dados na sessão com timestamp
+    st.session_state.local_data = dados
+    st.session_state.data_timestamp = datetime.now()
+    
+    return dados
 
 def _load_and_validate_sheet(sheet_name):
     """Carrega uma planilha específica e valida suas colunas"""
@@ -399,7 +372,7 @@ def _load_and_validate_sheet(sheet_name):
         # Converter colunas de data
         if sheet_name in ["Compatibilidades", "Solicitacoes", "Calculos"] and "Data" in df.columns:
             try:
-                df["Data"] = pd.to_datetime(df["Data"], format='%d/%m/%Y', errors='coerce')
+                df["Data"] = pd.to_datetime(df["Data"], errors='coerce')
                 df["Data"] = df["Data"].dt.strftime('%d/%m/%Y')
             except Exception as e:
                 st.warning(f"Erro ao processar datas na planilha {sheet_name}: {str(e)}")
@@ -463,77 +436,23 @@ def convert_scientific_to_float(value):
 
 ########################################## COMPATIBILIDADE ##########################################
 
-def carregar_dados_compatibilidade(dados):
-    """
-    Carrega e processa dados de compatibilidade com sistema de cache
-    para melhorar o desempenho.
-    
-    Args:
-        dados: Dicionário com os dados carregados
-        
-    Returns:
-        tuple: (biologicos_unicos, quimicos_por_biologico)
-    """
-    # Inicializar cache se não existir
-    if 'biologicos_cache' not in st.session_state:
-        st.session_state.biologicos_cache = None
-    
-    biologicos_unicos = []
-    quimicos_por_biologico = {}
-    
-    # Verificar se a planilha de cálculos tem dados
-    if "calculos" in dados and not dados["calculos"].empty:
-        # Verificar se os dados mudaram desde a última vez
-        calculos_hash = hash(str(dados["calculos"]))
-        if st.session_state.biologicos_cache is None or st.session_state.biologicos_cache[0] != calculos_hash:
-            # Verificar se a coluna "Biologico" existe
-            if "Biologico" in dados["calculos"].columns:
-                # Obter lista de biológicos únicos
-                biologicos_unicos = sorted(dados["calculos"]["Biologico"].unique())
-                
-                # Para cada biológico, obter os químicos testados
-                for bio in biologicos_unicos:
-                    # Filtrar os resultados de cálculos para o biológico selecionado
-                    resultados_bio = dados["calculos"][
-                        dados["calculos"]["Biologico"] == bio
-                    ]
-                    
-                    # Extrair todos os químicos testados com este biológico
-                    if not resultados_bio.empty and "Quimico" in resultados_bio.columns:
-                        quimicos_testados = []
-                        for quimico_entry in resultados_bio["Quimico"]:
-                            # Lidar com entradas que podem ter formato "quimico1 + quimico2"
-                            if isinstance(quimico_entry, str):
-                                quimicos_testados.append(quimico_entry)
-                        
-                        # Remover duplicatas e ordenar
-                        quimicos_por_biologico[bio] = sorted(set(quimicos_testados))
-                
-                # Armazenar no cache
-                st.session_state.biologicos_cache = (calculos_hash, biologicos_unicos, quimicos_por_biologico)
-        else:
-            # Usar dados do cache
-            _, biologicos_unicos, quimicos_por_biologico = st.session_state.biologicos_cache
-    
-    return biologicos_unicos, quimicos_por_biologico
-
 def compatibilidade():
-    # Inicializar variáveis de estado para controle do formulário
+    # Inicializar variável de estado para controle do formulário
     if 'solicitar_novo_teste' not in st.session_state:
         st.session_state.solicitar_novo_teste = False
     if 'pre_selecionado_quimico' not in st.session_state:
         st.session_state.pre_selecionado_quimico = None
     if 'pre_selecionado_biologico' not in st.session_state:
         st.session_state.pre_selecionado_biologico = None
-    if 'compatibilidade_cache' not in st.session_state:
-        st.session_state.compatibilidade_cache = {}
-    if 'ultima_consulta' not in st.session_state:
-        st.session_state.ultima_consulta = None
-    if 'form_submitted_successfully' not in st.session_state:
-        st.session_state.form_submitted_successfully = False
+    if 'just_submitted' not in st.session_state:
+        st.session_state.just_submitted = False
+    if 'last_submission' not in st.session_state:
+        st.session_state.last_submission = None
     if 'success_message_time' not in st.session_state:
         st.session_state.success_message_time = None
-    
+    if 'form_submitted_successfully' not in st.session_state:
+        st.session_state.form_submitted_successfully = False
+
     col1, col2 = st.columns([4, 1])  # 4:1 ratio para alinhamento direito
 
     with col1:
@@ -600,8 +519,34 @@ def compatibilidade():
     col1, col2 = st.columns([1, 1])
 
     # Obter dados da planilha de cálculos
-    biologicos_unicos, quimicos_por_biologico = carregar_dados_compatibilidade(dados)
+    biologicos_unicos = []
+    quimicos_por_biologico = {}
     
+    # Verificar se a planilha de cálculos tem dados
+    if "calculos" in dados and not dados["calculos"].empty:
+        # Verificar se a coluna "Biologico" existe
+        if "Biologico" in dados["calculos"].columns:
+            # Obter lista de biológicos únicos
+            biologicos_unicos = sorted(dados["calculos"]["Biologico"].unique())
+            
+            # Para cada biológico, obter os químicos testados
+            for bio in biologicos_unicos:
+                # Filtrar os resultados de cálculos para o biológico selecionado
+                resultados_bio = dados["calculos"][
+                    dados["calculos"]["Biologico"] == bio
+                ]
+                
+                # Extrair todos os químicos testados com este biológico
+                if not resultados_bio.empty and "Quimico" in resultados_bio.columns:
+                    quimicos_testados = []
+                    for quimico_entry in resultados_bio["Quimico"]:
+                        # Lidar com entradas que podem ter formato "quimico1 + quimico2"
+                        if isinstance(quimico_entry, str):
+                            quimicos_testados.append(quimico_entry)
+                    
+                    # Remover duplicatas e ordenar
+                    quimicos_por_biologico[bio] = sorted(set(quimicos_testados))
+
     with col1:
         biologico = st.selectbox(
             "Produto Biológico",
@@ -624,132 +569,116 @@ def compatibilidade():
         )
     
     if biologico and quimico:
-        # Verificar se o resultado já está em cache
-        cache_key = f"{biologico}_{quimico}"
-        
-        if cache_key in st.session_state.compatibilidade_cache:
-            # Usar resultado do cache
-            resultado = st.session_state.compatibilidade_cache[cache_key]
-            compativel = "Compatível" in str(resultado["Resultado"])
-        else:
-            # Verificar se a planilha de cálculos tem dados
-            if "calculos" in dados and not dados["calculos"].empty and "Biologico" in dados["calculos"].columns and "Quimico" in dados["calculos"].columns:
-                # Procurar na planilha de Resultados usando os nomes
-                resultado_existente = dados["calculos"][
-                    (dados["calculos"]["Biologico"] == biologico) & 
-                    (dados["calculos"]["Quimico"] == quimico)
-                ]
-                
-                if not resultado_existente.empty:
-                    # Ordenar por data (mais recente primeiro)
-                    resultado_existente['Data'] = pd.to_datetime(resultado_existente['Data'], format='%d/%m/%Y', errors='coerce')
-                    resultado_existente = resultado_existente.sort_values('Data', ascending=False)
-                    
-                    # Mostrar apenas o resultado mais recente
-                    resultado = resultado_existente.iloc[0]
-                    compativel = "Compatível" in str(resultado["Resultado"])
-                    
-                    # Armazenar no cache para uso futuro
-                    st.session_state.compatibilidade_cache[cache_key] = resultado
-                else:
-                    resultado = None
-            else:
-                resultado = None
-        
-        if resultado:
-            if compativel:
-                st.markdown(f"""
-                    <div class="resultado compativel">
-                    {resultado["Resultado"]}
-                    </div>
-                    """, unsafe_allow_html=True)
-            else:
-                st.markdown(f"""
-                    <div class="resultado incompativel">
-                    {resultado["Resultado"]}
-                    </div>
-                    """, unsafe_allow_html=True)
+        # Verificar se a planilha de cálculos tem dados
+        if "calculos" in dados and not dados["calculos"].empty and "Biologico" in dados["calculos"].columns and "Quimico" in dados["calculos"].columns:
+            # Procurar na planilha de Resultados usando os nomes
+            resultado_existente = dados["calculos"][
+                (dados["calculos"]["Biologico"] == biologico) & 
+                (dados["calculos"]["Quimico"] == quimico)
+            ]
             
-            # Mostrar detalhes do teste
-            with st.expander("Ver detalhes do teste"):
-                def formatar(valor, tipo="float"):
-                    if pd.isna(valor) or valor == "":
-                        return "-"
-                    try:
-                        valor = float(valor)  # Converte string para número, se necessário
-                    except ValueError:
-                        return valor  # Retorna o próprio valor se não for um número
+            if not resultado_existente.empty:
+                # Ordenar por data (mais recente primeiro)
+                resultado_existente['Data'] = pd.to_datetime(resultado_existente['Data'], format='%d/%m/%Y', errors='coerce')
+                resultado_existente = resultado_existente.sort_values('Data', ascending=False)
+                
+                # Mostrar apenas o resultado mais recente
+                resultado = resultado_existente.iloc[0]
+                compativel = "Compatível" in str(resultado["Resultado"])
+                
+                if compativel:
+                    st.markdown(f"""
+                        <div class="resultado compativel">
+                        {resultado["Resultado"]}
+                        </div>
+                        """, unsafe_allow_html=True)
+                else:
+                    st.markdown(f"""
+                        <div class="resultado incompativel">
+                        {resultado["Resultado"]}
+                        </div>
+                        """, unsafe_allow_html=True)
+                
+                # Mostrar detalhes do teste
+                with st.expander("Ver detalhes do teste"):
+                    def formatar(valor, tipo="float"):
+                        if pd.isna(valor) or valor == "":
+                            return "-"
+                        try:
+                            valor = float(valor)  # Converte string para número, se necessário
+                        except ValueError:
+                            return valor  # Retorna o próprio valor se não for um número
 
-                    if tipo == "int":
-                        return f"{int(valor)}"
-                    elif tipo == "cientifico":
-                        return f"{valor:.2e}"
-                    return f"{valor:.2f}"
-                
-                # Exibir campos na ordem especificada com unidades de medida
-                st.write(f"**Data:** {resultado['Data'].strftime('%d/%m/%Y')}")
-                st.write(f"**Biologico:** {resultado['Biologico']}")
-                st.write(f"**Quimico:** {resultado['Quimico']}")
-                st.write(f"**Tempo:** {resultado['Tempo']} horas")
-                
-                # Placas (UFC/mL)
-                if "Placa1" in resultado:
-                    st.write(f"**Placa1:** {formatar(resultado['Placa1'], 'int')} unidades")
-                if "Placa2" in resultado:
-                    st.write(f"**Placa2:** {formatar(resultado['Placa2'], 'int')} unidades")
-                if "Placa3" in resultado:
-                    st.write(f"**Placa3:** {formatar(resultado['Placa3'], 'int')} unidades")
-                
-                # Média das placas
-                if "MédiaPlacas" in resultado:
-                    st.write(f"**MédiaPlacas:** {formatar(resultado['MédiaPlacas'])} unidades")
-                
-                # Diluição
-                if "Diluicao" in resultado:
-                    st.write(f"**Diluicao:** {formatar(resultado['Diluicao'], 'cientifico')}")
-                
-                # Concentração obtida
-                if "ConcObtida" in resultado:
-                    st.write(f"**ConcObtida:** {formatar(resultado['ConcObtida'], 'cientifico')} UFC/g ou UFC/mL")
-                
-                # Dose
-                if "Dose" in resultado:
-                    st.write(f"**Dose:** {formatar(resultado['Dose'], 'int')} g/ha ou mL/ha")
-                
-                # Concentração do ativo
-                if "ConcAtivo" in resultado:
-                    st.write(f"**ConcAtivo:** {formatar(resultado['ConcAtivo'], 'cientifico')} UFC/g ou UFC/mL")
-                
-                # Volume de calda
-                if "VolumeCalda" in resultado:
-                    st.write(f"**VolumeCalda:** {formatar(resultado['VolumeCalda'], 'int')} mL/ha")
-                
-                # Concentração esperada
-                if "ConcEsperada" in resultado:
-                    st.write(f"**ConcEsperada:** {formatar(resultado['ConcEsperada'], 'cientifico')} UFC/g ou UFC/mL")
-                
-                # Razão
-                if "Razao" in resultado:
-                    st.write(f"**Razao:** {formatar(resultado['Razao'], 'float')}")                    
-                # Resultado final
-                st.write(f"**Resultado:** {resultado['Resultado']}")
-                
+                        if tipo == "int":
+                            return f"{int(valor)}"
+                        elif tipo == "cientifico":
+                            return f"{valor:.2e}"
+                        return f"{valor:.2f}"
+                    
+                    # Exibir campos na ordem especificada com unidades de medida
+                    st.write(f"**Data:** {resultado['Data'].strftime('%d/%m/%Y')}")
+                    st.write(f"**Biologico:** {resultado['Biologico']}")
+                    st.write(f"**Quimico:** {resultado['Quimico']}")
+                    st.write(f"**Tempo:** {resultado['Tempo']} horas")
+                    
+                    # Placas (UFC/mL)
+                    if "Placa1" in resultado:
+                        st.write(f"**Placa1:** {formatar(resultado['Placa1'], 'int')} unidades")
+                    if "Placa2" in resultado:
+                        st.write(f"**Placa2:** {formatar(resultado['Placa2'], 'int')} unidades")
+                    if "Placa3" in resultado:
+                        st.write(f"**Placa3:** {formatar(resultado['Placa3'], 'int')} unidades")
+                    
+                    # Média das placas
+                    if "MédiaPlacas" in resultado:
+                        st.write(f"**MédiaPlacas:** {formatar(resultado['MédiaPlacas'])} unidades")
+                    
+                    # Diluição
+                    if "Diluicao" in resultado:
+                        st.write(f"**Diluicao:** {formatar(resultado['Diluicao'], 'cientifico')}")
+                    
+                    # Concentração obtida
+                    if "ConcObtida" in resultado:
+                        st.write(f"**ConcObtida:** {formatar(resultado['ConcObtida'], 'cientifico')} UFC/g ou UFC/mL")
+                    
+                    # Dose
+                    if "Dose" in resultado:
+                        st.write(f"**Dose:** {formatar(resultado['Dose'], 'int')} g/ha ou mL/ha")
+                    
+                    # Concentração do ativo
+                    if "ConcAtivo" in resultado:
+                        st.write(f"**ConcAtivo:** {formatar(resultado['ConcAtivo'], 'cientifico')} UFC/g ou UFC/mL")
+                    
+                    # Volume de calda
+                    if "VolumeCalda" in resultado:
+                        st.write(f"**VolumeCalda:** {formatar(resultado['VolumeCalda'], 'int')} mL/ha")
+                    
+                    # Concentração esperada
+                    if "ConcEsperada" in resultado:
+                        st.write(f"**ConcEsperada:** {formatar(resultado['ConcEsperada'], 'cientifico')} UFC/g ou UFC/mL")
+                    
+                    # Razão
+                    if "Razao" in resultado:
+                        st.write(f"**Razao:** {formatar(resultado['Razao'], 'float')}")                    
+                    # Resultado final
+                    st.write(f"**Resultado:** {resultado['Resultado']}")
+                    
+            else:
+                # Mostrar aviso de que não existe compatibilidade cadastrada
+                st.markdown("""
+                        <div class="resultado naotestado">
+                        Teste não realizado!
+                        Solicite um novo teste.
+                    </div>
+                    """, unsafe_allow_html=True)
         else:
-            # Mostrar aviso de que não existe compatibilidade cadastrada
+            # Mostrar aviso de que não existem dados de compatibilidade
             st.markdown("""
                     <div class="resultado naotestado">
-                    Teste não realizado!
+                    Não há dados de compatibilidade disponíveis.
                     Solicite um novo teste.
                 </div>
                 """, unsafe_allow_html=True)
-    else:
-        # Mostrar aviso de que não existem dados de compatibilidade
-        st.markdown("""
-                <div class="resultado naotestado">
-                Não há dados de compatibilidade disponíveis.
-                Solicite um novo teste.
-            </div>
-            """, unsafe_allow_html=True)
     
     # Exibir mensagem de sucesso se acabou de enviar uma solicitação
     if st.session_state.form_submitted_successfully:
@@ -1081,7 +1010,6 @@ def gerenciamento():
                                         (df_completo["Classe"] == filtro_classe if filtro_classe != "Todos" else True)
                                     )
                                 else:
-                                    # Se não há filtros, substituir completamente os dados
                                     mask = pd.Series([True]*len(df_completo), index=df_completo.index)
                                 
                                 df_completo = df_completo[~mask]
@@ -1359,7 +1287,7 @@ def gerenciamento():
                         index=0,
                         key="filtro_quimico_solicitacoes"
                     )
-
+                
                 # Aplicar filtros
                 if not dados["solicitacoes"].empty:
                     df_filtrado = dados["solicitacoes"].copy()
@@ -1654,7 +1582,7 @@ def calculos():
     if not quimicos_selecionados:
         st.warning("Selecione pelo menos um produto químico para continuar")
         return
-
+    
     if len(quimicos_selecionados) > 3:
         st.warning("Selecione no máximo 3 produtos químicos")
         return
@@ -1748,19 +1676,21 @@ def calculos():
         razao_formatada = round(razao, 2)  # Arredondar para 2 casas decimais
         
         st.write("**Detalhamento dos Cálculos:**")
-        st.write(f"**1. Concentração Obtida**")
-        st.write(f"- Média das placas = ({placa1} + {placa2} + {placa3}) ÷ 3 = {media_placas:.1f}")
-        st.write(f"- Diluição = {diluicao:.2e}")
-        st.write(f"- Concentração Obtida = {media_placas:.1f} × {diluicao:.2e} × 10 = {concentracao_obtida:.2e} UFC/mL")
+        st.write(f"""
+        **1. Concentração Obtida**
+        - Média das placas = ({placa1} + {placa2} + {placa3}) ÷ 3 = {media_placas:.1f}
+        - Diluição = {diluicao:.2e}
+        - Concentração Obtida = {media_placas:.1f} × {diluicao:.2e} × 10 = {concentracao_obtida:.2e} UFC/mL
         
-        st.write(f"**2. Concentração Esperada**")
-        st.write(f"- Concentração do ativo = {conc_ativo:.2e} UFC/mL")
-        st.write(f"- Dose = {dose_registrada} L/ha (registrada para {biologico_selecionado})")
-        st.write(f"- Volume de calda = {volume_calda:.1f} L/ha")
-        st.write(f"- Concentração Esperada = ({conc_ativo:.2e} × {dose_registrada}) ÷ {volume_calda:.1f} = {concentracao_esperada:.2e} UFC/mL")
+        **2. Concentração Esperada**
+        - Concentração do ativo = {conc_ativo:.2e} UFC/mL
+        - Dose = {dose_registrada} L/ha (registrada para {biologico_selecionado})
+        - Volume de calda = {volume_calda:.1f} L/ha
+        - Concentração Esperada = ({conc_ativo:.2e} × {dose_registrada}) ÷ {volume_calda:.1f} = {concentracao_esperada:.2e} UFC/mL
         
-        st.write(f"**3. Compatibilidade**")
-        st.write(f"- Razão (Obtida/Esperada) = {concentracao_obtida:.2e} ÷ {concentracao_esperada:.2e} = {razao_formatada:.2f}")
+        **3. Compatibilidade**
+        - Razão (Obtida/Esperada) = {concentracao_obtida:.2e} ÷ {concentracao_esperada:.2e} = {razao_formatada:.2f}
+        """)
         
         resultado_texto = ""
         if 0.8 <= razao <= 1.5:
@@ -1915,71 +1845,3 @@ if __name__ == "__main__":
         main()
     except Exception as e:
         st.error(f"Erro ao processar dados: {str(e)}")
-
-def load_all_data():
-    """
-    Carrega todos os dados das planilhas e armazena na session_state
-    Usa cache de sessão para minimizar requisições ao Google Sheets
-    """
-    # Verificar se os dados já estão na sessão e se foram carregados há menos de 10 minutos
-    if 'data_timestamp' in st.session_state and 'local_data' in st.session_state:
-        elapsed_time = (datetime.now() - st.session_state.data_timestamp).total_seconds()
-        # Usar dados em cache se foram carregados há menos de 10 minutos
-        if elapsed_time < 600:  # 10 minutos em segundos
-            return st.session_state.local_data
-    
-    # Verificar se há um carregamento em andamento para evitar carregamentos simultâneos
-    if 'loading_data' in st.session_state and st.session_state.loading_data:
-        # Se já estiver carregando, retornar os dados existentes ou um dicionário vazio
-        return st.session_state.get('local_data', {
-            "quimicos": pd.DataFrame(),
-            "biologicos": pd.DataFrame(),
-            "resultados": pd.DataFrame(),
-            "solicitacoes": pd.DataFrame(),
-            "calculos": pd.DataFrame()
-        })
-    
-    try:
-        # Marcar que está carregando dados
-        st.session_state.loading_data = True
-        
-        # Carregar dados com paralelismo para melhorar a performance
-        with st.spinner("Carregando dados..."):
-            # Inicializar dicionário de dados
-            dados = {}
-            
-            # Usar threads para carregar as planilhas em paralelo
-            import concurrent.futures
-            with concurrent.futures.ThreadPoolExecutor(max_workers=5) as executor:
-                # Submeter tarefas para carregar cada planilha
-                futures = {executor.submit(_load_and_validate_sheet, name): name for name in ["Quimicos", "Biologicos", "Compatibilidades", "Solicitacoes", "Calculos"]}
-                
-                # Coletar resultados à medida que ficam disponíveis
-                for future in concurrent.futures.as_completed(futures):
-                    try:
-                        df = future.result()
-                        sheet_name = futures[future].lower()
-                        dados[sheet_name] = df
-                    except Exception as e:
-                        st.error(f"Erro ao carregar planilha {futures[future]}: {str(e)}")
-                        dados[futures[future].lower()] = pd.DataFrame()
-        
-        # Armazenar dados na sessão com timestamp
-        st.session_state.local_data = dados
-        st.session_state.data_timestamp = datetime.now()
-        
-        return dados
-    
-    except Exception as e:
-        st.error(f"Erro ao carregar dados: {str(e)}")
-        # Em caso de erro, retornar os dados existentes ou um dicionário vazio
-        return st.session_state.get('local_data', {
-            "quimicos": pd.DataFrame(),
-            "biologicos": pd.DataFrame(),
-            "resultados": pd.DataFrame(),
-            "solicitacoes": pd.DataFrame(),
-            "calculos": pd.DataFrame()
-        })
-    finally:
-        # Marcar que terminou de carregar, independentemente do resultado
-        st.session_state.loading_data = False
