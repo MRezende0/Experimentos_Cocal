@@ -62,6 +62,17 @@ def local_css():
                 color: #916c04;
             }
         </style>
+        
+        <script>
+            // Função para prevenir o envio de formulários ao pressionar Enter
+            document.addEventListener('keydown', function(e) {
+                if (e.key === 'Enter' && e.target.tagName.toLowerCase() !== 'textarea') {
+                    // Previne o comportamento padrão apenas se não for um textarea
+                    e.preventDefault();
+                    return false;
+                }
+            }, true);
+        </script>
     """, unsafe_allow_html=True)
 
 local_css()
@@ -621,42 +632,6 @@ def compatibilidade():
                     st.write(f"**Quimico:** {resultado['Quimico']}")
                     st.write(f"**Tempo:** {resultado['Tempo']} horas")
                     
-                    # Placas (UFC/mL)
-                    if "Placa1" in resultado:
-                        st.write(f"**Placa1:** {formatar(resultado['Placa1'], 'int')} unidades")
-                    if "Placa2" in resultado:
-                        st.write(f"**Placa2:** {formatar(resultado['Placa2'], 'int')} unidades")
-                    if "Placa3" in resultado:
-                        st.write(f"**Placa3:** {formatar(resultado['Placa3'], 'int')} unidades")
-                    
-                    # Média das placas
-                    if "MédiaPlacas" in resultado:
-                        st.write(f"**MédiaPlacas:** {formatar(resultado['MédiaPlacas'])} unidades")
-                    
-                    # Diluição
-                    if "Diluicao" in resultado:
-                        st.write(f"**Diluicao:** {formatar(resultado['Diluicao'], 'cientifico')}")
-                    
-                    # Concentração obtida
-                    if "ConcObtida" in resultado:
-                        st.write(f"**ConcObtida:** {formatar(resultado['ConcObtida'], 'cientifico')} UFC/g ou UFC/mL")
-                    
-                    # Dose
-                    if "Dose" in resultado:
-                        st.write(f"**Dose:** {formatar(resultado['Dose'], 'int')} g/ha ou mL/ha")
-                    
-                    # Concentração do ativo
-                    if "ConcAtivo" in resultado:
-                        st.write(f"**ConcAtivo:** {formatar(resultado['ConcAtivo'], 'cientifico')} UFC/g ou UFC/mL")
-                    
-                    # Volume de calda
-                    if "VolumeCalda" in resultado:
-                        st.write(f"**VolumeCalda:** {formatar(resultado['VolumeCalda'], 'int')} mL/ha")
-                    
-                    # Concentração esperada
-                    if "ConcEsperada" in resultado:
-                        st.write(f"**ConcEsperada:** {formatar(resultado['ConcEsperada'], 'cientifico')} UFC/g ou UFC/mL")
-                    
                     # Razão
                     if "Razao" in resultado:
                         st.write(f"**Razao:** {formatar(resultado['Razao'], 'float')}")                    
@@ -955,7 +930,7 @@ def gerenciamento():
                             "Concentracao": st.column_config.TextColumn(
                                 "Concentração em bula (UFC/g ou UFC/ml)",
                                 help="Digite em notação científica (ex: 1e9)",
-                                validate="^[0-9]+\.?[0-9]*[eE][-+]?[0-9]+$"
+                                validate="^[0-9]+\\.?[0-9]*[eE][-+]?[0-9]+$"
                             ),
                             "Fabricante": st.column_config.TextColumn("Fabricante")
                         },
@@ -1410,7 +1385,7 @@ def gerenciamento():
             st.error("Erro ao carregar dados dos cálculos!")
         else:
             # Opções para o usuário escolher entre realizar cálculos ou visualizar
-            opcao = st.radio("Escolha uma opção:", ["Novo cálculo", "Cálculos realizados"], key="opcao_calculos")
+            opcao = st.radio("Escolha uma opção:", ["Novo cálculo", "Testes realizados"], key="opcao_calculos")
             
             if opcao == "Novo cálculo":
                 calculos()
