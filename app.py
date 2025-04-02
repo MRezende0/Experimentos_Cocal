@@ -91,17 +91,15 @@ if 'local_data' not in st.session_state:
 
 SHEET_ID = "1lILLXICVkVekkm2EZ-20cLnkYFYvHnb14NL_Or7132U"
 SHEET_GIDS = {
-    "Compatibilidades": "0",
     "Biologicos": "1440941690",
     "Quimicos": "885876195",
     "Solicitacoes": "1408097520",
-    "Calculos": "1234567890" # Adicione o ID da planilha "Calculos"
+    "Calculos": "0"
 }
 
 COLUNAS_ESPERADAS = {
     "Biologicos": ["Nome", "Classe", "IngredienteAtivo", "Formulacao", "Dose", "Concentracao", "Fabricante"],
     "Quimicos": ["Nome", "Classe", "Fabricante", "Dose"],
-    "Compatibilidades": ["Data", "Biologico", "Quimico", "Tempo", "Resultado"],
     "Solicitacoes": ["Data", "Solicitante", "Biologico", "Quimico", "Observacoes", "Status"],
     "Calculos": ["Data", "Biologico", "Quimico", "Tempo", "Placa1", "Placa2", "Placa3", "MédiaPlacas", "Diluicao", "ConcObtida", "Dose", "ConcAtivo", "VolumeCalda", "ConcEsperada", "Razao", "Resultado"]
 }
@@ -131,17 +129,48 @@ def get_sheet(sheet_name: str):
         try:
             client = get_google_sheets_client()
             if client is None:
-                st.error("Erro ao conectar com Google Sheets. Tente novamente mais tarde.")
+                print(f"Erro: Não foi possível conectar ao Google Sheets para a planilha {sheet_name}")
                 return None
                 
-            spreadsheet = client.open_by_key(SHEET_ID)
-            sheet = spreadsheet.worksheet(sheet_name)
-            return sheet
+            try:
+                spreadsheet = client.open_by_key(SHEET_ID)
+                
+                # Verificar se a planilha existe usando o GID
+                if sheet_name in SHEET_GIDS:
+                    gid = SHEET_GIDS[sheet_name]
+                    try:
+                        sheet = spreadsheet.get_worksheet_by_id(int(gid))
+                        if sheet is None:
+                            print(f"Erro: Planilha {sheet_name} com GID {gid} não encontrada")
+                            return None
+                        return sheet
+                    except Exception as e:
+                        print(f"Erro ao acessar planilha {sheet_name} com GID {gid}: {str(e)}")
+                        # Tentar acessar pelo nome como fallback
+                        try:
+                            sheet = spreadsheet.worksheet(sheet_name)
+                            return sheet
+                        except:
+                            print(f"Erro: Não foi possível acessar a planilha {sheet_name} nem pelo GID nem pelo nome")
+                            return None
+                else:
+                    # Se não tiver GID, tenta acessar pelo nome
+                    try:
+                        sheet = spreadsheet.worksheet(sheet_name)
+                        return sheet
+                    except Exception as e:
+                        print(f"Erro: Planilha {sheet_name} não encontrada: {str(e)}")
+                        return None
+                        
+            except Exception as e:
+                print(f"Erro ao acessar planilha {sheet_name}: {str(e)}")
+                return None
+                
         except Exception as e:
-            st.error(f"Erro ao acessar planilha {sheet_name}: {str(e)}")
+            print(f"Erro ao conectar com Google Sheets para {sheet_name}: {str(e)}")
             return None
             
-    return retry_with_backoff(_get_sheet, max_retries=5, initial_delay=2)
+    return retry_with_backoff(_get_sheet, max_retries=3, initial_delay=1)
 
 def retry_with_backoff(func, max_retries=5, initial_delay=1):
     """
@@ -160,11 +189,11 @@ def retry_with_backoff(func, max_retries=5, initial_delay=1):
             return func()
         except Exception as e:
             if "Quota exceeded" not in str(e):
-                st.error(f"Erro inesperado: {str(e)}")
+                print(f"Erro inesperado: {str(e)}")
                 return None
                 
             if attempt == max_retries - 1:
-                st.error("Limite de tentativas excedido. Tente novamente mais tarde.")
+                print("Limite de tentativas excedido. Tente novamente mais tarde.")
                 return None
                 
             # Exponential backoff com jitter
@@ -172,7 +201,7 @@ def retry_with_backoff(func, max_retries=5, initial_delay=1):
             time.sleep(delay)
             
             # Informar usuário sobre retry
-            st.warning(f"Limite de requisições atingido. Tentando novamente em {delay:.1f} segundos...")
+            print(f"Limite de requisições atingido. Tentando novamente em {delay:.1f} segundos...")
             
     return None
 
@@ -368,12 +397,20 @@ def _load_and_validate_sheet(sheet_name):
         # Usar a função original para carregar os dados
         df = load_sheet_data(sheet_name)
         
-        if df.empty:
+        # Verificar se o DataFrame está vazio
+        if df is None or df.empty:
+            print(f"Aviso: Planilha '{sheet_name}' está vazia ou não pôde ser carregada.")
+            # Criar um DataFrame vazio com as colunas esperadas
+            if sheet_name in COLUNAS_ESPERADAS:
+                return pd.DataFrame(columns=COLUNAS_ESPERADAS[sheet_name])
             return pd.DataFrame()
         
         # Verificar coluna Nome
         if sheet_name in ["Biologicos", "Quimicos"] and "Nome" not in df.columns:
-            st.error(f"Coluna 'Nome' não encontrada em {sheet_name}")
+            print(f"Aviso: Coluna 'Nome' não encontrada em {sheet_name}")
+            # Criar um DataFrame vazio com as colunas esperadas
+            if sheet_name in COLUNAS_ESPERADAS:
+                return pd.DataFrame(columns=COLUNAS_ESPERADAS[sheet_name])
             return pd.DataFrame()
             
         # Remover linhas com Nome vazio para planilhas que exigem Nome
@@ -386,7 +423,7 @@ def _load_and_validate_sheet(sheet_name):
                 df["Data"] = pd.to_datetime(df["Data"], errors='coerce')
                 df["Data"] = df["Data"].dt.strftime('%d/%m/%Y')
             except Exception as e:
-                st.warning(f"Erro ao processar datas na planilha {sheet_name}: {str(e)}")
+                print(f"Aviso: Erro ao processar datas na planilha {sheet_name}: {str(e)}")
         
         # Garantir que todas as colunas esperadas existam no DataFrame
         if sheet_name in COLUNAS_ESPERADAS:
@@ -399,12 +436,14 @@ def _load_and_validate_sheet(sheet_name):
             
             # Garantir que não há valores None/NaN nas colunas de texto
             for col in df.columns:
-                if col != 'Data' and df[col].dtype == 'object':
-                    df[col] = df[col].fillna("").astype(str)
+                df[col] = df[col].fillna("")
         
         return df
     except Exception as e:
-        st.error(f"Falha crítica ao carregar {sheet_name}: {str(e)}")
+        print(f"Erro ao carregar planilha {sheet_name}: {str(e)}")
+        # Criar um DataFrame vazio com as colunas esperadas
+        if sheet_name in COLUNAS_ESPERADAS:
+            return pd.DataFrame(columns=COLUNAS_ESPERADAS[sheet_name])
         return pd.DataFrame()
 
 def convert_scientific_to_float(value):
