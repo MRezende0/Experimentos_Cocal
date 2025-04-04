@@ -679,7 +679,7 @@ def compatibilidade():
                     st.write(f"**Resultado:** {resultado['Resultado']}")
                     
                     # Observação (se existir)
-                    if "Observacao" in resultado and not pd.isna(resultado['Observacao']) and resultado['Observacao'] != "":
+                    if "Observacao" in resultado and not pd.isna(resultado['Observacao']) and str(resultado['Observacao']).strip() != "":
                         st.write(f"**Observação:** {resultado['Observacao']}")
                     
             else:
@@ -1691,8 +1691,7 @@ def calculos():
     st.markdown("---")
     
     # Campo para observações
-    observacao = st.text_area("Observação", value=st.session_state.get('observacao_calculo', ""), key="observacao_calculo")
-    st.session_state.observacao_calculo = observacao
+    observacao = st.text_area("Observação", key="observacao_calculo")
     
     st.markdown("---")
     
@@ -1761,7 +1760,7 @@ def calculos():
                 "ConcEsperada": "{:.2e}".format(float(concentracao_esperada)),
                 "Razao": round(float(razao), 2),
                 "Resultado": resultado_texto,
-                "Observacao": st.session_state.observacao_calculo
+                "Observacao": st.session_state.get('observacao_calculo', "")
             }
             
             # Adicionar à planilha
