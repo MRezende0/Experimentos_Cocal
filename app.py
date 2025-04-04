@@ -101,7 +101,7 @@ COLUNAS_ESPERADAS = {
     "Biologicos": ["Nome", "Classe", "IngredienteAtivo", "Formulacao", "Dose", "Concentracao", "Fabricante"],
     "Quimicos": ["Nome", "Classe", "Fabricante", "Dose"],
     "Solicitacoes": ["Data", "Solicitante", "Biologico", "Quimico", "Observacoes", "Status"],
-    "Calculos": ["Data", "Biologico", "Quimico", "Tempo", "Placa1", "Placa2", "Placa3", "MédiaPlacas", "Diluicao", "ConcObtida", "Dose", "ConcAtivo", "VolumeCalda", "ConcEsperada", "Razao", "Resultado"]
+    "Calculos": ["Data", "Biologico", "Quimico", "Tempo", "Placa1", "Placa2", "Placa3", "MédiaPlacas", "Diluicao", "ConcObtida", "Dose", "ConcAtivo", "VolumeCalda", "ConcEsperada", "Razao", "Resultado", "Observacao"]
 }
 
 @st.cache_resource
@@ -663,6 +663,7 @@ def compatibilidade():
                             return f"{int(valor)}"
                         elif tipo == "cientifico":
                             return f"{valor:.2e}"
+                        # Garantir que valores pequenos como 0.05 sejam exibidos corretamente
                         return f"{valor:.2f}"
                     
                     # Exibir campos na ordem especificada com unidades de medida
@@ -676,6 +677,10 @@ def compatibilidade():
                         st.write(f"**Razao:** {formatar(resultado['Razao'], 'float')}")                    
                     # Resultado final
                     st.write(f"**Resultado:** {resultado['Resultado']}")
+                    
+                    # Observação (se existir)
+                    if "Observacao" in resultado and not pd.isna(resultado['Observacao']) and resultado['Observacao'] != "":
+                        st.write(f"**Observação:** {resultado['Observacao']}")
                     
             else:
                 # Mostrar aviso de que não existe compatibilidade cadastrada
@@ -893,7 +898,7 @@ def gerenciamento():
                             options=["Suspensão concentrada", "Formulação em óleo", "Pó molhável", "Granulado dispersível"],
                             key="biologico_formulacao"
                         )
-                        st.number_input("Dose (kg/ha ou litro/ha)", value=0.0, step=1.0, key="biologico_dose")
+                        st.number_input("Dose (kg/ha ou litro/ha)", value=0.0, step=0.1, format="%.2f", key="biologico_dose")
                         st.text_input(
                             "Concentração em bula (UFC/g ou UFC/ml)", 
                             help="Digite em notação científica (ex: 1e9)",
@@ -965,7 +970,7 @@ def gerenciamento():
                             "Classe": st.column_config.SelectboxColumn("Classe", options=["Bioestimulante", "Biofungicida", "Bionematicida", "Bioinseticida", "Inoculante"]),
                             "IngredienteAtivo": st.column_config.TextColumn("Ingrediente Ativo"),
                             "Formulacao": st.column_config.SelectboxColumn("Formulação", options=["Suspensão concentrada", "Formulação em óleo", "Pó molhável", "Granulado dispersível"]),
-                            "Dose": st.column_config.NumberColumn("Dose (kg/ha ou litro/ha)", min_value=0.0, step=0.1, format="%.3f"),
+                            "Dose": st.column_config.NumberColumn("Dose (kg/ha ou litro/ha)", min_value=0.0, step=0.1, format="%.2f"),
                             "Concentracao": st.column_config.TextColumn(
                                 "Concentração em bula (UFC/g ou UFC/ml)",
                                 help="Digite em notação científica (ex: 1e9)",
@@ -1101,7 +1106,7 @@ def gerenciamento():
                         st.text_input("Nome do Produto", key="quimico_nome")
                         st.selectbox("Classe", options=["Herbicida", "Fungicida", "Inseticida", "Adjuvante", "Nutricional"], key="quimico_classe")
                     with col2:
-                        st.number_input("Dose (kg/ha ou litro/ha)", value=0.0, step=1.0, key="quimico_dose")
+                        st.number_input("Dose (kg/ha ou litro/ha)", value=0.0, step=0.1, format="%.2f", key="quimico_dose")
                         st.text_input("Fabricante", key="quimico_fabricante")
                     
                     submitted = st.form_submit_button("Adicionar Produto")
@@ -1160,7 +1165,7 @@ def gerenciamento():
                             "Nome": st.column_config.TextColumn("Nome do Produto"),
                             "Classe": st.column_config.SelectboxColumn("Classe", options=["Herbicida", "Fungicida", "Inseticida", "Adjuvante", "Nutricional"]),
                             "Fabricante": st.column_config.TextColumn("Fabricante"),
-                            "Dose": st.column_config.NumberColumn("Dose (kg/ha ou litro/ha)", min_value=0.0, step=0.1)
+                            "Dose": st.column_config.NumberColumn("Dose (kg/ha ou litro/ha)", min_value=0.0, step=0.1, format="%.2f")
                         },
                         use_container_width=True,
                         height=400,
@@ -1456,7 +1461,7 @@ def gerenciamento():
                 # Garantir colunas esperadas
                 colunas_calculos = ["Data", "Biologico", "Quimico", "Tempo", "Placa1", "Placa2", "Placa3", 
                                    "MédiaPlacas", "Diluicao", "ConcObtida", "Dose", "ConcAtivo", 
-                                   "VolumeCalda", "ConcEsperada", "Razao", "Resultado"]
+                                   "VolumeCalda", "ConcEsperada", "Razao", "Resultado", "Observacao"]
                 
                 # Garantir que todas as colunas existam no DataFrame
                 for coluna in colunas_calculos:
@@ -1499,7 +1504,7 @@ def gerenciamento():
                             "MédiaPlacas": st.column_config.NumberColumn("Média Placas", min_value=0, format="%.1f"),
                             "Diluicao": st.column_config.NumberColumn("Diluição", format="%.2e"),
                             "ConcObtida": st.column_config.NumberColumn("Conc. Obtida", format="%.2e"),
-                            "Dose": st.column_config.NumberColumn("Dose", min_value=0, format="%.3f"),
+                            "Dose": st.column_config.NumberColumn("Dose", min_value=0, format="%.2f"),
                             "ConcAtivo": st.column_config.NumberColumn("Conc. Ativo", format="%.2e"),
                             "VolumeCalda": st.column_config.NumberColumn("Volume Calda", min_value=0, format="%.1f"),
                             "ConcEsperada": st.column_config.NumberColumn("Conc. Esperada", format="%.2e"),
@@ -1507,7 +1512,8 @@ def gerenciamento():
                             "Resultado": st.column_config.SelectboxColumn(
                                 "Resultado", 
                                 options=["Compatível", "Compatível (Interação Positiva)", "Incompatível"]
-                            )
+                            ),
+                            "Observacao": st.column_config.TextColumn("Observação")
                         },
                         use_container_width=True,
                         height=400,
@@ -1565,6 +1571,8 @@ def calculos():
         st.session_state.concentracao_esperada = 0.0
     if 'calculo_resultado' not in st.session_state:
         st.session_state.calculo_resultado = None
+    if 'observacao_calculo' not in st.session_state:
+        st.session_state.observacao_calculo = ""
     
     # Seleção de produtos
     st.subheader("Seleção de Produtos")
@@ -1682,6 +1690,12 @@ def calculos():
     
     st.markdown("---")
     
+    # Campo para observações
+    observacao = st.text_area("Observação", value=st.session_state.get('observacao_calculo', ""), key="observacao_calculo")
+    st.session_state.observacao_calculo = observacao
+    
+    st.markdown("---")
+    
     st.header("Resultado Final")
     
     if st.session_state.concentracao_obtida > 0 and st.session_state.concentracao_esperada > 0:
@@ -1741,12 +1755,13 @@ def calculos():
                 "MédiaPlacas": round(float(media_placas), 2),
                 "Diluicao": "{:.2e}".format(float(diluicao)),
                 "ConcObtida": "{:.2e}".format(float(concentracao_obtida)),
-                "Dose": round(float(dose_registrada), 3),
+                "Dose": round(float(dose_registrada), 2),
                 "ConcAtivo": "{:.2e}".format(float(conc_ativo)),
                 "VolumeCalda": int(volume_calda),
                 "ConcEsperada": "{:.2e}".format(float(concentracao_esperada)),
                 "Razao": round(float(razao), 2),
-                "Resultado": resultado_texto
+                "Resultado": resultado_texto,
+                "Observacao": st.session_state.observacao_calculo
             }
             
             # Adicionar à planilha
