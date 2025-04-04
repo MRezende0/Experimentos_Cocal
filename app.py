@@ -890,7 +890,7 @@ def gerenciamento():
                     with col2:
                         st.selectbox(
                             "Formulação", 
-                            options=["Suspensão concentrada", "Formulação em óleo", "Pó molhável", "Formulação em pó", "Granulado dispersível"],
+                            options=["Suspensão concentrada", "Formulação em óleo", "Pó molhável", "Granulado dispersível"],
                             key="biologico_formulacao"
                         )
                         st.number_input("Dose (kg/ha ou litro/ha)", value=0.0, step=1.0, key="biologico_dose")
@@ -964,8 +964,8 @@ def gerenciamento():
                             "Nome": st.column_config.TextColumn("Produto Biológico"),
                             "Classe": st.column_config.SelectboxColumn("Classe", options=["Bioestimulante", "Biofungicida", "Bionematicida", "Bioinseticida", "Inoculante"]),
                             "IngredienteAtivo": st.column_config.TextColumn("Ingrediente Ativo"),
-                            "Formulacao": st.column_config.SelectboxColumn("Formulação", options=["Suspensão concentrada", "Formulação em óleo", "Pó molhável", "Formulação em pó", "Granulado dispersível"]),
-                            "Dose": st.column_config.NumberColumn("Dose (kg/ha ou litro/ha)", min_value=0.0, step=0.1, format="%.2f"),
+                            "Formulacao": st.column_config.SelectboxColumn("Formulação", options=["Suspensão concentrada", "Formulação em óleo", "Pó molhável", "Granulado dispersível"]),
+                            "Dose": st.column_config.NumberColumn("Dose (kg/ha ou litro/ha)", min_value=0.0, step=0.1, format="%.3f"),
                             "Concentracao": st.column_config.TextColumn(
                                 "Concentração em bula (UFC/g ou UFC/ml)",
                                 help="Digite em notação científica (ex: 1e9)",
@@ -1499,7 +1499,7 @@ def gerenciamento():
                             "MédiaPlacas": st.column_config.NumberColumn("Média Placas", min_value=0, format="%.1f"),
                             "Diluicao": st.column_config.NumberColumn("Diluição", format="%.2e"),
                             "ConcObtida": st.column_config.NumberColumn("Conc. Obtida", format="%.2e"),
-                            "Dose": st.column_config.NumberColumn("Dose", min_value=0, format="%.2f"),
+                            "Dose": st.column_config.NumberColumn("Dose", min_value=0, format="%.3f"),
                             "ConcAtivo": st.column_config.NumberColumn("Conc. Ativo", format="%.2e"),
                             "VolumeCalda": st.column_config.NumberColumn("Volume Calda", min_value=0, format="%.1f"),
                             "ConcEsperada": st.column_config.NumberColumn("Conc. Esperada", format="%.2e"),
@@ -1741,7 +1741,7 @@ def calculos():
                 "MédiaPlacas": round(float(media_placas), 2),
                 "Diluicao": "{:.2e}".format(float(diluicao)),
                 "ConcObtida": "{:.2e}".format(float(concentracao_obtida)),
-                "Dose": round(float(dose_registrada), 2),
+                "Dose": round(float(dose_registrada), 3),
                 "ConcAtivo": "{:.2e}".format(float(conc_ativo)),
                 "VolumeCalda": int(volume_calda),
                 "ConcEsperada": "{:.2e}".format(float(concentracao_esperada)),
