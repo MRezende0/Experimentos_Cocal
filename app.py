@@ -100,7 +100,7 @@ SHEET_GIDS = {
 COLUNAS_ESPERADAS = {
     "Biologicos": ["Nome", "Classe", "IngredienteAtivo", "Formulacao", "Dose", "Concentracao", "Fabricante"],
     "Quimicos": ["Nome", "Classe", "Fabricante", "Dose"],
-    "Solicitacoes": ["Data", "Solicitante", "Biologico", "Quimico", "Observacoes", "Status"],
+    "Solicitacoes": ["Data", "Solicitante", "Biologico", "DoseBiologico", "Quimico", "DoseQuimico", "VolumeCalda", "Aplicacao", "Observacoes", "Status"],
     "Calculos": ["Data", "Biologico", "Quimico", "Tempo", "Placa1", "Placa2", "Placa3", "MédiaPlacas", "Diluicao", "ConcObtida", "Dose", "ConcAtivo", "VolumeCalda", "ConcEsperada", "Razao", "Resultado", "Observacao"]
 }
 
@@ -674,7 +674,7 @@ def compatibilidade():
                     
                     # Razão
                     if "Razao" in resultado:
-                        st.write(f"**Razao:** {formatar(resultado['Razao'], 'float')}")                    
+                        st.write(f"**Razao:** {formatar(resultado['Razao'], 'float')}")                 
                     # Resultado final
                     st.write(f"**Resultado:** {resultado['Resultado']}")
                     
@@ -726,8 +726,12 @@ def mostrar_formulario_solicitacao(quimico=None, biologico=None):
         # Obter valores do formulário
         data = st.session_state.data_solicitacao
         solicitante = st.session_state.solicitante
-        quimico_input = st.session_state.quimico_input
         biologico_input = st.session_state.biologico_input
+        dose_biologico = st.session_state.dose_biologico
+        quimico_input = st.session_state.quimico_input
+        dose_quimico = st.session_state.dose_quimico
+        volume_calda = st.session_state.volume_calda
+        aplicacao = st.session_state.aplicacao
         observacoes = st.session_state.observacoes
         
         if not all([solicitante, quimico_input, biologico_input]):
@@ -744,7 +748,11 @@ def mostrar_formulario_solicitacao(quimico=None, biologico=None):
             "Data": data.strftime("%d/%m/%Y"),
             "Solicitante": solicitante,
             "Biologico": biologico_input,
+            "DoseBiologico": dose_biologico,
             "Quimico": quimico_input,
+            "DoseQuimico": dose_quimico,
+            "VolumeCalda": volume_calda,
+            "Aplicacao": aplicacao,
             "Observacoes": observacoes,
             "Status": "Pendente"
         }
@@ -777,11 +785,15 @@ def mostrar_formulario_solicitacao(quimico=None, biologico=None):
         
         with col1:
             st.text_input("Nome do Produto Biológico", value=default_biologico, key="biologico_input")
+            st.text_input("Dose do Produto Biológico (kg/ha ou L/ha)", key="dose_biologico")
             st.text_input("Nome do solicitante", key="solicitante")
+            st.text_input("Volume de Calda (L/ha)", key="volume_calda")
         
         with col2:
             st.text_input("Nome do Produto Químico", value=default_quimico, key="quimico_input")
+            st.text_input("Dose do Produto Químico (kg/ha ou L/ha)", key="dose_quimico")
             st.date_input("Data da Solicitação", value=datetime.now(), key="data_solicitacao", format="DD/MM/YYYY")
+            st.text_input("Aplicação", key="aplicacao")
             
         st.text_area("Observações", key="observacoes")
         
@@ -1226,7 +1238,11 @@ def gerenciamento():
                     st.write(f"**Data:** {st.session_state.gerenciamento_last_submission.get('Data', '')}")
                     st.write(f"**Solicitante:** {st.session_state.gerenciamento_last_submission.get('Solicitante', '')}")
                     st.write(f"**Produto Biológico:** {st.session_state.gerenciamento_last_submission.get('Biologico', '')}")
+                    st.write(f"**Dose do Produto Biológico:** {st.session_state.gerenciamento_last_submission.get('DoseBiologico', '')}")
                     st.write(f"**Produto Químico:** {st.session_state.gerenciamento_last_submission.get('Quimico', '')}")
+                    st.write(f"**Dose do Produto Químico:** {st.session_state.gerenciamento_last_submission.get('DoseQuimico', '')}")
+                    st.write(f"**Volume de Calda:** {st.session_state.gerenciamento_last_submission.get('VolumeCalda', '')}")
+                    st.write(f"**Aplicação:** {st.session_state.gerenciamento_last_submission.get('Aplicacao', '')}")
                     
                     if st.button("Fazer nova solicitação", key="btn_nova_solicitacao_gerenciamento"):
                         st.session_state.gerenciamento_form_submitted = False
@@ -1242,11 +1258,15 @@ def gerenciamento():
                     col1, col2 = st.columns(2)
                     with col1:
                         st.text_input("Produto Biológico", key="solicitacao_biologico")
+                        st.text_input("Dose do Produto Biológico", key="solicitacao_dose_biologico")
                         st.text_input("Nome do solicitante", key="solicitacao_solicitante")
+                        st.text_input("Volume de Calda", key="solicitacao_volume_calda")
                         
                     with col2:
                         st.text_input("Produto Químico", key="solicitacao_quimico")
+                        st.text_input("Dose do Produto Químico", key="solicitacao_dose_quimico")
                         st.date_input("Data da Solicitação", value=datetime.now(), key="solicitacao_data", format="DD/MM/YYYY")
+                        st.text_input("Aplicação", key="solicitacao_aplicacao")
                     
                     st.text_area("Observações", key="solicitacao_observacoes")
                     
@@ -1256,7 +1276,11 @@ def gerenciamento():
                         data = st.session_state.solicitacao_data
                         solicitante = st.session_state.solicitacao_solicitante
                         biologico = st.session_state.solicitacao_biologico
+                        dose_biologico = st.session_state.solicitacao_dose_biologico
                         quimico = st.session_state.solicitacao_quimico
+                        dose_quimico = st.session_state.solicitacao_dose_quimico
+                        volume_calda = st.session_state.solicitacao_volume_calda
+                        aplicacao = st.session_state.solicitacao_aplicacao
                         observacoes = st.session_state.solicitacao_observacoes
                         
                         # Validar campos obrigatórios
@@ -1268,7 +1292,11 @@ def gerenciamento():
                                 "Data": data.strftime("%d/%m/%Y"),
                                 "Solicitante": solicitante,
                                 "Biologico": biologico,
+                                "DoseBiologico": dose_biologico,
                                 "Quimico": quimico,
+                                "DoseQuimico": dose_quimico,
+                                "VolumeCalda": volume_calda,
+                                "Aplicacao": aplicacao,
                                 "Observacoes": observacoes,
                                 "Status": "Pendente"
                             }
@@ -1353,7 +1381,7 @@ def gerenciamento():
                     df_filtrado = df_filtrado[COLUNAS_ESPERADAS["Solicitacoes"]]
                     
                     # Definir ordem explícita das colunas para exibição
-                    column_order = ["Data", "Solicitante", "Biologico", "Quimico", "Observacoes", "Status"]
+                    column_order = ["Data", "Solicitante", "Biologico", "DoseBiologico", "Quimico", "DoseQuimico", "VolumeCalda", "Aplicacao", "Observacoes", "Status"]
                     
                     edited_df = st.data_editor(
                         df_filtrado,
@@ -1363,8 +1391,12 @@ def gerenciamento():
                         column_config={
                             "Data": st.column_config.DateColumn("Data da Solicitação", format="DD/MM/YYYY"),
                             "Solicitante": st.column_config.TextColumn("Solicitante"),
-                            "Biologico": st.column_config.SelectboxColumn("Produto Biológico", options=sorted(dados["biologicos"]["Nome"].unique().tolist())),
-                            "Quimico": st.column_config.SelectboxColumn("Produto Químico", options=sorted(dados["quimicos"]["Nome"].unique().tolist())),
+                            "Biologico": st.column_config.TextColumn("Produto Biológico"),
+                            "DoseBiologico": st.column_config.TextColumn("Dose do Produto Biológico"),
+                            "Quimico": st.column_config.TextColumn("Produto Químico"),
+                            "DoseQuimico": st.column_config.TextColumn("Dose do Produto Químico"),
+                            "VolumeCalda": st.column_config.TextColumn("Volume de Calda"),
+                            "Aplicacao": st.column_config.TextColumn("Aplicação"),
                             "Observacoes": st.column_config.TextColumn("Observações"),
                             "Status": st.column_config.SelectboxColumn("Status", options=["Pendente", "Em Análise", "Concluído", "Cancelado"])
                         },
