@@ -785,13 +785,13 @@ def mostrar_formulario_solicitacao(quimico=None, biologico=None):
         
         with col1:
             st.text_input("Nome do Produto Biológico", value=default_biologico, key="biologico_input")
-            st.text_input("Dose do Produto Biológico (kg/ha ou L/ha)", key="dose_biologico")
+            st.number_input("Dose do Produto Biológico (kg/ha ou L/ha)", min_value=0.0, step=0.01, format="%.3f", key="dose_biologico")
             st.text_input("Nome do solicitante", key="solicitante")
-            st.text_input("Volume de Calda (L/ha)", key="volume_calda")
+            st.number_input("Volume de Calda (L/ha)", min_value=0, step=1, format="%d", key="volume_calda")
         
         with col2:
             st.text_input("Nome do Produto Químico", value=default_quimico, key="quimico_input")
-            st.text_input("Dose do Produto Químico (kg/ha ou L/ha)", key="dose_quimico")
+            st.number_input("Dose do Produto Químico (kg/ha ou L/ha)", min_value=0.0, step=0.01, format="%.3f", key="dose_quimico")
             st.date_input("Data da Solicitação", value=datetime.now(), key="data_solicitacao", format="DD/MM/YYYY")
             st.text_input("Aplicação", key="aplicacao")
             
@@ -1258,13 +1258,13 @@ def gerenciamento():
                     col1, col2 = st.columns(2)
                     with col1:
                         st.text_input("Produto Biológico", key="solicitacao_biologico")
-                        st.text_input("Dose do Produto Biológico", key="solicitacao_dose_biologico")
+                        st.number_input("Dose do Produto Biológico (kg/ha ou L/ha)", min_value=0.0, step=0.01, format="%.3f", key="solicitacao_dose_biologico")
                         st.text_input("Nome do solicitante", key="solicitacao_solicitante")
-                        st.text_input("Volume de Calda", key="solicitacao_volume_calda")
+                        st.number_input("Volume de Calda (L/ha)", min_value=0, step=1, format="%d", key="solicitacao_volume_calda")
                         
                     with col2:
                         st.text_input("Produto Químico", key="solicitacao_quimico")
-                        st.text_input("Dose do Produto Químico", key="solicitacao_dose_quimico")
+                        st.number_input("Dose do Produto Químico (kg/ha ou L/ha)", min_value=0.0, step=0.01, format="%.3f", key="solicitacao_dose_quimico")
                         st.date_input("Data da Solicitação", value=datetime.now(), key="solicitacao_data", format="DD/MM/YYYY")
                         st.text_input("Aplicação", key="solicitacao_aplicacao")
                     
@@ -1392,10 +1392,10 @@ def gerenciamento():
                             "Data": st.column_config.DateColumn("Data da Solicitação", format="DD/MM/YYYY"),
                             "Solicitante": st.column_config.TextColumn("Solicitante"),
                             "Biologico": st.column_config.TextColumn("Produto Biológico"),
-                            "DoseBiologico": st.column_config.TextColumn("Dose do Produto Biológico"),
+                            "DoseBiologico": st.column_config.NumberColumn("Dose do Produto Biológico", min_value=0.0, step=0.01, format="%.3f"),
                             "Quimico": st.column_config.TextColumn("Produto Químico"),
-                            "DoseQuimico": st.column_config.TextColumn("Dose do Produto Químico"),
-                            "VolumeCalda": st.column_config.TextColumn("Volume de Calda"),
+                            "DoseQuimico": st.column_config.NumberColumn("Dose do Produto Químico", min_value=0.0, step=0.01, format="%.3f"),
+                            "VolumeCalda": st.column_config.NumberColumn("Volume de Calda (L/ha)", min_value=0.0, step=1.0, format="%.0f"),
                             "Aplicacao": st.column_config.TextColumn("Aplicação"),
                             "Observacoes": st.column_config.TextColumn("Observações"),
                             "Status": st.column_config.SelectboxColumn("Status", options=["Pendente", "Em Análise", "Concluído", "Cancelado"])
