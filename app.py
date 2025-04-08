@@ -910,7 +910,7 @@ def gerenciamento():
                             options=["Suspensão concentrada", "Formulação em óleo", "Pó molhável", "Granulado dispersível"],
                             key="biologico_formulacao"
                         )
-                        st.number_input("Dose (kg/ha ou litro/ha)", value=0.0, step=0.1, format="%.2f", key="biologico_dose")
+                        st.number_input("Dose (kg/ha ou litro/ha)", value=0.0, step=0.01, format="%.3f", key="biologico_dose")
                         st.text_input(
                             "Concentração em bula (UFC/g ou UFC/ml)", 
                             help="Digite em notação científica (ex: 1e9)",
@@ -982,7 +982,7 @@ def gerenciamento():
                             "Classe": st.column_config.SelectboxColumn("Classe", options=["Bioestimulante", "Biofungicida", "Bionematicida", "Bioinseticida", "Inoculante"]),
                             "IngredienteAtivo": st.column_config.TextColumn("Ingrediente Ativo"),
                             "Formulacao": st.column_config.SelectboxColumn("Formulação", options=["Suspensão concentrada", "Formulação em óleo", "Pó molhável", "Granulado dispersível"]),
-                            "Dose": st.column_config.NumberColumn("Dose (kg/ha ou litro/ha)", min_value=0.0, step=0.1, format="%.2f"),
+                            "Dose": st.column_config.NumberColumn("Dose (kg/ha ou litro/ha)", min_value=0.0, step=0.01, format="%.3f"),
                             "Concentracao": st.column_config.TextColumn(
                                 "Concentração em bula (UFC/g ou UFC/ml)",
                                 help="Digite em notação científica (ex: 1e9)",
@@ -1177,7 +1177,7 @@ def gerenciamento():
                             "Nome": st.column_config.TextColumn("Nome do Produto"),
                             "Classe": st.column_config.SelectboxColumn("Classe", options=["Herbicida", "Fungicida", "Inseticida", "Adjuvante", "Nutricional"]),
                             "Fabricante": st.column_config.TextColumn("Fabricante"),
-                            "Dose": st.column_config.NumberColumn("Dose (kg/ha ou litro/ha)", min_value=0.0, step=0.1, format="%.2f")
+                            "Dose": st.column_config.NumberColumn("Dose (kg/ha ou litro/ha)", min_value=0.0, step=0.01, format="%.3f")
                         },
                         use_container_width=True,
                         height=400,
